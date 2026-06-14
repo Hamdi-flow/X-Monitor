@@ -1,0 +1,1459 @@
+{
+  "updatedAt": "2026-06-09T17:28:22.526Z",
+  "createdAt": "2026-05-25T10:45:41.851Z",
+  "id": "JQ9KM3l1kRJQhWxb",
+  "name": "XMonitor - X OAuth Callback",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "x-oauth-callback",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -3152,
+        -416
+      ],
+      "id": "f1131be9-95ad-4821-a1ff-433f7f6ae98f",
+      "name": "OAuth Callback Webhook",
+      "webhookId": "f0f8c349-d356-4d41-844a-f0f36f1f4061"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query || $json.queryParameters || {};\nconst code = query.code || $json.code;\nconst state = query.state || $json.state;\nconst error = query.error || $json.error;\nconst errorDescription = query.error_description || $json.error_description || '';\n\nif (error) {\n  return [{\n    json: {\n      callback_ok: false,\n      response_text: `X authorization failed: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`,\n    },\n  }];\n}\n\nif (!code || !state) {\n  return [{\n    json: {\n      callback_ok: false,\n      response_text: 'Invalid X authorization callback. Missing code or state.',\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    callback_ok: true,\n    code,\n    state,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2928,
+        -416
+      ],
+      "id": "1dccc546-6efb-409c-950d-a1f569b33d93",
+      "name": "Parse Callback"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a35c6826-20e1-4c3b-a4bb-952b521b6b77",
+              "leftValue": "={{ $json.callback_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2704,
+        -416
+      ],
+      "id": "d263109e-5d90-423c-8b12-d036ab76b34b",
+      "name": "If Callback Is Valid"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "X Auth Sessions",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "state",
+              "condition": "eq",
+              "keyValue": "={{ $json.state }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        -528
+      ],
+      "id": "00972dd7-d1b2-4436-ac6c-9ef2bc135432",
+      "name": "Get Auth Session",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "AlfpYYW0r5zZqDfj",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $json || {};\nconst code = $('Parse Callback').first().json.code;\nconst state = $('Parse Callback').first().json.state;\n\nif (!session.state) {\n  return [{\n    json: {\n      session_ok: false,\n      response_text: 'X authentication session was not found. Please return to Telegram and send /auth_x again.',\n    },\n  }];\n}\n\nconst used = session.used === true || session.used === 'true';\nif (used) {\n  return [{\n    json: {\n      session_ok: false,\n      response_text: 'This X authentication link has already been used. Please return to Telegram and send /auth_x again.',\n    },\n  }];\n}\n\nconst expiresAt = new Date(session.expires_at).getTime();\nif (!expiresAt || Number.isNaN(expiresAt) || expiresAt < Date.now()) {\n  return [{\n    json: {\n      session_ok: false,\n      response_text: 'This X authentication link has expired. Please return to Telegram and send /auth_x again.',\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    session_ok: true,\n    code,\n    state,\n    telegram_chat_id: String(session.telegram_chat_id),\n    code_verifier: session.code_verifier,\n    session_expires_at: session.expires_at,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2224,
+        -528
+      ],
+      "id": "2aa28b10-9637-4a30-83da-42f62d1539aa",
+      "name": "Validate Auth Session"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "73d059f2-52c2-4899-a6c6-d01a2477d273",
+              "leftValue": "={{ $json.session_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2000,
+        -528
+      ],
+      "id": "53d08382-36c9-46d2-94ad-4f43365a0a35",
+      "name": "If Session Is Valid"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TODO: Replace these placeholders after import.\nconst clientId = 'Q285bFM0VUJLdlJHTk82aW5YcVE6MTpjaQ';\nconst clientSecret = 'ZAApmo-Z6kzX-fYYyyWjCffziJfRNP8yVURxEdIgyYmKoea3nH';\nconst redirectUri = 'https://tarek1207.app.n8n.cloud/webhook/x-oauth-callback';\n\nif (\n  clientId === 'YOUR_X_CLIENT_ID' ||\n  clientSecret === 'YOUR_X_CLIENT_SECRET' ||\n  redirectUri === 'YOUR_N8N_CALLBACK_URL'\n) {\n  throw new Error('Replace YOUR_X_CLIENT_ID, YOUR_X_CLIENT_SECRET, and YOUR_N8N_CALLBACK_URL before activating this workflow.');\n}\n\nconst auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');\n\nreturn [{\n  json: {\n    ...$json,\n    redirect_uri: redirectUri,\n    authorization: `Basic ${auth}`,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1744,
+        -640
+      ],
+      "id": "0d208e7d-41ca-4923-a4ca-d2c0fa6df9dd",
+      "name": "Prepare Token Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.x.com/2/oauth2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "authorization_code"
+            },
+            {
+              "name": "code",
+              "value": "={{ $json.code }}"
+            },
+            {
+              "name": "redirect_uri",
+              "value": "={{ $json.redirect_uri }}"
+            },
+            {
+              "name": "code_verifier",
+              "value": "={{ $json.code_verifier }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1520,
+        -640
+      ],
+      "id": "0d800395-4469-4a06-b561-e01ff0c119ca",
+      "name": "Exchange Code For Tokens"
+    },
+    {
+      "parameters": {
+        "url": "https://api.x.com/2/users/me",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1296,
+        -640
+      ],
+      "id": "8860fea2-5575-425a-a2b5-5753b4299728",
+      "name": "Get Authenticated X User"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tokens = $('Exchange Code For Tokens').first().json;\nconst session = $('Validate Auth Session').first().json;\nconst user = $json.data || {};\n\nif (!tokens.access_token) {\n  throw new Error('X token exchange did not return an access_token.');\n}\n\nif (!user.id) {\n  throw new Error('X /2/users/me did not return a user id.');\n}\n\nconst expiresInSeconds = Number(tokens.expires_in || 0);\nconst expiresAt = expiresInSeconds > 0\n  ? new Date(Date.now() + expiresInSeconds * 1000).toISOString()\n  : null;\n\nreturn [{\n  json: {\n    telegram_chat_id: session.telegram_chat_id,\n    state: session.state,\n    code_verifier: session.code_verifier,\n    session_expires_at: session.session_expires_at,\n    x_user_id: String(user.id),\n    x_username: user.username || '',\n    access_token: tokens.access_token,\n    refresh_token: tokens.refresh_token || '',\n    expires_at: expiresAt,\n    scope: tokens.scope || '',\n    updated_at: new Date().toISOString(),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1072,
+        -640
+      ],
+      "id": "a4e3ae91-d8f0-4f71-95bc-bc844f3bc30b",
+      "name": "Prepare Account Row"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "X Auth Accounts",
+          "mode": "list",
+          "cachedResultName": "X Auth Accounts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telegram_chat_id": "={{ $json.telegram_chat_id }}",
+            "x_user_id": "={{ $json.x_user_id }}",
+            "x_username": "={{ $json.x_username }}",
+            "access_token": "={{ $json.access_token }}",
+            "refresh_token": "={{ $json.refresh_token }}",
+            "expires_at": "={{ $json.expires_at }}",
+            "scope": "={{ $json.scope }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "x_user_id"
+          ],
+          "schema": [
+            {
+              "id": "telegram_chat_id",
+              "displayName": "telegram_chat_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "x_user_id",
+              "displayName": "x_user_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "x_username",
+              "displayName": "x_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "access_token",
+              "displayName": "access_token",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "refresh_token",
+              "displayName": "refresh_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "expires_at",
+              "displayName": "expires_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "scope",
+              "displayName": "scope",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -848,
+        -640
+      ],
+      "id": "67e862b4-7e1c-45e6-858c-b1dd52afd754",
+      "name": "Upsert X Auth Account",
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "X Auth Sessions",
+          "mode": "list",
+          "cachedResultName": "X Auth Sessions"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "state": "={{ $('Prepare Account Row').item.json.state }}",
+            "telegram_chat_id": "={{ $('Prepare Account Row').item.json.telegram_chat_id }}",
+            "code_verifier": "={{ $('Prepare Account Row').item.json.code_verifier }}",
+            "expires_at": "={{ $('Prepare Account Row').item.json.session_expires_at }}",
+            "used": true
+          },
+          "matchingColumns": [
+            "state"
+          ],
+          "schema": [
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telegram_chat_id",
+              "displayName": "telegram_chat_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "code_verifier",
+              "displayName": "code_verifier",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "expires_at",
+              "displayName": "expires_at",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "used",
+              "displayName": "used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -624,
+        -640
+      ],
+      "id": "8c7d134a-949e-473d-88ca-6f776c72b9cb",
+      "name": "Mark Auth Session Used",
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Prepare Account Row').item.json.telegram_chat_id }}",
+        "text": "=X account connected successfully: {{ $('Prepare Account Row').item.json.x_username }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -400,
+        -640
+      ],
+      "id": "fb4d30bd-119a-432a-a879-df8f2cf32beb",
+      "name": "Send Telegram Success",
+      "webhookId": "55a1f730-4539-43a7-9f47-a7ca6f66ae55",
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=X account connected successfully: @{{ $('Prepare Account Row').item.json.x_username }}\n\nYou can close this tab and return to Telegram.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -176,
+        -640
+      ],
+      "id": "5547c053-fbb6-42bb-9bd1-19e2edb0e183",
+      "name": "Respond Success"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.response_text }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2448,
+        -304
+      ],
+      "id": "deca34ef-db3a-47f8-9856-168f3ed6aed8",
+      "name": "Respond Callback Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.response_text }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -1744,
+        -416
+      ],
+      "id": "95693f32-7dff-49f2-97e6-f55fb06fcd24",
+      "name": "Respond Session Error"
+    }
+  ],
+  "connections": {
+    "OAuth Callback Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback": {
+      "main": [
+        [
+          {
+            "node": "If Callback Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Callback Is Valid": {
+      "main": [
+        [
+          {
+            "node": "Get Auth Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Auth Session": {
+      "main": [
+        [
+          {
+            "node": "Validate Auth Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Auth Session": {
+      "main": [
+        [
+          {
+            "node": "If Session Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Session Is Valid": {
+      "main": [
+        [
+          {
+            "node": "Prepare Token Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Session Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Token Request": {
+      "main": [
+        [
+          {
+            "node": "Exchange Code For Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exchange Code For Tokens": {
+      "main": [
+        [
+          {
+            "node": "Get Authenticated X User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Authenticated X User": {
+      "main": [
+        [
+          {
+            "node": "Prepare Account Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Account Row": {
+      "main": [
+        [
+          {
+            "node": "Upsert X Auth Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert X Auth Account": {
+      "main": [
+        [
+          {
+            "node": "Mark Auth Session Used",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Auth Session Used": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Success": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
+  "activeVersionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
+  "versionCounter": 32,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-05-25T10:45:41.854Z",
+      "createdAt": "2026-05-25T10:45:41.854Z",
+      "role": "workflow:owner",
+      "workflowId": "JQ9KM3l1kRJQhWxb",
+      "projectId": "HqQCDls654d5OYVX",
+      "project": {
+        "updatedAt": "2026-04-10T14:35:09.715Z",
+        "createdAt": "2026-04-10T14:33:58.687Z",
+        "id": "HqQCDls654d5OYVX",
+        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-06-09T17:28:03.358Z",
+      "createdAt": "2026-06-09T17:28:03.358Z",
+      "id": "PHJBSmdCiEBgM8Lb",
+      "name": "Main"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-05-30T07:58:45Z",
+    "createdAt": "2026-05-30T07:58:36.547Z",
+    "versionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
+    "workflowId": "JQ9KM3l1kRJQhWxb",
+    "nodes": [
+      {
+        "parameters": {
+          "path": "x-oauth-callback",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -3152,
+          -416
+        ],
+        "id": "f1131be9-95ad-4821-a1ff-433f7f6ae98f",
+        "name": "OAuth Callback Webhook",
+        "webhookId": "f0f8c349-d356-4d41-844a-f0f36f1f4061"
+      },
+      {
+        "parameters": {
+          "jsCode": "const query = $json.query || $json.queryParameters || {};\nconst code = query.code || $json.code;\nconst state = query.state || $json.state;\nconst error = query.error || $json.error;\nconst errorDescription = query.error_description || $json.error_description || '';\n\nif (error) {\n  return [{\n    json: {\n      callback_ok: false,\n      response_text: `X authorization failed: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`,\n    },\n  }];\n}\n\nif (!code || !state) {\n  return [{\n    json: {\n      callback_ok: false,\n      response_text: 'Invalid X authorization callback. Missing code or state.',\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    callback_ok: true,\n    code,\n    state,\n  },\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2928,
+          -416
+        ],
+        "id": "1dccc546-6efb-409c-950d-a1f569b33d93",
+        "name": "Parse Callback"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "a35c6826-20e1-4c3b-a4bb-952b521b6b77",
+                "leftValue": "={{ $json.callback_ok }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -2704,
+          -416
+        ],
+        "id": "d263109e-5d90-423c-8b12-d036ab76b34b",
+        "name": "If Callback Is Valid"
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "tableId": "X Auth Sessions",
+          "matchType": "allFilters",
+          "filters": {
+            "conditions": [
+              {
+                "keyName": "state",
+                "condition": "eq",
+                "keyValue": "={{ $json.state }}"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.supabase",
+        "typeVersion": 1,
+        "position": [
+          -2448,
+          -528
+        ],
+        "id": "00972dd7-d1b2-4436-ac6c-9ef2bc135432",
+        "name": "Get Auth Session",
+        "alwaysOutputData": true,
+        "credentials": {
+          "supabaseApi": {
+            "id": "AlfpYYW0r5zZqDfj",
+            "name": "Supabase account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const session = $json || {};\nconst code = $('Parse Callback').first().json.code;\nconst state = $('Parse Callback').first().json.state;\n\nif (!session.state) {\n  return [{\n    json: {\n      session_ok: false,\n      response_text: 'X authentication session was not found. Please return to Telegram and send /auth_x again.',\n    },\n  }];\n}\n\nconst used = session.used === true || session.used === 'true';\nif (used) {\n  return [{\n    json: {\n      session_ok: false,\n      response_text: 'This X authentication link has already been used. Please return to Telegram and send /auth_x again.',\n    },\n  }];\n}\n\nconst expiresAt = new Date(session.expires_at).getTime();\nif (!expiresAt || Number.isNaN(expiresAt) || expiresAt < Date.now()) {\n  return [{\n    json: {\n      session_ok: false,\n      response_text: 'This X authentication link has expired. Please return to Telegram and send /auth_x again.',\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    session_ok: true,\n    code,\n    state,\n    telegram_chat_id: String(session.telegram_chat_id),\n    code_verifier: session.code_verifier,\n    session_expires_at: session.expires_at,\n  },\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2224,
+          -528
+        ],
+        "id": "2aa28b10-9637-4a30-83da-42f62d1539aa",
+        "name": "Validate Auth Session"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "73d059f2-52c2-4899-a6c6-d01a2477d273",
+                "leftValue": "={{ $json.session_ok }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -2000,
+          -528
+        ],
+        "id": "53d08382-36c9-46d2-94ad-4f43365a0a35",
+        "name": "If Session Is Valid"
+      },
+      {
+        "parameters": {
+          "jsCode": "// TODO: Replace these placeholders after import.\nconst clientId = 'Q285bFM0VUJLdlJHTk82aW5YcVE6MTpjaQ';\nconst clientSecret = 'ZAApmo-Z6kzX-fYYyyWjCffziJfRNP8yVURxEdIgyYmKoea3nH';\nconst redirectUri = 'https://tarek1207.app.n8n.cloud/webhook/x-oauth-callback';\n\nif (\n  clientId === 'YOUR_X_CLIENT_ID' ||\n  clientSecret === 'YOUR_X_CLIENT_SECRET' ||\n  redirectUri === 'YOUR_N8N_CALLBACK_URL'\n) {\n  throw new Error('Replace YOUR_X_CLIENT_ID, YOUR_X_CLIENT_SECRET, and YOUR_N8N_CALLBACK_URL before activating this workflow.');\n}\n\nconst auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');\n\nreturn [{\n  json: {\n    ...$json,\n    redirect_uri: redirectUri,\n    authorization: `Basic ${auth}`,\n  },\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1744,
+          -640
+        ],
+        "id": "0d208e7d-41ca-4923-a4ca-d2c0fa6df9dd",
+        "name": "Prepare Token Request"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.x.com/2/oauth2/token",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "={{ $json.authorization }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "form-urlencoded",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "grant_type",
+                "value": "authorization_code"
+              },
+              {
+                "name": "code",
+                "value": "={{ $json.code }}"
+              },
+              {
+                "name": "redirect_uri",
+                "value": "={{ $json.redirect_uri }}"
+              },
+              {
+                "name": "code_verifier",
+                "value": "={{ $json.code_verifier }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -1520,
+          -640
+        ],
+        "id": "0d800395-4469-4a06-b561-e01ff0c119ca",
+        "name": "Exchange Code For Tokens"
+      },
+      {
+        "parameters": {
+          "url": "https://api.x.com/2/users/me",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{ $json.access_token }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -1296,
+          -640
+        ],
+        "id": "8860fea2-5575-425a-a2b5-5753b4299728",
+        "name": "Get Authenticated X User"
+      },
+      {
+        "parameters": {
+          "jsCode": "const tokens = $('Exchange Code For Tokens').first().json;\nconst session = $('Validate Auth Session').first().json;\nconst user = $json.data || {};\n\nif (!tokens.access_token) {\n  throw new Error('X token exchange did not return an access_token.');\n}\n\nif (!user.id) {\n  throw new Error('X /2/users/me did not return a user id.');\n}\n\nconst expiresInSeconds = Number(tokens.expires_in || 0);\nconst expiresAt = expiresInSeconds > 0\n  ? new Date(Date.now() + expiresInSeconds * 1000).toISOString()\n  : null;\n\nreturn [{\n  json: {\n    telegram_chat_id: session.telegram_chat_id,\n    state: session.state,\n    code_verifier: session.code_verifier,\n    session_expires_at: session.session_expires_at,\n    x_user_id: String(user.id),\n    x_username: user.username || '',\n    access_token: tokens.access_token,\n    refresh_token: tokens.refresh_token || '',\n    expires_at: expiresAt,\n    scope: tokens.scope || '',\n    updated_at: new Date().toISOString(),\n  },\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1072,
+          -640
+        ],
+        "id": "a4e3ae91-d8f0-4f71-95bc-bc844f3bc30b",
+        "name": "Prepare Account Row"
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "schema": {
+            "__rl": true,
+            "mode": "list",
+            "value": "public"
+          },
+          "table": {
+            "__rl": true,
+            "value": "X Auth Accounts",
+            "mode": "list",
+            "cachedResultName": "X Auth Accounts"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "telegram_chat_id": "={{ $json.telegram_chat_id }}",
+              "x_user_id": "={{ $json.x_user_id }}",
+              "x_username": "={{ $json.x_username }}",
+              "access_token": "={{ $json.access_token }}",
+              "refresh_token": "={{ $json.refresh_token }}",
+              "expires_at": "={{ $json.expires_at }}",
+              "scope": "={{ $json.scope }}",
+              "updated_at": "={{ $json.updated_at }}"
+            },
+            "matchingColumns": [
+              "x_user_id"
+            ],
+            "schema": [
+              {
+                "id": "telegram_chat_id",
+                "displayName": "telegram_chat_id",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "x_user_id",
+                "displayName": "x_user_id",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "x_username",
+                "displayName": "x_username",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "access_token",
+                "displayName": "access_token",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "refresh_token",
+                "displayName": "refresh_token",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "expires_at",
+                "displayName": "expires_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "scope",
+                "displayName": "scope",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "updated_at",
+                "displayName": "updated_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -848,
+          -640
+        ],
+        "id": "67e862b4-7e1c-45e6-858c-b1dd52afd754",
+        "name": "Upsert X Auth Account",
+        "credentials": {
+          "postgres": {
+            "id": "Usl8p3UJw2s7aMMe",
+            "name": "Supabase Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "schema": {
+            "__rl": true,
+            "mode": "list",
+            "value": "public"
+          },
+          "table": {
+            "__rl": true,
+            "value": "X Auth Sessions",
+            "mode": "list",
+            "cachedResultName": "X Auth Sessions"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "state": "={{ $('Prepare Account Row').item.json.state }}",
+              "telegram_chat_id": "={{ $('Prepare Account Row').item.json.telegram_chat_id }}",
+              "code_verifier": "={{ $('Prepare Account Row').item.json.code_verifier }}",
+              "expires_at": "={{ $('Prepare Account Row').item.json.session_expires_at }}",
+              "used": true
+            },
+            "matchingColumns": [
+              "state"
+            ],
+            "schema": [
+              {
+                "id": "state",
+                "displayName": "state",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "telegram_chat_id",
+                "displayName": "telegram_chat_id",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "code_verifier",
+                "displayName": "code_verifier",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "expires_at",
+                "displayName": "expires_at",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "used",
+                "displayName": "used",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "boolean",
+                "canBeUsedToMatch": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -624,
+          -640
+        ],
+        "id": "8c7d134a-949e-473d-88ca-6f776c72b9cb",
+        "name": "Mark Auth Session Used",
+        "credentials": {
+          "postgres": {
+            "id": "Usl8p3UJw2s7aMMe",
+            "name": "Supabase Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Prepare Account Row').item.json.telegram_chat_id }}",
+          "text": "=X account connected successfully: {{ $('Prepare Account Row').item.json.x_username }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -400,
+          -640
+        ],
+        "id": "fb4d30bd-119a-432a-a879-df8f2cf32beb",
+        "name": "Send Telegram Success",
+        "webhookId": "55a1f730-4539-43a7-9f47-a7ca6f66ae55",
+        "credentials": {
+          "telegramApi": {
+            "id": "93Zba0R65BeREluv",
+            "name": "TrackedUsersManager"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "=X account connected successfully: @{{ $('Prepare Account Row').item.json.x_username }}\n\nYou can close this tab and return to Telegram.",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.4,
+        "position": [
+          -176,
+          -640
+        ],
+        "id": "5547c053-fbb6-42bb-9bd1-19e2edb0e183",
+        "name": "Respond Success"
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ $json.response_text }}",
+          "options": {
+            "responseCode": 400
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.4,
+        "position": [
+          -2448,
+          -304
+        ],
+        "id": "deca34ef-db3a-47f8-9856-168f3ed6aed8",
+        "name": "Respond Callback Error"
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ $json.response_text }}",
+          "options": {
+            "responseCode": 400
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.4,
+        "position": [
+          -1744,
+          -416
+        ],
+        "id": "95693f32-7dff-49f2-97e6-f55fb06fcd24",
+        "name": "Respond Session Error"
+      }
+    ],
+    "connections": {
+      "OAuth Callback Webhook": {
+        "main": [
+          [
+            {
+              "node": "Parse Callback",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Callback": {
+        "main": [
+          [
+            {
+              "node": "If Callback Is Valid",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If Callback Is Valid": {
+        "main": [
+          [
+            {
+              "node": "Get Auth Session",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond Callback Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Auth Session": {
+        "main": [
+          [
+            {
+              "node": "Validate Auth Session",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Auth Session": {
+        "main": [
+          [
+            {
+              "node": "If Session Is Valid",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If Session Is Valid": {
+        "main": [
+          [
+            {
+              "node": "Prepare Token Request",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond Session Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Token Request": {
+        "main": [
+          [
+            {
+              "node": "Exchange Code For Tokens",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Exchange Code For Tokens": {
+        "main": [
+          [
+            {
+              "node": "Get Authenticated X User",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Authenticated X User": {
+        "main": [
+          [
+            {
+              "node": "Prepare Account Row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Account Row": {
+        "main": [
+          [
+            {
+              "node": "Upsert X Auth Account",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Upsert X Auth Account": {
+        "main": [
+          [
+            {
+              "node": "Mark Auth Session Used",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark Auth Session Used": {
+        "main": [
+          [
+            {
+              "node": "Send Telegram Success",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Telegram Success": {
+        "main": [
+          [
+            {
+              "node": "Respond Success",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Hamdi Said",
+    "name": "Version 054aa95c",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-05-30T07:58:45.179Z",
+        "id": 41,
+        "workflowId": "JQ9KM3l1kRJQhWxb",
+        "versionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
+        "event": "activated",
+        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    ]
+  }
+}

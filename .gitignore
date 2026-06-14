@@ -1,0 +1,9 @@
+# Local secrets
+keys.env
+*.env
+!.env.example
+
+# Local editor and Salesforce state
+.vscode/
+.sfdx/
+

@@ -1,0 +1,1956 @@
+{
+  "updatedAt": "2026-06-09T17:30:26.027Z",
+  "createdAt": "2026-04-10T14:43:43.686Z",
+  "id": "Emb26wP77eFXgnVi",
+  "name": "XMonitor - Scheduled Post Tracking",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "2a650cc1-644f-4b62-8e7a-591f0834c29d",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2000,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "Tracked Users",
+        "returnAll": true
+      },
+      "id": "31b975fd-1935-4962-ad11-8e088d1c7629",
+      "name": "Get Tracked Users",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        448
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "AlfpYYW0r5zZqDfj",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const DAYS_AGO = 10;\nconst usernames = [...new Set(\n  $input.all()\n    .map(item => String(item.json.username || '').trim())\n    .filter(Boolean)\n)];\n\nif (usernames.length === 0) {\n  return [];\n}\n\nconst startDate = new Date();\nstartDate.setUTCDate(startDate.getUTCDate() - DAYS_AGO);\n\nreturn [{\n  json: {\n    query: usernames.map(username => `from:${username}`).join(' OR '),\n    start_time: startDate.toISOString(),\n    usernames,\n    user_count: usernames.length,\n  },\n}];"
+      },
+      "id": "0663858e-ff48-4c13-a017-44996a5bebc8",
+      "name": "Build X API Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1328,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.x.com/2/tweets/search/all",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "tweet.fields",
+              "value": "created_at,author_id,text,public_metrics,conversation_id"
+            },
+            {
+              "name": "start_time",
+              "value": "={{ $json.start_time }}"
+            },
+            {
+              "name": "max_results",
+              "value": "50"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c6fbf5b9-b242-47e5-8952-d2fb12280758",
+      "name": "Get posts of tracked users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1104,
+        448
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "GVFVtsc16enrOS6k",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "98ba0f7b-54c8-4e7b-9c02-d6b72b3da87a",
+      "name": "Split Out Posts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const conversationIds = [...new Set(\n  $input.all()\n    .map(item => String(item.json.conversation_id || '').trim())\n    .filter(Boolean)\n)];\n\nif (conversationIds.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    query: conversationIds\n      .map(id => `(conversation_id:${id} is:reply)`)\n      .join(' OR '),\n    conversation_ids: conversationIds,\n    conversation_count: conversationIds.length,\n  },\n}];"
+      },
+      "id": "5ef2e743-8b72-4e8f-b187-e33719feb8ae",
+      "name": "Build Replies Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        448
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "3861d742-5d8e-4011-acd0-50445da1c8c0",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        16,
+        448
+      ],
+      "webhookId": "9b750942-1a65-48e5-9c43-0c0c0b00429e"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.x.com/2/tweets/search/all",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "max_results",
+              "value": "200"
+            },
+            {
+              "name": "tweet.fields",
+              "value": "created_at,conversation_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e86ac5aa-33cb-4634-b154-a1439aa9f246",
+      "name": "Get Replies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        448
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "GVFVtsc16enrOS6k",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      replies: [],\n    },\n  ])\n);\n\nfor (const group of $('Get Replies').all()) {\n  for (const reply of group.json.data || []) {\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    post.replies.push({\n      id: reply.id,\n      text: String(reply.text || '').replace(/\\s+/g, ' ').trim(),\n    });\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results: [...postsByConversation.values()] }),\n  },\n}];"
+      },
+      "id": "896d6f25-8f4b-41d5-a9fb-333196c34a41",
+      "name": "Attach replies to posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a lebanese arabic sentiment labeling engine.\n\nYou will receive a list of posts. for each post, you will be provided the postId, the post Text and a list of replies to that post in the following format:\n{ \"results\": [ {\"postId\" : postId, \"postText\": postText, \"userId\": userId, \"replies\":[ {\"id\": id, \"text\":text}, {\"id\": id, \"text\":text} ] ] }\n\n\nFor each reply, output exactly one label:\nPositive, Negative, or Neutral.\n\nReturn valid JSON only in this exact format:\n{\n  \"results\": [\n{\"postId\" : postId,\n\"postText\": postText,\n\"userId\": userId, \n \"replies\":[\n    {\"id\": id, \"sentiment\": \"Positive\", \"text\":text},\n    {\"id\": id, \"sentiment\": \"Neutral\", \"text\":text}\n ]\n  ]\n}\n\nRules:\n- Keep the same numbering as the input.\n- Make sure the postId and postText stays exactly the same as provided\n- Do not skip any comment.\n- Only use Positive, Negative, or Neutral.\n- Do not include explanations.\n- Output JSON only."
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "id": "e8a8c3a7-85d9-45ac-837d-ee93baddb77e",
+      "name": "Analyze Sentiment with ChatGPT",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        688,
+        448
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nreturn items.map(item => {\n  const posts = parseResults(item).map(post => {\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n    const counts = { positive: 0, neutral: 0, negative: 0 };\n\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(counts, sentiment)) {\n        counts[sentiment] += 1;\n      }\n    }\n\n    const comments_count = replies.length;\n    const negative_ratio = comments_count > 0\n      ? counts.negative / comments_count\n      : 0;\n\n    let overall_tag = 'Neutral';\n    if (counts.positive > counts.neutral && counts.positive > counts.negative) {\n      overall_tag = 'Positive';\n    } else if (counts.negative > counts.neutral && counts.negative > counts.positive) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId,\n      replies,\n      comments_count,\n      positive_count: counts.positive,\n      neutral_count: counts.neutral,\n      negative_count: counts.negative,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n    };\n  });\n\n  return {\n    json: {\n      posts: posts.filter(post => post.negative_ratio >= 0.5),\n    },\n  };\n});"
+      },
+      "id": "c33ad478-d0df-48d2-82af-85755653d278",
+      "name": "Calculate/Filter Sentiment Counts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "posts",
+        "options": {}
+      },
+      "id": "f5e666ec-ffa8-4aa5-a74e-aa2822868ce1",
+      "name": "Split Out Reply Analysis",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "post_id",
+              "value": "={{ $json.postId }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "post_text",
+              "value": "={{ $json.postText }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "comment_count",
+              "value": "={{ $json.comments_count }}",
+              "type": "number"
+            },
+            {
+              "id": "4",
+              "name": "negative_count",
+              "value": "={{ $json.negative_count }}",
+              "type": "number"
+            },
+            {
+              "id": "5",
+              "name": "status",
+              "value": "New",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "user_id",
+              "value": "={{ $json.userId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc142a05-a565-4424-ac22-4f9bc9f366ff",
+      "name": "Prepare Post Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.\"Posts\" (\n  post_id,\n  post_text,\n  comment_count,\n  negative_count,\n  status,\n  user_id,\n  created_at,\n  snooze_runs_remaining\n)\nVALUES ($1, $2, $3, $4, 'New', $5, now(), 0)\nON CONFLICT (post_id) DO UPDATE\nSET\n  post_text = EXCLUDED.post_text,\n  comment_count = EXCLUDED.comment_count,\n  negative_count = EXCLUDED.negative_count,\n  user_id = EXCLUDED.user_id,\n  created_at = now()\nRETURNING post_id, post_text, comment_count, negative_count, status, user_id, created_at, snooze_runs_remaining;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$json.post_id, $json.post_text, $json.comment_count, $json.negative_count, $json.user_id] }}"
+        }
+      },
+      "id": "8fd209fa-22d9-46eb-b71a-5d34deaacac5",
+      "name": "Insert or update posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1712,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allPosts = $(\"Split Out Reply Analysis\").all();\n\nconst allReplies = allPosts.flatMap(post => {\n  const replies = post.json.replies || [];\n  return replies.map(reply => ({\n    ...reply,\n    postId: post.json.postId,\n    postText: post.json.postText\n  }));\n});\n\nreturn allReplies.map(reply => ({ json: reply }));"
+      },
+      "id": "008ae37e-badf-4fc8-ab28-3f70b922f7a2",
+      "name": "Flatten All Replies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "aefb6dea-0b7c-4773-b143-24d263298b38",
+              "leftValue": "={{ $json.sentiment }}",
+              "rightValue": "Negative",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9c565640-064c-4aef-af4b-9a3082c40e13",
+      "name": "Filter Negative Replies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        2160,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "reply_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "post_id",
+              "value": "={{ $json.postId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eb131c99-6190-47dc-83a8-a7727218f127",
+      "name": "Prepare Reply Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2384,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Replies",
+          "mode": "list",
+          "cachedResultName": "Replies"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reply_id": "={{ $json.reply_id }}",
+            "text": "={{ $json.text }}",
+            "post_id": "={{ $json.post_id }}",
+            "created_at": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "reply_id"
+          ],
+          "schema": [
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "reply_id",
+              "displayName": "reply_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "post_id",
+              "displayName": "post_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4c6a4fe2-589d-4d4e-8bf0-4885ba5617d6",
+      "name": "Insert or update replies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2608,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "Telegram Users",
+        "returnAll": true,
+        "filterType": "none"
+      },
+      "id": "95ec11f8-302d-4eb3-9272-b78f0b40ffe2",
+      "name": "Get Telegram Users",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2832,
+        448
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "AlfpYYW0r5zZqDfj",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.snooze_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.snooze_callback_data }}"
+                    }
+                  },
+                  {
+                    "text": "={{ $json.ignore_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.ignore_callback_data }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.hide_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.hide_callback_data }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Order Likes",
+                    "additionalFields": {
+                      "callback_data": "={{ '/order_likes ' + $json.post_id }}"
+                    }
+                  },
+                  {
+                    "text": "Order Comments",
+                    "additionalFields": {
+                      "callback_data": "={{ '/order_comments ' + $json.post_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "092bfa52-5113-4ba7-ad97-232403176b3d",
+      "name": "Send Negative Alert Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3280,
+        448
+      ],
+      "webhookId": "318cc0a3-b593-4b7d-8228-f9ac8bfd21d5",
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts = $('Split Out Reply Analysis').all().map(item => item.json || {});\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nif (posts.length === 0) {\n  return [];\n}\n\nreturn $input.all()\n  .map(item => item.json || {})\n  .filter(user => user.chat_id)\n  .flatMap(user => posts.map((post, index) => {\n    const postId = String(post.postId || '');\n    const text = escapeHtml(post.postText || '');\n    const replies = post.comments_count ?? 0;\n    const negativePercentage = post.negative_percentage ?? 0;\n    const overall = escapeHtml(post.overall_tag || 'Negative');\n    const tweetUrl = `https://x.com/i/web/status/${postId}`;\n\n    const message = `⚠️ Negative Sentiment Alert\\n\\n🚨 Post #${index + 1}\\n🆔 ID: <code>${postId}</code>\\n🔗 Link: ${tweetUrl}\\n📝 Text: ${text}\\n💬 Replies: ${replies}\\n📊 Negative Sentiment: ${negativePercentage}%\\n🏷️ Overall: ${overall}`;\n\n    return {\n      json: {\n        chat_id: user.chat_id,\n        post_id: postId,\n        message,\n        snooze_button_text: 'Snooze',\n        snooze_callback_data: `snooze:${postId}`,\n        ignore_button_text: 'Ignore',\n        ignore_callback_data: `ignore:${postId}`,\n        hide_button_text: `Hide replies for Post #${index + 1}`,\n        hide_callback_data: `hide_replies:${postId}`,\n      },\n    };\n  }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3056,
+        448
+      ],
+      "id": "c4c98c1f-c271-4b38-9377-64942a3170cd",
+      "name": "Build Negative Alert Notification",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH blocked AS (\n  SELECT post_id\n  FROM public.\"Posts\"\n  WHERE status IN ('Ignored', 'Snoozed')\n),\nadvanced AS (\n  UPDATE public.\"Posts\"\n  SET\n    snooze_runs_remaining = GREATEST(snooze_runs_remaining - 1, 0),\n    status = CASE\n      WHEN snooze_runs_remaining <= 1 THEN 'New'\n      ELSE 'Snoozed'\n    END\n  WHERE status = 'Snoozed'\n  RETURNING post_id\n)\nSELECT COALESCE(array_agg(post_id), ARRAY[]::text[]) AS blocked_post_ids\nFROM blocked;",
+        "options": {}
+      },
+      "id": "dd75fcc3-fd14-4ae8-81ea-b4a07e530ac5",
+      "name": "Advance Post Suppression State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1776,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all().filter(item => !blocked.has(String(item.json.id || '')));"
+      },
+      "id": "c94ecc4b-4d17-4c54-ad2b-a5664b2048ca",
+      "name": "Filter Suppressed Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a5a9f6cf-61ca-4352-8f32-3aa762ea2e2f",
+              "leftValue": "={{ $json.public_metrics.reply_count }}",
+              "rightValue": 10,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "18a2e897-ba32-45ab-a1c1-306070c04ef6",
+      "name": "Keep Posts With 10+ Replies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -432,
+        448
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Advance Post Suppression State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tracked Users": {
+      "main": [
+        [
+          {
+            "node": "Build X API Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build X API Query": {
+      "main": [
+        [
+          {
+            "node": "Get posts of tracked users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get posts of tracked users": {
+      "main": [
+        [
+          {
+            "node": "Split Out Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Posts": {
+      "main": [
+        [
+          {
+            "node": "Filter Suppressed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Replies Query": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Replies": {
+      "main": [
+        [
+          {
+            "node": "Attach replies to posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach replies to posts": {
+      "main": [
+        [
+          {
+            "node": "Analyze Sentiment with ChatGPT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Sentiment with ChatGPT": {
+      "main": [
+        [
+          {
+            "node": "Calculate/Filter Sentiment Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate/Filter Sentiment Counts": {
+      "main": [
+        [
+          {
+            "node": "Split Out Reply Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Reply Analysis": {
+      "main": [
+        [
+          {
+            "node": "Prepare Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Post Data": {
+      "main": [
+        [
+          {
+            "node": "Insert or update posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert or update posts": {
+      "main": [
+        [
+          {
+            "node": "Flatten All Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten All Replies": {
+      "main": [
+        [
+          {
+            "node": "Filter Negative Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Negative Replies": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reply Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reply Data": {
+      "main": [
+        [
+          {
+            "node": "Insert or update replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert or update replies": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Telegram Users": {
+      "main": [
+        [
+          {
+            "node": "Build Negative Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Negative Alert Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Negative Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advance Post Suppression State": {
+      "main": [
+        [
+          {
+            "node": "Get Tracked Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Suppressed Posts": {
+      "main": [
+        [
+          {
+            "node": "Keep Posts With 10+ Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Posts With 10+ Replies": {
+      "main": [
+        [
+          {
+            "node": "Build Replies Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "df83833e-01d1-4297-8d4f-23837aa69820",
+  "activeVersionId": "97dd49ef-b058-441b-b0a8-007aa113e965",
+  "versionCounter": 1693,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-04-10T14:43:43.688Z",
+      "createdAt": "2026-04-10T14:43:43.688Z",
+      "role": "workflow:owner",
+      "workflowId": "Emb26wP77eFXgnVi",
+      "projectId": "HqQCDls654d5OYVX",
+      "project": {
+        "updatedAt": "2026-04-10T14:35:09.715Z",
+        "createdAt": "2026-04-10T14:33:58.687Z",
+        "id": "HqQCDls654d5OYVX",
+        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-06-09T17:28:03.358Z",
+      "createdAt": "2026-06-09T17:28:03.358Z",
+      "id": "PHJBSmdCiEBgM8Lb",
+      "name": "Main"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-06-09T17:28:41Z",
+    "createdAt": "2026-06-07T12:40:13.759Z",
+    "versionId": "97dd49ef-b058-441b-b0a8-007aa113e965",
+    "workflowId": "Emb26wP77eFXgnVi",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 30
+              }
+            ]
+          }
+        },
+        "id": "2a650cc1-644f-4b62-8e7a-591f0834c29d",
+        "name": "Schedule Trigger",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -2000,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "tableId": "Tracked Users",
+          "returnAll": true
+        },
+        "id": "31b975fd-1935-4962-ad11-8e088d1c7629",
+        "name": "Get Tracked Users",
+        "type": "n8n-nodes-base.supabase",
+        "typeVersion": 1,
+        "position": [
+          -1552,
+          448
+        ],
+        "credentials": {
+          "supabaseApi": {
+            "id": "AlfpYYW0r5zZqDfj",
+            "name": "Supabase account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const DAYS_AGO = 10;\nconst usernames = [...new Set(\n  $input.all()\n    .map(item => String(item.json.username || '').trim())\n    .filter(Boolean)\n)];\n\nif (usernames.length === 0) {\n  return [];\n}\n\nconst startDate = new Date();\nstartDate.setUTCDate(startDate.getUTCDate() - DAYS_AGO);\n\nreturn [{\n  json: {\n    query: usernames.map(username => `from:${username}`).join(' OR '),\n    start_time: startDate.toISOString(),\n    usernames,\n    user_count: usernames.length,\n  },\n}];"
+        },
+        "id": "0663858e-ff48-4c13-a017-44996a5bebc8",
+        "name": "Build X API Query",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1328,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "url": "=https://api.x.com/2/tweets/search/all",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "query",
+                "value": "={{ $json.query }}"
+              },
+              {
+                "name": "tweet.fields",
+                "value": "created_at,author_id,text,public_metrics,conversation_id"
+              },
+              {
+                "name": "start_time",
+                "value": "={{ $json.start_time }}"
+              },
+              {
+                "name": "max_results",
+                "value": "50"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "c6fbf5b9-b242-47e5-8952-d2fb12280758",
+        "name": "Get posts of tracked users",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -1104,
+          448
+        ],
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "GVFVtsc16enrOS6k",
+            "name": "Bearer Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fieldToSplitOut": "data",
+          "options": {}
+        },
+        "id": "98ba0f7b-54c8-4e7b-9c02-d6b72b3da87a",
+        "name": "Split Out Posts",
+        "type": "n8n-nodes-base.splitOut",
+        "typeVersion": 1,
+        "position": [
+          -880,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "a5a9f6cf-61ca-4352-8f32-3aa762ea2e2f",
+                "leftValue": "={{ $json.public_metrics.reply_count }}",
+                "rightValue": 10,
+                "operator": {
+                  "type": "number",
+                  "operation": "gte"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "18a2e897-ba32-45ab-a1c1-306070c04ef6",
+        "name": "Keep Posts With 2+ Replies",
+        "type": "n8n-nodes-base.filter",
+        "typeVersion": 2.3,
+        "position": [
+          -432,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const conversationIds = [...new Set(\n  $input.all()\n    .map(item => String(item.json.conversation_id || '').trim())\n    .filter(Boolean)\n)];\n\nif (conversationIds.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    query: conversationIds\n      .map(id => `(conversation_id:${id} is:reply)`)\n      .join(' OR '),\n    conversation_ids: conversationIds,\n    conversation_count: conversationIds.length,\n  },\n}];"
+        },
+        "id": "5ef2e743-8b72-4e8f-b187-e33719feb8ae",
+        "name": "Build Replies Query",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -208,
+          448
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "3861d742-5d8e-4011-acd0-50445da1c8c0",
+        "name": "Wait",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          16,
+          448
+        ],
+        "webhookId": "9b750942-1a65-48e5-9c43-0c0c0b00429e"
+      },
+      {
+        "parameters": {
+          "url": "=https://api.x.com/2/tweets/search/all",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "query",
+                "value": "={{ $json.query }}"
+              },
+              {
+                "name": "max_results",
+                "value": "200"
+              },
+              {
+                "name": "tweet.fields",
+                "value": "created_at,conversation_id"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "e86ac5aa-33cb-4634-b154-a1439aa9f246",
+        "name": "Get Replies",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          240,
+          448
+        ],
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "GVFVtsc16enrOS6k",
+            "name": "Bearer Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const postsByConversation = new Map(\n  $('Keep Posts With 2+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      replies: [],\n    },\n  ])\n);\n\nfor (const group of $('Get Replies').all()) {\n  for (const reply of group.json.data || []) {\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    post.replies.push({\n      id: reply.id,\n      text: String(reply.text || '').replace(/\\s+/g, ' ').trim(),\n    });\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results: [...postsByConversation.values()] }),\n  },\n}];"
+        },
+        "id": "896d6f25-8f4b-41d5-a9fb-333196c34a41",
+        "name": "Attach replies to posts",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          464,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "gpt-4o-mini"
+          },
+          "responses": {
+            "values": [
+              {
+                "role": "system",
+                "content": "You are a lebanese arabic sentiment labeling engine.\n\nYou will receive a list of posts. for each post, you will be provided the postId, the post Text and a list of replies to that post in the following format:\n{ \"results\": [ {\"postId\" : postId, \"postText\": postText, \"userId\": userId, \"replies\":[ {\"id\": id, \"text\":text}, {\"id\": id, \"text\":text} ] ] }\n\n\nFor each reply, output exactly one label:\nPositive, Negative, or Neutral.\n\nReturn valid JSON only in this exact format:\n{\n  \"results\": [\n{\"postId\" : postId,\n\"postText\": postText,\n\"userId\": userId, \n \"replies\":[\n    {\"id\": id, \"sentiment\": \"Positive\", \"text\":text},\n    {\"id\": id, \"sentiment\": \"Neutral\", \"text\":text}\n ]\n  ]\n}\n\nRules:\n- Keep the same numbering as the input.\n- Make sure the postId and postText stays exactly the same as provided\n- Do not skip any comment.\n- Only use Positive, Negative, or Neutral.\n- Do not include explanations.\n- Output JSON only."
+              },
+              {
+                "content": "={{ $json.text }}"
+              }
+            ]
+          },
+          "builtInTools": {},
+          "options": {
+            "textFormat": {
+              "textOptions": {
+                "type": "json_object"
+              }
+            }
+          }
+        },
+        "id": "e8a8c3a7-85d9-45ac-837d-ee93baddb77e",
+        "name": "Analyze Sentiment with ChatGPT",
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 2.1,
+        "position": [
+          688,
+          448
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "Valu7LAYDqkPgcyU",
+            "name": "OpenAi account 2"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nreturn items.map(item => {\n  const posts = parseResults(item).map(post => {\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n    const counts = { positive: 0, neutral: 0, negative: 0 };\n\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(counts, sentiment)) {\n        counts[sentiment] += 1;\n      }\n    }\n\n    const comments_count = replies.length;\n    const negative_ratio = comments_count > 0\n      ? counts.negative / comments_count\n      : 0;\n\n    let overall_tag = 'Neutral';\n    if (counts.positive > counts.neutral && counts.positive > counts.negative) {\n      overall_tag = 'Positive';\n    } else if (counts.negative > counts.neutral && counts.negative > counts.positive) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId,\n      replies,\n      comments_count,\n      positive_count: counts.positive,\n      neutral_count: counts.neutral,\n      negative_count: counts.negative,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n    };\n  });\n\n  return {\n    json: {\n      posts: posts.filter(post => post.negative_ratio >= 0.5),\n    },\n  };\n});"
+        },
+        "id": "c33ad478-d0df-48d2-82af-85755653d278",
+        "name": "Calculate/Filter Sentiment Counts",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1040,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "fieldToSplitOut": "posts",
+          "options": {}
+        },
+        "id": "f5e666ec-ffa8-4aa5-a74e-aa2822868ce1",
+        "name": "Split Out Reply Analysis",
+        "type": "n8n-nodes-base.splitOut",
+        "typeVersion": 1,
+        "position": [
+          1264,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "1",
+                "name": "post_id",
+                "value": "={{ $json.postId }}",
+                "type": "string"
+              },
+              {
+                "id": "2",
+                "name": "post_text",
+                "value": "={{ $json.postText }}",
+                "type": "string"
+              },
+              {
+                "id": "3",
+                "name": "comment_count",
+                "value": "={{ $json.comments_count }}",
+                "type": "number"
+              },
+              {
+                "id": "4",
+                "name": "negative_count",
+                "value": "={{ $json.negative_count }}",
+                "type": "number"
+              },
+              {
+                "id": "5",
+                "name": "status",
+                "value": "New",
+                "type": "string"
+              },
+              {
+                "id": "6",
+                "name": "user_id",
+                "value": "={{ $json.userId }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "cc142a05-a565-4424-ac22-4f9bc9f366ff",
+        "name": "Prepare Post Data",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1488,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO public.\"Posts\" (\n  post_id,\n  post_text,\n  comment_count,\n  negative_count,\n  status,\n  user_id,\n  created_at,\n  snooze_runs_remaining\n)\nVALUES ($1, $2, $3, $4, 'New', $5, now(), 0)\nON CONFLICT (post_id) DO UPDATE\nSET\n  post_text = EXCLUDED.post_text,\n  comment_count = EXCLUDED.comment_count,\n  negative_count = EXCLUDED.negative_count,\n  user_id = EXCLUDED.user_id,\n  created_at = now()\nRETURNING post_id, post_text, comment_count, negative_count, status, user_id, created_at, snooze_runs_remaining;",
+          "options": {
+            "queryBatching": "independently",
+            "queryReplacement": "={{ [$json.post_id, $json.post_text, $json.comment_count, $json.negative_count, $json.user_id] }}"
+          }
+        },
+        "id": "8fd209fa-22d9-46eb-b71a-5d34deaacac5",
+        "name": "Insert or update posts",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1712,
+          448
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "Usl8p3UJw2s7aMMe",
+            "name": "Supabase Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const allPosts = $(\"Split Out Reply Analysis\").all();\n\nconst allReplies = allPosts.flatMap(post => {\n  const replies = post.json.replies || [];\n  return replies.map(reply => ({\n    ...reply,\n    postId: post.json.postId,\n    postText: post.json.postText\n  }));\n});\n\nreturn allReplies.map(reply => ({ json: reply }));"
+        },
+        "id": "008ae37e-badf-4fc8-ab28-3f70b922f7a2",
+        "name": "Flatten All Replies",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1936,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "aefb6dea-0b7c-4773-b143-24d263298b38",
+                "leftValue": "={{ $json.sentiment }}",
+                "rightValue": "Negative",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "9c565640-064c-4aef-af4b-9a3082c40e13",
+        "name": "Filter Negative Replies",
+        "type": "n8n-nodes-base.filter",
+        "typeVersion": 2.3,
+        "position": [
+          2160,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "1",
+                "name": "reply_id",
+                "value": "={{ $json.id }}",
+                "type": "string"
+              },
+              {
+                "id": "2",
+                "name": "text",
+                "value": "={{ $json.text }}",
+                "type": "string"
+              },
+              {
+                "id": "3",
+                "name": "post_id",
+                "value": "={{ $json.postId }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "eb131c99-6190-47dc-83a8-a7727218f127",
+        "name": "Prepare Reply Data",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          2384,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "upsert",
+          "schema": {
+            "__rl": true,
+            "mode": "list",
+            "value": "public"
+          },
+          "table": {
+            "__rl": true,
+            "value": "Replies",
+            "mode": "list",
+            "cachedResultName": "Replies"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "reply_id": "={{ $json.reply_id }}",
+              "text": "={{ $json.text }}",
+              "post_id": "={{ $json.post_id }}",
+              "created_at": "={{ $now }}"
+            },
+            "matchingColumns": [
+              "reply_id"
+            ],
+            "schema": [
+              {
+                "id": "created_at",
+                "displayName": "created_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "reply_id",
+                "displayName": "reply_id",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "text",
+                "displayName": "text",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "post_id",
+                "displayName": "post_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "4c6a4fe2-589d-4d4e-8bf0-4885ba5617d6",
+        "name": "Insert or update replies",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2608,
+          448
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "Usl8p3UJw2s7aMMe",
+            "name": "Supabase Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "tableId": "Telegram Users",
+          "returnAll": true,
+          "filterType": "none"
+        },
+        "id": "95ec11f8-302d-4eb3-9272-b78f0b40ffe2",
+        "name": "Get Telegram Users",
+        "type": "n8n-nodes-base.supabase",
+        "typeVersion": 1,
+        "position": [
+          2832,
+          448
+        ],
+        "credentials": {
+          "supabaseApi": {
+            "id": "AlfpYYW0r5zZqDfj",
+            "name": "Supabase account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "={{ $json.message }}",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "={{ $json.snooze_button_text }}",
+                      "additionalFields": {
+                        "callback_data": "={{ $json.snooze_callback_data }}"
+                      }
+                    },
+                    {
+                      "text": "={{ $json.ignore_button_text }}",
+                      "additionalFields": {
+                        "callback_data": "={{ $json.ignore_callback_data }}"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "={{ $json.hide_button_text }}",
+                      "additionalFields": {
+                        "callback_data": "={{ $json.hide_callback_data }}"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "Order Likes",
+                      "additionalFields": {
+                        "callback_data": "={{ '/order_likes ' + $json.post_id }}"
+                      }
+                    },
+                    {
+                      "text": "Order Comments",
+                      "additionalFields": {
+                        "callback_data": "={{ '/order_comments ' + $json.post_id }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "additionalFields": {
+            "appendAttribution": false,
+            "disable_web_page_preview": true,
+            "parse_mode": "HTML"
+          }
+        },
+        "id": "092bfa52-5113-4ba7-ad97-232403176b3d",
+        "name": "Send Negative Alert Notification",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          3280,
+          448
+        ],
+        "webhookId": "318cc0a3-b593-4b7d-8228-f9ac8bfd21d5",
+        "credentials": {
+          "telegramApi": {
+            "id": "93Zba0R65BeREluv",
+            "name": "TrackedUsersManager"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const posts = $('Split Out Reply Analysis').all().map(item => item.json || {});\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nif (posts.length === 0) {\n  return [];\n}\n\nreturn $input.all()\n  .map(item => item.json || {})\n  .filter(user => user.chat_id)\n  .flatMap(user => posts.map((post, index) => {\n    const postId = String(post.postId || '');\n    const text = escapeHtml(post.postText || '');\n    const replies = post.comments_count ?? 0;\n    const negativePercentage = post.negative_percentage ?? 0;\n    const overall = escapeHtml(post.overall_tag || 'Negative');\n    const tweetUrl = `https://x.com/i/web/status/${postId}`;\n\n    const message = `⚠️ Negative Sentiment Alert\\n\\n🚨 Post #${index + 1}\\n🆔 ID: <code>${postId}</code>\\n🔗 Link: ${tweetUrl}\\n📝 Text: ${text}\\n💬 Replies: ${replies}\\n📊 Negative Sentiment: ${negativePercentage}%\\n🏷️ Overall: ${overall}`;\n\n    return {\n      json: {\n        chat_id: user.chat_id,\n        post_id: postId,\n        message,\n        snooze_button_text: 'Snooze',\n        snooze_callback_data: `snooze:${postId}`,\n        ignore_button_text: 'Ignore',\n        ignore_callback_data: `ignore:${postId}`,\n        hide_button_text: `Hide replies for Post #${index + 1}`,\n        hide_callback_data: `hide_replies:${postId}`,\n      },\n    };\n  }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3056,
+          448
+        ],
+        "id": "c4c98c1f-c271-4b38-9377-64942a3170cd",
+        "name": "Build Negative Alert Notification",
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH blocked AS (\n  SELECT post_id\n  FROM public.\"Posts\"\n  WHERE status IN ('Ignored', 'Snoozed')\n),\nadvanced AS (\n  UPDATE public.\"Posts\"\n  SET\n    snooze_runs_remaining = GREATEST(snooze_runs_remaining - 1, 0),\n    status = CASE\n      WHEN snooze_runs_remaining <= 1 THEN 'New'\n      ELSE 'Snoozed'\n    END\n  WHERE status = 'Snoozed'\n  RETURNING post_id\n)\nSELECT COALESCE(array_agg(post_id), ARRAY[]::text[]) AS blocked_post_ids\nFROM blocked;",
+          "options": {}
+        },
+        "id": "dd75fcc3-fd14-4ae8-81ea-b4a07e530ac5",
+        "name": "Advance Post Suppression State",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -1776,
+          448
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "Usl8p3UJw2s7aMMe",
+            "name": "Supabase Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all().filter(item => !blocked.has(String(item.json.id || '')));"
+        },
+        "id": "c94ecc4b-4d17-4c54-ad2b-a5664b2048ca",
+        "name": "Filter Suppressed Posts",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -656,
+          448
+        ]
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Advance Post Suppression State",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Tracked Users": {
+        "main": [
+          [
+            {
+              "node": "Build X API Query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build X API Query": {
+        "main": [
+          [
+            {
+              "node": "Get posts of tracked users",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get posts of tracked users": {
+        "main": [
+          [
+            {
+              "node": "Split Out Posts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split Out Posts": {
+        "main": [
+          [
+            {
+              "node": "Filter Suppressed Posts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Keep Posts With 2+ Replies": {
+        "main": [
+          [
+            {
+              "node": "Build Replies Query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Replies Query": {
+        "main": [
+          [
+            {
+              "node": "Wait",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait": {
+        "main": [
+          [
+            {
+              "node": "Get Replies",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Replies": {
+        "main": [
+          [
+            {
+              "node": "Attach replies to posts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Attach replies to posts": {
+        "main": [
+          [
+            {
+              "node": "Analyze Sentiment with ChatGPT",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Analyze Sentiment with ChatGPT": {
+        "main": [
+          [
+            {
+              "node": "Calculate/Filter Sentiment Counts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Calculate/Filter Sentiment Counts": {
+        "main": [
+          [
+            {
+              "node": "Split Out Reply Analysis",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split Out Reply Analysis": {
+        "main": [
+          [
+            {
+              "node": "Prepare Post Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Post Data": {
+        "main": [
+          [
+            {
+              "node": "Insert or update posts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Insert or update posts": {
+        "main": [
+          [
+            {
+              "node": "Flatten All Replies",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Flatten All Replies": {
+        "main": [
+          [
+            {
+              "node": "Filter Negative Replies",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Negative Replies": {
+        "main": [
+          [
+            {
+              "node": "Prepare Reply Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Reply Data": {
+        "main": [
+          [
+            {
+              "node": "Insert or update replies",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Insert or update replies": {
+        "main": [
+          [
+            {
+              "node": "Get Telegram Users",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Telegram Users": {
+        "main": [
+          [
+            {
+              "node": "Build Negative Alert Notification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Negative Alert Notification": {
+        "main": [
+          [
+            {
+              "node": "Send Negative Alert Notification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Advance Post Suppression State": {
+        "main": [
+          [
+            {
+              "node": "Get Tracked Users",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Suppressed Posts": {
+        "main": [
+          [
+            {
+              "node": "Keep Posts With 2+ Replies",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Hamdi Said",
+    "name": "Version 97dd49ef",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-09T17:28:41.386Z",
+        "id": 60,
+        "workflowId": "Emb26wP77eFXgnVi",
+        "versionId": "97dd49ef-b058-441b-b0a8-007aa113e965",
+        "event": "activated",
+        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    ]
+  }
+}
