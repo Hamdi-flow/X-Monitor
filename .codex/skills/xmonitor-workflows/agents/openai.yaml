@@ -1,0 +1,3 @@
+display_name: XMonitor Workflows
+short_description: Modify, test, commit, and push XMonitor staging workflow changes safely.
+default_prompt: Use this skill when changing, testing, committing, or pushing XMonitor n8n workflow work.
