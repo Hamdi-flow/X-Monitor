@@ -15,7 +15,8 @@ Use this skill for XMonitor workflow changes and validation. Keep the process si
   - Inspect with `get_workflow_details`.
   - Modify with `update_workflow`.
   - Execute/test with `test_workflow`, `execute_workflow`, and `get_execution`.
-- If n8n MCP returns an OAuth/authentication-required error, stop and ask the user to reauthorize the MCP connection before making workflow edits. Do not silently fall back to REST for MCP auth failures.
+- Use bearer-token authentication for the project n8n MCP. Do not use interactive OAuth as the normal path; n8n's MCP access token is already stored as `N8N_MCP_ACCESS_TOKEN` in the ignored `keys.env` file.
+- If n8n MCP returns an authentication-required error, follow **Stable n8n MCP Authentication** before asking the user to take manual action. Do not silently fall back to REST for MCP auth failures.
 - If a workflow is not MCP-enabled after MCP auth is valid, use the n8n REST API from `keys.env` only when needed, and report that MCP could not access it.
 - Prefer the Supabase MCP for any direct staging database inspection, cleanup, schema work, or SQL verification. The project Supabase MCP server is `supabase` at `https://mcp.supabase.com/mcp?project_ref=npytqidroqxgikaqofmq`.
 - If a Supabase task comes up and Supabase MCP tools are not visible in the current Codex session, first check `codex mcp list`. If the `supabase` server is present but tools are unavailable or auth is stale, ask the user to reauthenticate/reload the MCP session before falling back to n8n-mediated database access.
@@ -27,6 +28,22 @@ Use this skill for XMonitor workflow changes and validation. Keep the process si
   - OpenAI: `OpenAi account 2`
 - Keep local exports in sync after live workflow edits when the repo has a matching file under `workflows/staging/`.
 - Never print secrets, access tokens, refresh tokens, API keys, or full credential bodies. Summarize as present/missing.
+
+## Stable n8n MCP Authentication
+
+Register `xmonitor-staging` with Codex's `--bearer-token-env-var` option so normal sessions do not require browser authorization:
+
+1. Run `scripts/configure-n8n-mcp.ps1` from the repository root. It reads `N8N_MCP_URL` and `N8N_MCP_ACCESS_TOKEN` from ignored `keys.env`, stores the token in the current Windows user's environment without printing it, and registers the MCP server to read that variable.
+2. Restart Codex or the IDE after the first setup so the new user environment variable reaches the Codex process.
+3. Check `codex mcp get xmonitor-staging`. Require `bearer_token_env_var: N8N_MCP_ACCESS_TOKEN`; an OAuth `Not logged in` status from an old registration is not the desired configuration.
+4. Verify access with an MCP discovery or read operation. Never place the token itself in `config.toml`, a command argument, logs, or committed files.
+
+For authentication failures:
+
+1. Check whether `N8N_MCP_ACCESS_TOKEN` is present in the Codex process environment; report only present/missing.
+2. Compare the configured MCP URL with `N8N_MCP_URL` from `keys.env` without printing credentials.
+3. Re-run `scripts/configure-n8n-mcp.ps1` and restart Codex if the registration or environment is stale.
+4. Ask the user to generate a new n8n MCP access token only when the configured bearer token is present but n8n rejects it with HTTP 401. Update ignored `keys.env`, rerun the script, and restart Codex after rotation.
 
 ## Known Staging Workflows
 
