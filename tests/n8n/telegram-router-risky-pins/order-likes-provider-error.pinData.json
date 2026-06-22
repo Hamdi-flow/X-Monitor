@@ -1,0 +1,73 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910006,
+        "message": {
+          "message_id": 206,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "Test",
+            "type": "private"
+          },
+          "date": 1781631500,
+          "text": "/order_likes 2060604129798496702 25",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 12,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Get Post For Likes Order": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "post_text": "Pinned test post for likes-order provider error regression.",
+        "status": "New"
+      }
+    }
+  ],
+  "Get Likes Post Tracked User": [
+    {
+      "json": {
+        "user_id": "951803761",
+        "username": "RebelHam_"
+      }
+    }
+  ],
+  "Place Likes Order": [
+    {
+      "json": {
+        "error": "Incorrect service ID"
+      }
+    }
+  ],
+  "Send Likes Order Error": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 307,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "I could not place the likes order because the configured SMM service was rejected: Incorrect service ID"
+        }
+      }
+    }
+  ]
+}

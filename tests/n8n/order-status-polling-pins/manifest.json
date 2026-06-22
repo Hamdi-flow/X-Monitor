@@ -1,0 +1,59 @@
+{
+  "workflowId": "ceX1EiVN3bFWARMu",
+  "workflowName": "XMonitor - Order Status Polling Staging",
+  "fixtures": [
+    {
+      "id": "order-status-completed",
+      "file": "order-status-completed.pinData.json",
+      "input": "schedule trigger",
+      "riskPinned": [
+        "Fetch Due Order Info Rows",
+        "Check Provider Order Status",
+        "Update Order Info Status",
+        "Update Post Order Status",
+        "Send Final Order Notification",
+        "Mark Order Notification Sent"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Provider Status",
+          "Send Final Order Notification",
+          "Mark Order Notification Sent"
+        ],
+        "doesNotCallLive": [
+          "Supabase order/post updates",
+          "SMM status",
+          "Telegram sendMessage"
+        ]
+      }
+    },
+    {
+      "id": "order-status-in-progress",
+      "file": "order-status-in-progress.pinData.json",
+      "input": "schedule trigger",
+      "riskPinned": [
+        "Fetch Due Order Info Rows",
+        "Check Provider Order Status",
+        "Update Order Info Status",
+        "Update Post Order Status",
+        "Send Final Order Notification",
+        "Mark Order Notification Sent"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Provider Status",
+          "If Final And Unnotified"
+        ],
+        "doesNotReach": [
+          "Send Final Order Notification",
+          "Mark Order Notification Sent"
+        ],
+        "doesNotCallLive": [
+          "Supabase order/post updates",
+          "SMM status",
+          "Telegram sendMessage"
+        ]
+      }
+    }
+  ]
+}

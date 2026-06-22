@@ -1,0 +1,60 @@
+{
+  "Every 30 Minutes": [
+    {
+      "json": {}
+    }
+  ],
+  "Fetch Due Order Info Rows": [
+    {
+      "json": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "provider": "smmwiz",
+        "provider_order_id": "88000003",
+        "order_type": "comments",
+        "post_id": "2060604129798496702",
+        "telegram_chat_id": "8677383067",
+        "normalized_status": "pending",
+        "next_check_at": "2026-06-17T08:00:00.000Z",
+        "notified_at": null
+      }
+    }
+  ],
+  "Check Provider Order Status": [
+    {
+      "json": {
+        "status": "In progress",
+        "charge": "0.12",
+        "start_count": "0",
+        "remains": "10",
+        "currency": "USD"
+      }
+    }
+  ],
+  "Update Order Info Status": [
+    {
+      "json": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "provider": "smmwiz",
+        "provider_order_id": "88000003",
+        "order_type": "comments",
+        "post_id": "2060604129798496702",
+        "telegram_chat_id": "8677383067",
+        "normalized_status": "in_progress",
+        "provider_status": "In progress",
+        "remains": 10,
+        "notified_at": null,
+        "completed_at": null
+      }
+    }
+  ],
+  "Update Post Order Status": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "status": "Processing"
+      }
+    }
+  ],
+  "Send Final Order Notification": [],
+  "Mark Order Notification Sent": []
+}

@@ -1,0 +1,407 @@
+{
+  "updatedAt": "2026-06-17T08:36:00.345Z",
+  "createdAt": "2026-06-17T08:35:06.271Z",
+  "id": "ceX1EiVN3bFWARMu",
+  "name": "XMonitor - Order Status Polling Staging",
+  "description": "Staging workflow that polls saved SMM order statuses every 30 minutes, updates Supabase order/post state, and sends final Telegram notifications once.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "2850e743-4395-4a9a-b7a5-f9b5d23b61b3",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2836407a-22d5-438a-836e-adf0aabe2922",
+      "name": "Fetch Due Order Info Rows",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM public.\"Order Info\"\nWHERE normalized_status IN ('pending', 'in_progress')\n  AND next_check_at <= now()\nORDER BY next_check_at ASC\nLIMIT 50;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "07c82ad0-fe6d-4ee1-b12d-9b4271423e86",
+      "name": "Attach SMM Status Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        760,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api-url",
+              "name": "apiUrl",
+              "value": "https://smmwiz.com/api/v2",
+              "type": "string"
+            },
+            {
+              "id": "api-key",
+              "name": "apiKey",
+              "value": "46eb45cc6f745a325b4599c0601a2bda",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "02d5d9c3-5a50-493a-a625-49891c650a19",
+      "name": "Check Provider Order Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiUrl }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $json.apiKey }}"
+            },
+            {
+              "name": "action",
+              "value": "status"
+            },
+            {
+              "name": "order",
+              "value": "={{ $json.provider_order_id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "562a8a58-c652-4b36-9d11-a8830b6788f4",
+      "name": "Normalize Provider Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const order = $('Fetch Due Order Info Rows').all()[$itemIndex]?.json || {};\nconst response = $json || {};\nconst now = new Date().toISOString();\n\nfunction firstPresent(keys) {\n  for (const key of keys) {\n    if (response[key] !== undefined && response[key] !== null && response[key] !== '') {\n      return response[key];\n    }\n  }\n  return null;\n}\n\nfunction toNumber(value) {\n  if (value === null || value === undefined || value === '') return null;\n  const parsed = Number(String(value).replace(/[^0-9.-]/g, ''));\n  return Number.isFinite(parsed) ? parsed : null;\n}\n\nfunction toInteger(value) {\n  const parsed = toNumber(value);\n  return parsed === null ? null : Math.trunc(parsed);\n}\n\nfunction normalize(raw, hasError) {\n  if (hasError) return 'failed';\n  const value = String(raw || '').trim().toLowerCase();\n  if (!value) return 'pending';\n  if (value.includes('complete')) return 'completed';\n  if (value.includes('partial')) return 'partial';\n  if (value.includes('cancel') || value.includes('refund')) return 'canceled';\n  if (value.includes('fail') || value.includes('reject') || value.includes('error')) return 'failed';\n  if (value.includes('progress') || value.includes('process')) return 'in_progress';\n  if (value.includes('pending') || value.includes('wait') || value.includes('queue')) return 'pending';\n  return 'pending';\n}\n\nconst providerStatus = String(firstPresent(['status', 'Status', 'state', 'State']) || '').trim();\nconst rawError = firstPresent(['error', 'Error']);\nconst messageWithoutStatus = !providerStatus ? firstPresent(['message', 'Message']) : null;\nconst errorMessage = rawError || messageWithoutStatus;\nconst normalizedStatus = normalize(providerStatus, Boolean(errorMessage));\nconst isFinal = ['completed', 'partial', 'canceled', 'failed'].includes(normalizedStatus);\nconst postStatus = ['completed', 'partial'].includes(normalizedStatus)\n  ? 'Done'\n  : ['canceled', 'failed'].includes(normalizedStatus)\n    ? 'Order Failed'\n    : 'Processing';\n\nreturn [{\n  json: {\n    order_info_id: order.id,\n    provider: order.provider,\n    provider_order_id: order.provider_order_id,\n    order_type: order.order_type,\n    post_id: order.post_id,\n    telegram_chat_id: order.telegram_chat_id,\n    previous_normalized_status: order.normalized_status,\n    provider_status: providerStatus || (errorMessage ? 'Error' : 'Pending'),\n    normalized_status: normalizedStatus,\n    post_status: postStatus,\n    status_response: response,\n    charge: toNumber(firstPresent(['charge', 'Charge'])),\n    start_count: toInteger(firstPresent(['start_count', 'startCount', 'Start count', 'Start Count'])),\n    remains: toInteger(firstPresent(['remains', 'Remains'])),\n    currency: firstPresent(['currency', 'Currency']) ? String(firstPresent(['currency', 'Currency'])) : null,\n    last_error: errorMessage ? String(errorMessage) : null,\n    is_final: isFinal,\n    checked_at: now,\n  },\n}];"
+      }
+    },
+    {
+      "id": "da1860c7-71ac-4778-8c15-a1daa2290f7d",
+      "name": "Update Order Info Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1480,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.\"Order Info\"\nSET\n  provider_status = $2,\n  normalized_status = $3,\n  status_response = $4::jsonb,\n  charge = $5::numeric,\n  start_count = $6::integer,\n  remains = $7::integer,\n  currency = $8,\n  poll_attempts = poll_attempts + 1,\n  last_checked_at = now(),\n  next_check_at = CASE\n    WHEN $3 IN ('completed', 'partial', 'canceled', 'failed') THEN next_check_at\n    ELSE now() + interval '30 minutes'\n  END,\n  last_error = $9,\n  completed_at = CASE\n    WHEN $3 IN ('completed', 'partial', 'canceled', 'failed') THEN COALESCE(completed_at, now())\n    ELSE completed_at\n  END\nWHERE id = $1::uuid\nRETURNING *;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$json.order_info_id, $json.provider_status, $json.normalized_status, JSON.stringify($json.status_response), $json.charge, $json.start_count, $json.remains, $json.currency, $json.last_error] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "e6c02c38-3a33-4e90-99fa-4ee00287932f",
+      "name": "Update Post Order Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1720,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.\"Posts\"\nSET status = $2\nWHERE post_id = $1\nRETURNING post_id, status;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Update Order Info Status').item.json.post_id, $('Normalize Provider Status').item.json.post_status] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "f973ffb5-a949-453d-a2a3-df1573b99c2d",
+      "name": "If Final And Unnotified",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1960,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "final-unnotified",
+              "leftValue": "={{ ['completed', 'partial', 'canceled', 'failed'].includes($('Update Order Info Status').item.json.normalized_status) && !$('Update Order Info Status').item.json.notified_at }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4d8383e0-2e96-4769-bc7f-c7ca6fed7665",
+      "name": "Send Final Order Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2200,
+        220
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('Update Order Info Status').item.json.telegram_chat_id }}",
+        "text": "=Order status update\n\nOrder ID: {{ $('Update Order Info Status').item.json.provider_order_id }}\nType: {{ $('Update Order Info Status').item.json.order_type }}\nPost: {{ $('Update Order Info Status').item.json.post_id }}\nStatus: {{ $('Update Order Info Status').item.json.normalized_status }}\nRemains: {{ $('Update Order Info Status').item.json.remains ?? 'unknown' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      },
+      "webhookId": "679a0d70-fb9c-4f08-b1bc-03c0d2172e11"
+    },
+    {
+      "id": "706de4e7-bd25-40ee-95df-7d97bdcb0afa",
+      "name": "Mark Order Notification Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2440,
+        220
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.\"Order Info\"\nSET notified_at = now()\nWHERE id = $1::uuid\n  AND notified_at IS NULL\nRETURNING id, notified_at;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Update Order Info Status').item.json.id] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Due Order Info Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Due Order Info Rows": {
+      "main": [
+        [
+          {
+            "node": "Attach SMM Status Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach SMM Status Config": {
+      "main": [
+        [
+          {
+            "node": "Check Provider Order Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Provider Order Status": {
+      "main": [
+        [
+          {
+            "node": "Normalize Provider Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Provider Status": {
+      "main": [
+        [
+          {
+            "node": "Update Order Info Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order Info Status": {
+      "main": [
+        [
+          {
+            "node": "Update Post Order Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Post Order Status": {
+      "main": [
+        [
+          {
+            "node": "If Final And Unnotified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Final And Unnotified": {
+      "main": [
+        [
+          {
+            "node": "Send Final Order Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Final Order Notification": {
+      "main": [
+        [
+          {
+            "node": "Mark Order Notification Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "af2c5261-21cc-4706-84bc-3339ac956b4c",
+  "activeVersionId": null,
+  "versionCounter": 3,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-06-17T08:35:06.274Z",
+      "createdAt": "2026-06-17T08:35:06.274Z",
+      "role": "workflow:owner",
+      "workflowId": "ceX1EiVN3bFWARMu",
+      "projectId": "HqQCDls654d5OYVX",
+      "project": {
+        "updatedAt": "2026-04-10T14:35:09.715Z",
+        "createdAt": "2026-04-10T14:33:58.687Z",
+        "id": "HqQCDls654d5OYVX",
+        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

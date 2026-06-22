@@ -1,28 +1,28 @@
 {
-  "updatedAt": "2026-06-14T10:24:28.175Z",
+  "updatedAt": "2026-06-18T18:16:35.144Z",
   "createdAt": "2026-06-14T10:21:23.067Z",
   "id": "oLwwjO05IcRjtF8E",
-  "name": "XMonitor - Codex Staging",
+  "name": "XMonitor - Telegram Router Staging",
   "description": null,
   "active": false,
   "isArchived": false,
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackQuery?.message?.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nconst callback_query_id = callbackQuery?.id || '';\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nconst callbackMatch = callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/);\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_POST';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      snooze: 'SNOOZE_POST',\n      resume: 'RESUME_POST',\n    };\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n    return;\n  }\n\n  if (text && !text.startsWith('/')) {\n    intent = 'TRACK_USERS';\n    command_args = text;\n  }\n}\n\nif (!callbackMatch && commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n    case 'start':\n      intent = 'HELP';\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setPostIntent('SNOOZE_POST', command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    callback_query_id,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    input_source,\n  },\n}];"
+        "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nconst callbackMatch = callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/);\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_POST';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      snooze: 'SNOOZE_POST',\n      resume: 'RESUME_POST',\n    };\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (!callbackMatch && commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setPostIntent('SNOOZE_POST', command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    input_source,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -14992,
-        -512
+        -384
       ],
       "id": "64a2bb61-f480-403d-a0b9-a26076bbf64b",
       "name": "Parse Telegram Message"
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\n\n// TODO: Replace these placeholders after import.\nconst clientId = 'Q285bFM0VUJLdlJHTk82aW5YcVE6MTpjaQ';\nconst redirectUri = 'https://tarek1207.app.n8n.cloud/webhook/x-oauth-callback';\n\nconst scopes = [\n  'tweet.read',\n  'users.read',\n  'tweet.moderate.write',\n  'offline.access',\n];\n\nfunction base64Url(buffer) {\n  return buffer\n    .toString('base64')\n    .replace(/\\+/g, '-')\n    .replace(/\\//g, '_')\n    .replace(/=+$/, '');\n}\n\nfunction toQueryString(params) {\n  return Object.keys(params)\n    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)\n    .join('&');\n}\n\nif (clientId === 'YOUR_X_CLIENT_ID' || redirectUri === 'YOUR_N8N_CALLBACK_URL') {\n  throw new Error('Replace YOUR_X_CLIENT_ID and YOUR_N8N_CALLBACK_URL before activating this workflow.');\n}\n\nconst state = base64Url(crypto.randomBytes(32));\nconst codeVerifier = base64Url(crypto.randomBytes(32));\nconst codeChallenge = base64Url(\n  crypto.createHash('sha256').update(codeVerifier).digest()\n);\n\nconst expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();\n\nconst query = toQueryString({\n  response_type: 'code',\n  client_id: clientId,\n  redirect_uri: redirectUri,\n  scope: scopes.join(' '),\n  state,\n  code_challenge: codeChallenge,\n  code_challenge_method: 'S256',\n});\n\nreturn [{\n  json: {\n    telegram_chat_id: $json.telegram_chat_id,\n    state,\n    code_verifier: codeVerifier,\n    expires_at: expiresAt,\n    auth_url: `https://x.com/i/oauth2/authorize?${query}`,\n  },\n}];"
+        "jsCode": "const crypto = require('crypto');\n\n// TODO: Replace these placeholders after import.\nconst clientId = 'Q285bFM0VUJLdlJHTk82aW5YcVE6MTpjaQ';\nconst redirectUri = 'https://tarek1207.app.n8n.cloud/webhook/x-oauth-callback-staging';\n\nconst scopes = [\n  'tweet.read',\n  'users.read',\n  'tweet.moderate.write',\n  'offline.access',\n];\n\nfunction base64Url(buffer) {\n  return buffer\n    .toString('base64')\n    .replace(/\\+/g, '-')\n    .replace(/\\//g, '_')\n    .replace(/=+$/, '');\n}\n\nfunction toQueryString(params) {\n  return Object.keys(params)\n    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)\n    .join('&');\n}\n\nif (clientId === 'YOUR_X_CLIENT_ID' || redirectUri === 'YOUR_N8N_CALLBACK_URL') {\n  throw new Error('Replace YOUR_X_CLIENT_ID and YOUR_N8N_CALLBACK_URL before activating this workflow.');\n}\n\nconst state = base64Url(crypto.randomBytes(32));\nconst codeVerifier = base64Url(crypto.randomBytes(32));\nconst codeChallenge = base64Url(\n  crypto.createHash('sha256').update(codeVerifier).digest()\n);\n\nconst expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();\n\nconst query = toQueryString({\n  response_type: 'code',\n  client_id: clientId,\n  redirect_uri: redirectUri,\n  scope: scopes.join(' '),\n  state,\n  code_challenge: codeChallenge,\n  code_challenge_method: 'S256',\n});\n\nreturn [{\n  json: {\n    telegram_chat_id: $json.telegram_chat_id,\n    state,\n    code_verifier: codeVerifier,\n    expires_at: expiresAt,\n    auth_url: `https://x.com/i/oauth2/authorize?${query}`,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -68,7 +68,13 @@
         -1088
       ],
       "id": "e64db8b0-80a7-4d48-8ca8-f3e741ac7093",
-      "name": "Save Auth Session"
+      "name": "Save Auth Session",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -87,7 +93,13 @@
       ],
       "id": "011748a4-7113-47f5-b6b1-306777e8f03b",
       "name": "Send Auth Link",
-      "webhookId": "c9ba86c6-7fe8-42cb-b867-a83536e383f8"
+      "webhookId": "c9ba86c6-7fe8-42cb-b867-a83536e383f8",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -112,7 +124,13 @@
         -14544,
         -896
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -137,7 +155,13 @@
       ],
       "id": "5b072b06-bfd5-4ab0-a864-a6e7501cb7d9",
       "name": "Get X Auth Account",
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -405,7 +429,13 @@
         -1088
       ],
       "id": "b601c737-82f0-4c8c-bdd4-040fea8b6941",
-      "name": "Upsert Refreshed X Auth Account"
+      "name": "Upsert Refreshed X Auth Account",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -415,7 +445,7 @@
       "typeVersion": 2,
       "position": [
         -12624,
-        -880
+        -896
       ],
       "id": "28894839-ead5-4056-9134-8bd72ef714be",
       "name": "Prepare Active Account"
@@ -457,7 +487,13 @@
       ],
       "id": "e8104d24-12da-4cab-964d-853217c5d175",
       "name": "Get Replies For Post",
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -627,7 +663,13 @@
         -1088
       ],
       "id": "de160ce7-20f7-4373-97f3-390da61492a7",
-      "name": "Update Reply Status"
+      "name": "Update Reply Status",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -659,7 +701,13 @@
       ],
       "id": "33c5dfb4-7134-466c-aee5-108c7597f6a5",
       "name": "Send Hide Summary",
-      "webhookId": "2077951b-223a-425f-9c5e-de888fe11b9c"
+      "webhookId": "2077951b-223a-425f-9c5e-de888fe11b9c",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -674,11 +722,17 @@
       "typeVersion": 1.2,
       "position": [
         -13648,
-        -800
+        -704
       ],
       "id": "e4cf0ad9-b39e-4e03-9f15-f4e89a29f8f4",
       "name": "Send Auth Required",
-      "webhookId": "2ecbd42f-432e-4c9c-b189-50db1200774f"
+      "webhookId": "2ecbd42f-432e-4c9c-b189-50db1200774f",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -693,18 +747,60 @@
       "typeVersion": 1.2,
       "position": [
         -11504,
-        -912
+        -128
       ],
       "id": "2dddb597-63b8-496e-b741-8b09ed7368df",
       "name": "Send No Replies",
-      "webhookId": "b540023f-2760-405e-968b-1aa79e9b9187"
+      "webhookId": "b540023f-2760-405e-968b-1aa79e9b9187",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "<b>XMonitor Bot Manual</b>\n\n<b>Commands</b>\n<code>/help</code> - Show this manual\n<code>/auth_x</code> - Connect your X account\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/hide_replies POST_ID</code> - Hide stored replies for a post\n<code>/ignore POST_ID</code> - Stop alerts for a post indefinitely\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs (about 2 hours)\n<code>/resume POST_ID</code> - Return an ignored or snoozed post to New\n\n<b>Tracking format</b>\nUse <code>/track</code> followed by one or more X usernames. Accepted formats:\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track username1, username2</code>\n<code>/track https://x.com/username</code>\n\nWhitespace is flexible. Spaces, commas, semicolons, and line breaks between usernames are OK. The bot removes <code>@</code>, X/Twitter URL prefixes, punctuation, and duplicate usernames. Usernames are normalized to lowercase and must contain only letters, numbers, or underscores, with a maximum of 15 characters.\n\nThis command replaces the full tracked-user list with the usernames in your message.\n\n<b>Post controls</b>\n<code>/ignore 1234567890123456789</code>\n<code>/snooze 1234567890123456789</code>\n<code>/resume 1234567890123456789</code>\n<code>/hide_replies 1234567890123456789</code>\n\nIgnore and snooze are global for the post. Snooze resets to 4 runs each time it is selected.\n\n<b>Notes</b>\nThe connected X account must own the original post/conversation before replies can be hidden.\nPlain usernames and phrases such as <code>Ignore post POST_ID</code>, <code>Snooze post POST_ID</code>, and <code>Resume post POST_ID</code> also work.",
+        "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Connect X",
+                    "additionalFields": {
+                      "callback_data": "/auth_x"
+                    }
+                  },
+                  {
+                    "text": "Track users",
+                    "additionalFields": {
+                      "switch_inline_query_current_chat": "/track "
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Show help",
+                    "additionalFields": {
+                      "callback_data": "/help"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
         "additionalFields": {
           "appendAttribution": false,
+          "disable_web_page_preview": true,
           "parse_mode": "HTML"
         }
       },
@@ -712,11 +808,17 @@
       "typeVersion": 1.2,
       "position": [
         -14544,
-        -416
+        -32
       ],
       "id": "a1bb31d6-429b-462a-a281-a164b765d575",
       "name": "Send Default Help",
-      "webhookId": "2b9de05a-e524-4e8e-ac01-c65f8bdc0276"
+      "webhookId": "2b9de05a-e524-4e8e-ac01-c65f8bdc0276",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -735,11 +837,17 @@
       "typeVersion": 1,
       "position": [
         -14544,
-        -608
+        -368
       ],
       "id": "d369124f-066d-4913-8153-91e43aba3dd7",
-      "name": "Clear Telegram Users",
-      "alwaysOutputData": true
+      "name": "Clear Telegram User Links",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -758,11 +866,17 @@
       "typeVersion": 1,
       "position": [
         -14320,
-        -608
+        -368
       ],
       "id": "3f0b10af-55f0-4830-a47e-dd324f2bafdc",
-      "name": "Clear Tracked Users",
-      "alwaysOutputData": true
+      "name": "Clear Tracked Users For Chat",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -772,8 +886,8 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -13872,
-        -608
+        -13648,
+        -432
       ],
       "id": "958504ac-303d-467d-98e4-a9172e1e7f15",
       "name": "Split Users To Track"
@@ -797,11 +911,17 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13360,
-        -608
+        -12848,
+        -624
       ],
       "id": "58938dff-66e4-471c-816b-e69ca67ab0fd",
-      "name": "Add Tracked User"
+      "name": "Upsert Tracked X User",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -818,12 +938,18 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13072,
-        -608
+        -12624,
+        -624
       ],
       "id": "c656a32b-d71d-4735-8798-dc7b5d35729b",
-      "name": "Add Telegram User",
-      "executeOnce": true
+      "name": "Link Telegram User To X User",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -837,12 +963,18 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -12848,
-        -608
+        -12400,
+        -624
       ],
       "id": "d3c0cd2a-ce63-45e6-8acf-59c2ed62a62c",
       "name": "Send Tracking Success",
-      "webhookId": "59577898-14f0-48d8-b40c-28b041c3b5b6"
+      "webhookId": "59577898-14f0-48d8-b40c-28b041c3b5b6",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -852,7 +984,7 @@
       "typeVersion": 2,
       "position": [
         -14096,
-        -608
+        -368
       ],
       "id": "0cf42603-b785-40b6-bc0b-6a33df6172c6",
       "name": "Parse Users To Track"
@@ -860,9 +992,45 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "<b>XMonitor Bot Manual</b>\n\n<b>Commands</b>\n<code>/help</code> - Show this manual\n<code>/auth_x</code> - Connect your X account\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/hide_replies POST_ID</code> - Hide stored replies for a post\n<code>/ignore POST_ID</code> - Stop alerts for a post indefinitely\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs (about 2 hours)\n<code>/resume POST_ID</code> - Return an ignored or snoozed post to New\n\n<b>Tracking format</b>\nUse <code>/track</code> followed by one or more X usernames. Accepted formats:\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track username1, username2</code>\n<code>/track https://x.com/username</code>\n\nWhitespace is flexible. Spaces, commas, semicolons, and line breaks between usernames are OK. The bot removes <code>@</code>, X/Twitter URL prefixes, punctuation, and duplicate usernames. Usernames are normalized to lowercase and must contain only letters, numbers, or underscores, with a maximum of 15 characters.\n\nThis command replaces the full tracked-user list with the usernames in your message.\n\n<b>Post controls</b>\n<code>/ignore 1234567890123456789</code>\n<code>/snooze 1234567890123456789</code>\n<code>/resume 1234567890123456789</code>\n<code>/hide_replies 1234567890123456789</code>\n\nIgnore and snooze are global for the post. Snooze resets to 4 runs each time it is selected.\n\n<b>Notes</b>\nThe connected X account must own the original post/conversation before replies can be hidden.\nPlain usernames and phrases such as <code>Ignore post POST_ID</code>, <code>Snooze post POST_ID</code>, and <code>Resume post POST_ID</code> also work.",
+        "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Connect X",
+                    "additionalFields": {
+                      "callback_data": "/auth_x"
+                    }
+                  },
+                  {
+                    "text": "Track users",
+                    "additionalFields": {
+                      "switch_inline_query_current_chat": "/track "
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Show help",
+                    "additionalFields": {
+                      "callback_data": "/help"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
         "additionalFields": {
           "appendAttribution": false,
+          "disable_web_page_preview": true,
           "parse_mode": "HTML"
         }
       },
@@ -874,7 +1042,13 @@
       ],
       "id": "e2a37ccb-2db8-49af-a566-b9c283e9846c",
       "name": "Send Help Manual",
-      "webhookId": "e49d017b-df69-4c1c-9d63-bef012cc3778"
+      "webhookId": "e49d017b-df69-4c1c-9d63-bef012cc3778",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1106,10 +1280,10 @@
       "typeVersion": 3.2,
       "position": [
         -14768,
-        -640
+        -512
       ],
       "id": "180ac24d-7102-49af-959b-774d1dcb6690",
-      "name": "Switch On Intent"
+      "name": "Route Telegram Intent"
     },
     {
       "parameters": {
@@ -1130,11 +1304,18 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -13648,
-        -608
+        -13360,
+        -432
       ],
       "id": "f656685b-9a75-42a3-b478-978374f3a104",
-      "name": "Get X User"
+      "name": "Lookup X User By Username",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "GVFVtsc16enrOS6k",
+          "name": "Bearer Auth account"
+        }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1148,11 +1329,17 @@
       "typeVersion": 1.2,
       "position": [
         -15216,
-        -512
+        -384
       ],
       "id": "86e6965e-93bc-4151-a4a2-db82725221ab",
       "name": "Telegram Trigger",
-      "webhookId": "6ed67324-cf90-44a3-8e46-156b95f0090d"
+      "webhookId": "6ed67324-cf90-44a3-8e46-156b95f0090d",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1176,13 +1363,19 @@
       "typeVersion": 1,
       "position": [
         -14544,
-        -128
+        448
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst post = $input.first()?.json || {};\nconst SNOOZE_RUNS = 4;\n\nfunction result(values) {\n  return [{\n    json: {\n      telegram_chat_id: route.telegram_chat_id,\n      callback_query_id: route.callback_query_id || '',\n      post_id: String(route.post_id || ''),\n      action_valid: false,\n      show_resume: false,\n      next_status: '',\n      snooze_runs_remaining: 0,\n      callback_text: '',\n      ...values,\n    },\n  }];\n}\n\nif (!route.post_id) {\n  return result({\n    message: 'Please provide a valid post ID.',\n    callback_text: 'Missing post ID.',\n  });\n}\n\nif (!post.post_id) {\n  return result({\n    message: `Post ${route.post_id} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  });\n}\n\nconst currentStatus = String(post.status || 'New');\n\nif (route.intent === 'SNOOZE_POST' && currentStatus === 'Ignored') {\n  return result({\n    current_status: currentStatus,\n    message: `Post ${route.post_id} is ignored. Resume it before snoozing.`,\n    callback_text: 'Resume the post before snoozing.',\n  });\n}\n\nif (route.intent === 'IGNORE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Ignored',\n    snooze_runs_remaining: 0,\n    show_resume: true,\n    message: `Post ${route.post_id} is now ignored and will not generate scheduled alerts.`,\n    callback_text: 'Post ignored.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Snoozed',\n    snooze_runs_remaining: SNOOZE_RUNS,\n    show_resume: true,\n    message: `Post ${route.post_id} is snoozed for ${SNOOZE_RUNS} schedule runs (about 2 hours at the current interval).`,\n    callback_text: 'Post snoozed.',\n  });\n}\n\nif (route.intent === 'RESUME_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'New',\n    snooze_runs_remaining: 0,\n    show_resume: false,\n    message: `Post ${route.post_id} is active again and can appear in scheduled alerts.`,\n    callback_text: 'Post resumed.',\n  });\n}\n\nreturn result({\n  current_status: currentStatus,\n  message: 'Unsupported post status action.',\n  callback_text: 'Unsupported action.',\n});"
+        "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst post = $input.first()?.json || {};\nconst SNOOZE_RUNS = 4;\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nfunction buildEditedAlert(values) {\n  const source = route.callback_message_text || `Post ${values.post_id || route.post_id}`;\n  const base = escapeHtml(source).slice(0, 3500);\n  const statusLine = values.action_valid\n    ? `<b>XMonitor status:</b> ${escapeHtml(values.message)}`\n    : `<b>XMonitor status:</b> ${escapeHtml(values.message || values.callback_text || 'Action rejected.')}`;\n  return `${base}\\n\\n${statusLine}`;\n}\n\nfunction result(values) {\n  const payload = {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: String(route.post_id || ''),\n    action_valid: false,\n    show_resume: false,\n    next_status: '',\n    snooze_runs_remaining: 0,\n    callback_text: '',\n    ...values,\n  };\n  payload.edited_alert_message = buildEditedAlert(payload);\n  return [{ json: payload }];\n}\n\nif (!route.post_id) {\n  return result({\n    message: 'Please provide a valid post ID.',\n    callback_text: 'Missing post ID.',\n  });\n}\n\nif (!post.post_id) {\n  return result({\n    message: `Post ${route.post_id} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  });\n}\n\nconst currentStatus = String(post.status || 'New');\n\nif (route.intent === 'SNOOZE_POST' && currentStatus === 'Ignored') {\n  return result({\n    current_status: currentStatus,\n    message: `Post ${route.post_id} is ignored. Resume it before snoozing.`,\n    callback_text: 'Resume the post before snoozing.',\n  });\n}\n\nif (route.intent === 'IGNORE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Ignored',\n    snooze_runs_remaining: 0,\n    show_resume: true,\n    message: `Post ${route.post_id} is now ignored and will not generate scheduled alerts.`,\n    callback_text: 'Post ignored.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Snoozed',\n    snooze_runs_remaining: SNOOZE_RUNS,\n    show_resume: true,\n    message: `Post ${route.post_id} is snoozed for ${SNOOZE_RUNS} schedule runs (about 2 hours at the current interval).`,\n    callback_text: 'Post snoozed.',\n  });\n}\n\nif (route.intent === 'RESUME_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'New',\n    snooze_runs_remaining: 0,\n    show_resume: false,\n    message: `Post ${route.post_id} is active again and can appear in scheduled alerts.`,\n    callback_text: 'Post resumed.',\n  });\n}\n\nreturn result({\n  current_status: currentStatus,\n  message: 'Unsupported post status action.',\n  callback_text: 'Unsupported action.',\n});"
       },
       "id": "d3d71160-7cc6-4bfc-8996-b031302e5c9d",
       "name": "Prepare Post Status Change",
@@ -1190,7 +1383,7 @@
       "typeVersion": 2,
       "position": [
         -14320,
-        -128
+        448
       ]
     },
     {
@@ -1224,7 +1417,7 @@
       "typeVersion": 2.3,
       "position": [
         -14096,
-        -128
+        448
       ]
     },
     {
@@ -1258,7 +1451,7 @@
       "typeVersion": 2.3,
       "position": [
         -13648,
-        -224
+        160
       ]
     },
     {
@@ -1292,9 +1485,15 @@
       "typeVersion": 1.2,
       "position": [
         -13360,
-        -320
+        64
       ],
-      "webhookId": "4307815e-7628-4e5a-adf7-abca50eaf194"
+      "webhookId": "4307815e-7628-4e5a-adf7-abca50eaf194",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1310,9 +1509,15 @@
       "typeVersion": 1.2,
       "position": [
         -13360,
-        -128
+        256
       ],
-      "webhookId": "bf461a49-1213-42dd-87d0-c9aec63f25af"
+      "webhookId": "bf461a49-1213-42dd-87d0-c9aec63f25af",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1328,9 +1533,15 @@
       "typeVersion": 1.2,
       "position": [
         -13360,
-        64
+        784
       ],
-      "webhookId": "a86b1be5-48b9-4921-bebd-b5d258ae6bb4"
+      "webhookId": "a86b1be5-48b9-4921-bebd-b5d258ae6bb4",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1363,7 +1574,7 @@
       "typeVersion": 2.3,
       "position": [
         -13072,
-        -128
+        160
       ]
     },
     {
@@ -1380,9 +1591,15 @@
       "typeVersion": 1.2,
       "position": [
         -12848,
-        -128
+        160
       ],
-      "webhookId": "46ba618a-6a87-4010-b8f0-e2d7a1ebccf4"
+      "webhookId": "46ba618a-6a87-4010-b8f0-e2d7a1ebccf4",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1449,8 +1666,14 @@
       "typeVersion": 2.6,
       "position": [
         -13872,
-        -224
-      ]
+        256
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -1469,14 +1692,20 @@
         }
       },
       "id": "05db6d07-0c16-471b-b410-c4c9c25a8091",
-      "name": "Get Post For Comments",
+      "name": "Get Post For Comment Order",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
         -14544,
-        368
+        1088
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1488,7 +1717,7 @@
             {
               "keyName": "post_id",
               "condition": "eq",
-              "keyValue": "={{ $('Get Post For Comments').item.json.post_id }}"
+              "keyValue": "={{ $json.current_post_id }}"
             }
           ]
         }
@@ -1497,23 +1726,29 @@
       "typeVersion": 1,
       "position": [
         -13872,
-        368
+        1088
       ],
       "id": "73daf122-c2ca-4b38-9a91-0215e1f17db9",
-      "name": "Get Replies"
+      "name": "Get Replies For Comment Order",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Get all reply rows coming into this Code node\nconst replies = $input.all().map(item => item.json);\n\n// Get the post data from your earlier \"Store Current Post\" node.\n// IMPORTANT: replace this node name with the exact name of your node\n// that contains the post content.\nconst post = $('Store Current Post').first().json;\n\n// Build the payload for ChatGPT\nconst payload = {\n  post: {\n    id: post.post_id || post.id || post.current_post_id,\n    content: post.content || post.text || post.current_post_content,\n  },\n  replies: replies.map(reply => ({\n    reply_id: String(reply.reply_id),\n    post_id: String(reply.post_id),\n    text: reply.text,\n  })),\n};\n\nreturn [\n  {\n    json: payload,\n  },\n];"
+        "jsCode": "// Get all reply rows coming into this Code node\nconst replies = $input.all().map(item => item.json);\n\nconst post = $('Store Comment Order Post').first().json;\n\nconst payload = {\n  post: {\n    id: post.post_id || post.id || post.current_post_id,\n    content: post.content || post.text || post.current_post_content,\n  },\n  replies: replies.map(reply => ({\n    reply_id: String(reply.reply_id),\n    post_id: String(reply.post_id),\n    text: reply.text,\n  })),\n};\n\nreturn [\n  {\n    json: payload,\n  },\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -13648,
-        368
+        1088
       ],
       "id": "bd667183-ec51-4930-b38e-aaeb93d57128",
-      "name": "Code in JavaScript"
+      "name": "Build Counter Reply Prompt"
     },
     {
       "parameters": {
@@ -1528,10 +1763,10 @@
       "typeVersion": 3.1,
       "position": [
         -13424,
-        256
+        976
       ],
       "id": "78b01e18-9a45-4d36-8159-b3e8802657c9",
-      "name": "AI Agent"
+      "name": "Generate Counter Replies"
     },
     {
       "parameters": {
@@ -1546,11 +1781,17 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -13424,
-        480
+        -13408,
+        1200
       ],
       "id": "45bc12a8-9b90-4c09-97f4-f0ab3cadd76d",
-      "name": "OpenAI Chat Model"
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -1560,8 +1801,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        -13296,
-        480
+        -13280,
+        1200
       ],
       "id": "a9ae1148-47a0-49f4-875e-9ec86edb262a",
       "name": "Structured Output Parser"
@@ -1575,10 +1816,10 @@
       "typeVersion": 1,
       "position": [
         -13072,
-        368
+        1088
       ],
       "id": "69f216dc-40a9-4bd1-bd53-53e9b4e75c4d",
-      "name": "Split Out"
+      "name": "Split Counter Replies"
     },
     {
       "parameters": {
@@ -1588,10 +1829,10 @@
       "typeVersion": 3,
       "position": [
         -12848,
-        368
+        1088
       ],
       "id": "8a90461f-a070-4723-956b-a17216d4e81c",
-      "name": "Loop Over Items1"
+      "name": "Loop Counter Replies"
     },
     {
       "parameters": {
@@ -1619,22 +1860,28 @@
       "typeVersion": 1,
       "position": [
         -12624,
-        432
+        1136
       ],
       "id": "fec47b6e-cf28-4256-8feb-749fff67e2d8",
-      "name": "Update a row"
+      "name": "Save Counter Reply",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Edit Fields').item.json.apiUrl }}",
+        "url": "={{ $('Set Comment Service Config').item.json.apiUrl }}",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
             {
               "name": "key",
-              "value": "={{ $('Edit Fields').item.json.apiKey }}"
+              "value": "={{ $('Set Comment Service Config').item.json.apiKey }}"
             },
             {
               "name": "action",
@@ -1646,7 +1893,7 @@
             },
             {
               "name": "link",
-              "value": "={{ $('Set Comment Order Data').item.json.link }}"
+              "value": "={{ $('Prepare Comment Order Request').item.json.link }}"
             },
             {
               "name": "comments",
@@ -1660,10 +1907,10 @@
       "typeVersion": 4.4,
       "position": [
         -10832,
-        240
+        352
       ],
       "id": "4c5af602-0ad3-461c-8d94-f7d67c8f6605",
-      "name": "HTTP Request"
+      "name": "Place Comment Order"
     },
     {
       "parameters": {
@@ -1672,13 +1919,13 @@
             {
               "id": "af68a81b-0afa-4898-a864-11bd17560744",
               "name": "apiUrl",
-              "value": "={{ $('Edit Fields').item.json.apiUrl }}",
+              "value": "={{ $('Set Comment Service Config').item.json.apiUrl }}",
               "type": "string"
             },
             {
               "id": "a76188e0-cd8d-40e9-bfc5-9a3c2076cae8",
               "name": "apiKey",
-              "value": "={{ $('Edit Fields').item.json.apiKey }}",
+              "value": "={{ $('Set Comment Service Config').item.json.apiKey }}",
               "type": "string"
             },
             {
@@ -1690,13 +1937,13 @@
             {
               "id": "3da8d591-cbdb-4621-8165-ed7fbd1d4fe3",
               "name": "=link",
-              "value": "=https://x.com/i/web/status/{{$('Store Current Post').item.json.current_post_id}}?s=20 ",
+              "value": "=https://x.com/i/web/status/{{$('Store Comment Order Post').item.json.current_post_id}}?s=20 ",
               "type": "string"
             },
             {
               "id": "ec31facc-361a-427e-8666-70798e4097f6",
               "name": "comments",
-              "value": "={{ $('Code in JavaScript2').item.json.comments }}",
+              "value": "={{ $('Build Comment Order Payload').item.json.comments }}",
               "type": "string"
             }
           ]
@@ -1707,10 +1954,10 @@
       "typeVersion": 3.4,
       "position": [
         -11056,
-        240
+        352
       ],
       "id": "6a619e9c-ad1f-471a-95c6-90060b39d680",
-      "name": "Set Comment Order Data"
+      "name": "Prepare Comment Order Request"
     },
     {
       "parameters": {
@@ -1748,43 +1995,10 @@
       "typeVersion": 3.4,
       "position": [
         -12176,
-        240
+        352
       ],
       "id": "7cf5023a-4a82-4637-a957-31c9b10d0aa8",
-      "name": "Edit Fields"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Edit Fields').item.json.apiUrl }}",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "key",
-              "value": "={{ $('Edit Fields').item.json.apiKey }}"
-            },
-            {
-              "name": "action",
-              "value": "status"
-            },
-            {
-              "name": "order",
-              "value": "={{ $json.order }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        -10608,
-        240
-      ],
-      "id": "8e0f8951-51d0-4636-a5b4-2c4407c5a2c7",
-      "name": "Check Order Status"
+      "name": "Set Comment Service Config"
     },
     {
       "parameters": {
@@ -1795,7 +2009,7 @@
             {
               "keyName": "post_id",
               "condition": "eq",
-              "keyValue": "={{ $('Store Current Post').item.json.current_post_id }}"
+              "keyValue": "={{ $('Store Comment Order Post').item.json.current_post_id }}"
             }
           ]
         },
@@ -1811,11 +2025,17 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -10384,
-        240
+        -9936,
+        352
       ],
       "id": "e75e9e3a-1115-4a56-9ae0-1138fa4d101f",
-      "name": "Set post status to Pending"
+      "name": "Mark Comment Order Processing",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1828,7 +2048,7 @@
             {
               "keyName": "post_id",
               "condition": "eq",
-              "keyValue": "={{ $('Store Current Post').item.json.current_post_id }}"
+              "keyValue": "={{ $('Store Comment Order Post').item.json.current_post_id }}"
             },
             {
               "keyName": "status",
@@ -1842,11 +2062,17 @@
       "typeVersion": 1,
       "position": [
         -12624,
-        240
+        352
       ],
       "id": "ec8a519e-cdb9-4a55-8b00-08681a172d50",
-      "name": "Get all counter replies for current post",
-      "executeOnce": true
+      "name": "Get Fresh Counter Replies",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1856,10 +2082,10 @@
       "typeVersion": 2,
       "position": [
         -12400,
-        240
+        352
       ],
       "id": "1d49c7c0-72f0-4cbc-ab39-435a5b2b1301",
-      "name": "Code in JavaScript2"
+      "name": "Build Comment Order Payload"
     },
     {
       "parameters": {
@@ -1891,25 +2117,31 @@
       "typeVersion": 1.2,
       "position": [
         -11504,
-        240
+        352
       ],
       "id": "618cbe18-ed0f-40e1-bfd4-8add1f87245a",
-      "name": "Send message and wait for response",
+      "name": "Ask Comment Order Confirmation",
       "webhookId": "b2613e48-4837-49a9-b5bb-458e644cf9be",
-      "executeOnce": true
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// n8n Code node\n// Input expected in: $('Code in JavaScript2').first().json.comments\n// Output: multiple items, one per 3000-character chunk\n\nconst maxLength = 3000;\nconst comments = $('Code in JavaScript2').first().json.comments || \"\";\n\nlet text = \"\";\n\n// If comments is an array, number each comment and add an empty line between them\nif (Array.isArray(comments)) {\n  text = comments\n    .map((comment, index) => `${index + 1}. ${String(comment).trim()}`)\n    .join(\"\\n\\n\");\n} else {\n  // If comments is already a string, number each line/comment and add an empty line between them\n  text = comments\n    .split(\"\\n\")\n    .map(comment => comment.trim())\n    .filter(comment => comment !== \"\")\n    .map((comment, index) => `${index + 1}. ${comment}`)\n    .join(\"\\n\\n\");\n}\n\nconst chunks = [];\n\nfor (let i = 0; i < text.length; i += maxLength) {\n  chunks.push({\n    json: {\n      message: text.slice(i, i + maxLength),\n      chunkIndex: chunks.length + 1,\n    },\n  });\n}\n\nreturn chunks;"
+        "jsCode": "const maxLength = 3000;\nconst comments = $('Build Comment Order Payload').first().json.comments || '';\n\nlet text = '';\n\nif (Array.isArray(comments)) {\n  text = comments\n    .map((comment, index) => `${index + 1}. ${String(comment).trim()}`)\n    .join('\\n\\n');\n} else {\n  text = comments\n    .split('\\n')\n    .map(comment => comment.trim())\n    .filter(comment => comment !== '')\n    .map((comment, index) => `${index + 1}. ${comment}`)\n    .join('\\n\\n');\n}\n\nconst chunks = [];\n\nfor (let i = 0; i < text.length; i += maxLength) {\n  chunks.push({\n    json: {\n      message: text.slice(i, i + maxLength),\n      chunkIndex: chunks.length + 1,\n    },\n  });\n}\n\nreturn chunks;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -11952,
-        240
+        352
       ],
       "id": "3c4d9ca8-5f83-40c7-a0ec-6e83a016c0d2",
-      "name": "Code in JavaScript3"
+      "name": "Chunk Suggested Comments"
     },
     {
       "parameters": {
@@ -1921,11 +2153,17 @@
       "typeVersion": 1.2,
       "position": [
         -11728,
-        240
+        352
       ],
       "id": "774cfdab-8490-45b6-be88-c783133dca41",
-      "name": "Send a text message1",
-      "webhookId": "d9689e98-ae67-47f7-8203-23f81b216538"
+      "name": "Send Suggested Comments",
+      "webhookId": "d9689e98-ae67-47f7-8203-23f81b216538",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -1985,26 +2223,32 @@
       "typeVersion": 3.4,
       "position": [
         -11280,
-        240
+        352
       ],
       "id": "70b7b239-b60f-415f-8e1f-6ba468f28caf",
-      "name": "Switch"
+      "name": "Route Comment Order Decision"
     },
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "The order has been placed successfully. Here are its details.",
+        "text": "=The comments order has been placed successfully.\n\nOrder ID: {{ $('Create Comment Order Info').item.json.provider_order_id }}\nPost: {{ $('Create Comment Order Info').item.json.post_id }}\nComments: {{ $('Create Comment Order Info').item.json.comment_count }}\n\nI will check the status automatically and notify you when it finishes.",
         "additionalFields": {}
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -10160,
-        240
+        -9712,
+        352
       ],
       "id": "535277e5-cd76-4bc4-b1af-735570ebd090",
-      "name": "Send a text message2",
-      "webhookId": "f2e6c049-98a4-485c-8af5-e3caa4443f20"
+      "name": "Send Comment Order Success",
+      "webhookId": "f2e6c049-98a4-485c-8af5-e3caa4443f20",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -2013,13 +2257,13 @@
             {
               "id": "005d188b-d644-4ca5-8d02-ce16161ac86c",
               "name": "current_post_id",
-              "value": "={{ $('Get Post For Comments').item.json.post_id }}",
+              "value": "={{ $('Get Post For Comment Order').item.json.post_id }}",
               "type": "string"
             },
             {
               "id": "1ed48f34-78fc-4b89-8865-11b3b488e8ea",
               "name": "current_post_content",
-              "value": "={{ $('Get Post For Comments').item.json.post_text }}",
+              "value": "={{ $('Get Post For Comment Order').item.json.post_text }}",
               "type": "string"
             },
             {
@@ -2036,10 +2280,10 @@
       "typeVersion": 3.4,
       "position": [
         -14096,
-        368
+        1088
       ],
       "id": "36a05246-9320-4c72-98dd-2b3d52550d7e",
-      "name": "Store Current Post"
+      "name": "Store Comment Order Post"
     },
     {
       "parameters": {
@@ -2058,10 +2302,16 @@
       "typeVersion": 1,
       "position": [
         -14320,
-        368
+        1088
       ],
       "id": "df1aa794-ca94-4375-8177-11b983bd9658",
-      "name": "Get User1"
+      "name": "Get Comment Post Tracked User",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -2089,12 +2339,12 @@
         "options": {}
       },
       "id": "b65bb8a6-ce66-495a-b851-bf5559954d7a",
-      "name": "If Likes Amount Prompt",
+      "name": "If Likes Amount Needed",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -14560,
-        880
+        -14544,
+        1472
       ]
     },
     {
@@ -2110,10 +2360,16 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -14336,
-        752
+        -14320,
+        1328
       ],
-      "webhookId": "bd54c142-b005-490c-bb35-11a8a0a68d26"
+      "webhookId": "bd54c142-b005-490c-bb35-11a8a0a68d26",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -2141,12 +2397,18 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -14144,
-        736
+        -14096,
+        1328
       ],
       "id": "c9ac5453-5ed4-4f81-8d5d-f28b063dcb83",
       "name": "Prompt For Likes Amount",
-      "webhookId": "23dc1e13-fe8f-473a-b22b-e826fca4699c"
+      "webhookId": "23dc1e13-fe8f-473a-b22b-e826fca4699c",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
@@ -2155,8 +2417,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -13888,
-        880
+        -13872,
+        1472
       ],
       "id": "20ce7f5c-bc2f-4871-843f-65c0dcebb9ec",
       "name": "Validate Likes Order Input"
@@ -2191,8 +2453,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -13664,
-        880
+        -13648,
+        1472
       ]
     },
     {
@@ -2208,22 +2470,28 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -13440,
-        976
+        -13360,
+        1568
       ],
-      "webhookId": "c03f7048-34c4-4e55-99b5-b570c79024d5"
+      "webhookId": "c03f7048-34c4-4e55-99b5-b570c79024d5",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Edit Fields2').item.json.apiUrl }}",
+        "url": "={{ $('Set Likes Service Config').item.json.apiUrl }}",
         "sendBody": true,
         "contentType": "form-urlencoded",
         "bodyParameters": {
           "parameters": [
             {
               "name": "key",
-              "value": "={{ $('Edit Fields2').item.json.apiKey }}"
+              "value": "={{ $('Set Likes Service Config').item.json.apiKey }}"
             },
             {
               "name": "action",
@@ -2235,7 +2503,7 @@
             },
             {
               "name": "link",
-              "value": "={{ $('Set Likes Order Data1').item.json.link }}"
+              "value": "={{ $('Prepare Likes Order Request').item.json.link }}"
             },
             {
               "name": "quantity",
@@ -2248,11 +2516,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -12320,
-        784
+        -12176,
+        1376
       ],
       "id": "2db8c215-94f0-4085-a17a-1449de1fc610",
-      "name": "Order Likes1"
+      "name": "Place Likes Order"
     },
     {
       "parameters": {
@@ -2289,44 +2557,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -12768,
-        784
+        -12624,
+        1376
       ],
       "id": "3e5043e2-8c19-4643-b6b9-019fc2df5b9a",
-      "name": "Edit Fields2"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Set Likes Order Data1').item.json.apiUrl }}",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "key",
-              "value": "={{ $('Set Likes Order Data1').item.json.apiKey }}"
-            },
-            {
-              "name": "action",
-              "value": "status"
-            },
-            {
-              "name": "order",
-              "value": "={{ $json.order }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        -12096,
-        784
-      ],
-      "id": "2c504d0f-a68b-41a5-a728-744112a05a23",
-      "name": "Check Order Status2"
+      "name": "Set Likes Service Config"
     },
     {
       "parameters": {
@@ -2345,14 +2580,20 @@
         }
       },
       "id": "3b7fa80b-9f05-45f1-aa5b-2b773c201dd5",
-      "name": "Get Post For Likes1",
+      "name": "Get Post For Likes Order",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13440,
-        784
+        -13360,
+        1376
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -2370,11 +2611,17 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        -13216,
-        784
+        -13072,
+        1376
       ],
       "id": "ecec7b3d-91dd-4251-b22e-43c737be6732",
-      "name": "Get User2"
+      "name": "Get Likes Post Tracked User",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
     },
     {
       "parameters": {
@@ -2383,13 +2630,13 @@
             {
               "id": "005d188b-d644-4ca5-8d02-ce16161ac86c",
               "name": "current_post_id",
-              "value": "={{ $('Get Post For Likes1').item.json.post_id }}",
+              "value": "={{ $('Get Post For Likes Order').item.json.post_id }}",
               "type": "string"
             },
             {
               "id": "1ed48f34-78fc-4b89-8865-11b3b488e8ea",
               "name": "current_post_content",
-              "value": "={{ $('Get Post For Likes1').item.json.post_text }}",
+              "value": "={{ $('Get Post For Likes Order').item.json.post_text }}",
               "type": "string"
             },
             {
@@ -2405,11 +2652,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -12992,
-        784
+        -12848,
+        1376
       ],
       "id": "ae93d700-4742-4cc0-9973-c9727da97a79",
-      "name": "Store Current Post2"
+      "name": "Store Likes Order Post"
     },
     {
       "parameters": {
@@ -2418,13 +2665,13 @@
             {
               "id": "af68a81b-0afa-4898-a864-11bd17560744",
               "name": "apiUrl",
-              "value": "={{ $('Edit Fields2').item.json.apiUrl }}",
+              "value": "={{ $('Set Likes Service Config').item.json.apiUrl }}",
               "type": "string"
             },
             {
               "id": "a76188e0-cd8d-40e9-bfc5-9a3c2076cae8",
               "name": "apiKey",
-              "value": "={{ $('Edit Fields2').item.json.apiKey }}",
+              "value": "={{ $('Set Likes Service Config').item.json.apiKey }}",
               "type": "string"
             },
             {
@@ -2436,7 +2683,7 @@
             {
               "id": "3da8d591-cbdb-4621-8165-ed7fbd1d4fe3",
               "name": "=link",
-              "value": "=https://x.com/i/web/status/{{$('Store Current Post2').item.json.current_post_id}}?s=20 ",
+              "value": "=https://x.com/i/web/status/{{$('Store Likes Order Post').item.json.current_post_id}}?s=20 ",
               "type": "string"
             },
             {
@@ -2452,11 +2699,724 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -12544,
-        784
+        -12400,
+        1376
       ],
       "id": "73c821f5-8de7-491e-8196-dfef36fab1b3",
-      "name": "Set Likes Order Data1"
+      "name": "Prepare Likes Order Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dfcc11da-4397-43af-9211-e0859095e393",
+              "leftValue": "={{ $json.users_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -13872,
+        -368
+      ],
+      "id": "5ca7dd37-7b52-4815-b736-bb6e977577f5",
+      "name": "If Track Users Input Valid"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "I couldn't find a valid X username to track. Send /track followed by one or more @usernames or X profile links.",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -13648,
+        -128
+      ],
+      "id": "d55fc252-6d99-441c-86b2-7659b393e19a",
+      "name": "Send Track Users Input Error",
+      "webhookId": "07b6beb8-cdb2-4c09-a0e7-0ad1ed61b08d",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst parsed = $('Parse Users To Track').first().json;\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Telegram Router Staging','Path: track users input validation',`User chat: ${route.telegram_chat_id || 'unknown'}`,`Input: ${String(route.message_text || route.command_args || '').slice(0, 500)}`,`Reason: ${parsed.message || 'No valid username candidates parsed.'}`].join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13360,
+        -128
+      ],
+      "id": "73e466cb-33cd-4a5b-957d-7a30c132b609",
+      "name": "Build Developer Alert - Track Input"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -13072,
+        -128
+      ],
+      "id": "21ec9a66-bd29-41c4-a39c-2873312681e4",
+      "name": "Send Developer Alert - Track Input",
+      "webhookId": "cb0881db-d098-4c7b-9192-2c294f11668f",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Parse Telegram Message').first().json;\nlet attemptedUser = '';\ntry { attemptedUser = $('Split Users To Track').first().json.user || ''; } catch (error) {}\nconst errorValue = $json.error || $json.message || $json;\nconst errorText = typeof errorValue === 'string' ? errorValue : JSON.stringify(errorValue).slice(0, 1000);\nconst user_message = attemptedUser ? `I could not find @${attemptedUser} on X. Please check the username and try again.` : 'I could not find that X user. Please check the username and try again.';\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Telegram Router Staging','Path: X user lookup',`User chat: ${route.telegram_chat_id || 'unknown'}`,`Attempted username: ${attemptedUser || 'unknown'}`,`Error: ${errorText}`].join('\\n');\nreturn [{ json: { telegram_chat_id: route.telegram_chat_id, user_message, developer_chat_id: '8677383067', message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12848,
+        -336
+      ],
+      "id": "04e307a5-1b02-419c-a17c-a147b650cb2c",
+      "name": "Build Track User Lookup Error"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "={{ $json.user_message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -12624,
+        -432
+      ],
+      "id": "c758c9cf-177f-4664-89cb-8dcfe5937cb0",
+      "name": "Send Track User Lookup Error",
+      "webhookId": "2980f986-a3bd-4144-a90f-4b08a6de7866",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -12624,
+        160
+      ],
+      "id": "ea1d14a2-aee9-4f86-acf5-ec894fe3f350",
+      "name": "Send Developer Alert - Track Lookup",
+      "webhookId": "73db4a57-67e5-43d5-9c48-3ae2179a6be3",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Validate X Auth Account').first().json;\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Telegram Router Staging','Path: hide replies auth validation',`User chat: ${data.telegram_chat_id || 'unknown'}`,`Post: ${data.post_id || 'unknown'}`,`Owner user id: ${data.post_owner_user_id || 'unknown'}`,`Reason: ${data.error_message || 'Auth account not ready.'}`].join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13360,
+        -704
+      ],
+      "id": "3918d98d-a7a4-4539-9573-db0e03c64f21",
+      "name": "Build Developer Alert - Auth Required"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -13072,
+        -704
+      ],
+      "id": "58c2abfe-001a-43c8-8ee9-2a24c2dcbc17",
+      "name": "Send Developer Alert - Auth Required",
+      "webhookId": "51bb29df-4ab3-4e86-a8d0-dfd60853f488",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Build Reply Hide Items').first().json;\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Telegram Router Staging','Path: hide replies no stored replies',`User chat: ${data.telegram_chat_id || 'unknown'}`,`Post: ${data.post_id || 'unknown'}`,`Reason: ${data.message || 'No stored replies found.'}`].join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11280,
+        -128
+      ],
+      "id": "0228bcef-e593-443f-9ccc-289d7509a8af",
+      "name": "Build Developer Alert - No Replies"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -11056,
+        -128
+      ],
+      "id": "3af66d1b-87f0-43dd-92a3-d544a90e15b7",
+      "name": "Send Developer Alert - No Replies",
+      "webhookId": "48c1ce50-7a30-4926-8925-3ab939dd5e73",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Prepare Post Status Change').first().json;\nconst route = $('Parse Telegram Message').first().json;\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Telegram Router Staging','Path: post status validation',`Action: ${route.intent || 'unknown'}`,`User chat: ${data.telegram_chat_id || route.telegram_chat_id || 'unknown'}`,`Post: ${data.post_id || route.post_id || 'unknown'}`,`Reason: ${data.message || data.callback_text || 'Status action rejected.'}`].join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -13072,
+        832
+      ],
+      "id": "e58f9b94-3045-48e3-9292-fd45f846cfe4",
+      "name": "Build Developer Alert - Status Validation"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -12848,
+        832
+      ],
+      "id": "d7611f27-0789-4943-b5e4-07066ae61449",
+      "name": "Send Developer Alert - Status Validation",
+      "webhookId": "3806ace5-eac6-429c-a3f2-780d688f1b15",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "70000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ !$json.errors && !!$json.data?.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4a2fd13c-9e21-4d40-8ac8-cff2b5f4a96b",
+      "name": "If X User Lookup Successful",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -13072,
+        -512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const addResponse = $input.first()?.json || {};\nconst route = $('Parse Telegram Message').first().json || {};\nconst storedPost = $('Store Comment Order Post').first().json || {};\nconst request = $('Prepare Comment Order Request').first().json || {};\nconst payload = $('Build Comment Order Payload').first().json || {};\n\nfunction classifyProviderError(response) {\n  const raw = response?.error ?? response?.Error ?? response?.message ?? response?.Message ?? 'The provider rejected the order.';\n  const errorText = String(raw).trim() || 'The provider rejected the order.';\n  const lower = errorText.toLowerCase();\n\n  let code = 'provider_error';\n  let userMessage = `I could not place the comment order. Provider response: ${errorText}`;\n\n  if (lower.includes('fund') || lower.includes('balance') || lower.includes('credit')) {\n    code = 'insufficient_funds';\n    userMessage = 'I could not place the comment order because the SMM provider balance does not have enough funds.';\n  } else if (lower.includes('key') || lower.includes('api') || lower.includes('auth')) {\n    code = 'provider_auth_error';\n    userMessage = 'I could not place the comment order because the SMM provider credentials were rejected. Please check the provider API key.';\n  } else if (lower.includes('service')) {\n    code = 'invalid_or_unavailable_service';\n    userMessage = `I could not place the comment order because the configured SMM service was rejected: ${errorText}`;\n  } else if (lower.includes('link') || lower.includes('url')) {\n    code = 'invalid_link';\n    userMessage = `I could not place the comment order because the post link was rejected: ${errorText}`;\n  } else if (lower.includes('quantity') || lower.includes('minimum') || lower.includes('maximum') || lower.includes('min') || lower.includes('max')) {\n    code = 'invalid_quantity';\n    userMessage = `I could not place the comment order because the requested amount is outside the provider limits: ${errorText}`;\n  } else if (lower.includes('comment')) {\n    code = 'invalid_comments';\n    userMessage = `I could not place the comment order because the generated comments were rejected: ${errorText}`;\n  } else if (lower.includes('duplicate') || lower.includes('already')) {\n    code = 'duplicate_order';\n    userMessage = `I could not place the comment order because the provider says this order may already exist: ${errorText}`;\n  } else if (lower.includes('rate') || lower.includes('many request') || lower.includes('limit')) {\n    code = 'rate_limited';\n    userMessage = 'I could not place the comment order because the SMM provider is rate limiting requests. Please try again later.';\n  } else if (lower.includes('maintenance') || lower.includes('unavailable') || lower.includes('temporarily')) {\n    code = 'provider_unavailable';\n    userMessage = 'I could not place the comment order because the SMM provider is temporarily unavailable. Please try again later.';\n  }\n\n  return { code, errorText, userMessage };\n}\n\nconst providerOrderId = String(addResponse.order || '').trim();\nconst providerError = addResponse.error || addResponse.Error || addResponse.message || addResponse.Message;\n\nif (!providerOrderId || providerError) {\n  const classification = classifyProviderError(addResponse);\n  return [{\n    json: {\n      order_ok: false,\n      order_error_code: classification.code,\n      order_error_message: classification.errorText,\n      order_user_message: classification.userMessage,\n      provider: 'smmwiz',\n      provider_add_response: addResponse,\n      order_type: 'comments',\n      post_id: String(storedPost.current_post_id || ''),\n      telegram_chat_id: String(route.telegram_chat_id || ''),\n      x_username: String(storedPost.current_post_username || ''),\n      link: String(request.link || '').trim(),\n      service_id: String(request.serviceId || ''),\n      quantity: null,\n      comment_count: Number(payload.commentCount || 0),\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    order_ok: true,\n    provider: 'smmwiz',\n    provider_order_id: providerOrderId,\n    order_type: 'comments',\n    post_id: String(storedPost.current_post_id || ''),\n    telegram_chat_id: String(route.telegram_chat_id || ''),\n    x_username: String(storedPost.current_post_username || ''),\n    link: String(request.link || '').trim(),\n    service_id: String(request.serviceId || ''),\n    quantity: null,\n    comment_count: Number(payload.commentCount || 0),\n    request_payload: {\n      comments: String(payload.comments || ''),\n      commentCount: Number(payload.commentCount || 0),\n    },\n    provider_add_response: addResponse,\n    provider_status: 'Pending',\n    normalized_status: 'pending',\n    next_check_at: new Date().toISOString(),\n  },\n}];"
+      },
+      "id": "e948d315-dea3-4ac2-a6a0-0f3ff312ac47",
+      "name": "Normalize Comment Order Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -10608,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.\"Order Info\" (\n  provider,\n  provider_order_id,\n  order_type,\n  post_id,\n  telegram_chat_id,\n  x_username,\n  link,\n  service_id,\n  quantity,\n  comment_count,\n  request_payload,\n  provider_add_response,\n  provider_status,\n  normalized_status,\n  next_check_at\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::integer, $10::integer, $11::jsonb, $12::jsonb, $13, $14, $15::timestamptz)\nON CONFLICT (provider, provider_order_id) DO UPDATE\nSET\n  order_type = EXCLUDED.order_type,\n  post_id = EXCLUDED.post_id,\n  telegram_chat_id = EXCLUDED.telegram_chat_id,\n  x_username = EXCLUDED.x_username,\n  link = EXCLUDED.link,\n  service_id = EXCLUDED.service_id,\n  quantity = EXCLUDED.quantity,\n  comment_count = EXCLUDED.comment_count,\n  request_payload = EXCLUDED.request_payload,\n  provider_add_response = EXCLUDED.provider_add_response,\n  provider_status = EXCLUDED.provider_status,\n  normalized_status = EXCLUDED.normalized_status,\n  next_check_at = EXCLUDED.next_check_at,\n  last_error = NULL\nRETURNING *;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$json.provider, $json.provider_order_id, $json.order_type, $json.post_id, $json.telegram_chat_id, $json.x_username, $json.link, $json.service_id, $json.quantity, $json.comment_count, JSON.stringify($json.request_payload), JSON.stringify($json.provider_add_response), $json.provider_status, $json.normalized_status, $json.next_check_at] }}"
+        }
+      },
+      "id": "0d24c7a7-0335-4a67-99e5-fb0340416ecd",
+      "name": "Create Comment Order Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -10160,
+        352
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const addResponse = $input.first()?.json || {};\nconst route = $('Parse Telegram Message').first().json || {};\nconst storedPost = $('Store Likes Order Post').first().json || {};\nconst request = $('Prepare Likes Order Request').first().json || {};\nconst quantity = Number(request.quantity || route.like_amount || 0);\n\nfunction classifyProviderError(response) {\n  const raw = response?.error ?? response?.Error ?? response?.message ?? response?.Message ?? 'The provider rejected the order.';\n  const errorText = String(raw).trim() || 'The provider rejected the order.';\n  const lower = errorText.toLowerCase();\n\n  let code = 'provider_error';\n  let userMessage = `I could not place the likes order. Provider response: ${errorText}`;\n\n  if (lower.includes('fund') || lower.includes('balance') || lower.includes('credit')) {\n    code = 'insufficient_funds';\n    userMessage = 'I could not place the likes order because the SMM provider balance does not have enough funds.';\n  } else if (lower.includes('key') || lower.includes('api') || lower.includes('auth')) {\n    code = 'provider_auth_error';\n    userMessage = 'I could not place the likes order because the SMM provider credentials were rejected. Please check the provider API key.';\n  } else if (lower.includes('service')) {\n    code = 'invalid_or_unavailable_service';\n    userMessage = `I could not place the likes order because the configured SMM service was rejected: ${errorText}`;\n  } else if (lower.includes('link') || lower.includes('url')) {\n    code = 'invalid_link';\n    userMessage = `I could not place the likes order because the post link was rejected: ${errorText}`;\n  } else if (lower.includes('quantity') || lower.includes('minimum') || lower.includes('maximum') || lower.includes('min') || lower.includes('max')) {\n    code = 'invalid_quantity';\n    userMessage = `I could not place the likes order because the requested amount is outside the provider limits: ${errorText}`;\n  } else if (lower.includes('duplicate') || lower.includes('already')) {\n    code = 'duplicate_order';\n    userMessage = `I could not place the likes order because the provider says this order may already exist: ${errorText}`;\n  } else if (lower.includes('rate') || lower.includes('many request') || lower.includes('limit')) {\n    code = 'rate_limited';\n    userMessage = 'I could not place the likes order because the SMM provider is rate limiting requests. Please try again later.';\n  } else if (lower.includes('maintenance') || lower.includes('unavailable') || lower.includes('temporarily')) {\n    code = 'provider_unavailable';\n    userMessage = 'I could not place the likes order because the SMM provider is temporarily unavailable. Please try again later.';\n  }\n\n  return { code, errorText, userMessage };\n}\n\nconst providerOrderId = String(addResponse.order || '').trim();\nconst providerError = addResponse.error || addResponse.Error || addResponse.message || addResponse.Message;\n\nif (!providerOrderId || providerError) {\n  const classification = classifyProviderError(addResponse);\n  return [{\n    json: {\n      order_ok: false,\n      order_error_code: classification.code,\n      order_error_message: classification.errorText,\n      order_user_message: classification.userMessage,\n      provider: 'smmwiz',\n      provider_add_response: addResponse,\n      order_type: 'likes',\n      post_id: String(storedPost.current_post_id || ''),\n      telegram_chat_id: String(route.telegram_chat_id || ''),\n      x_username: String(storedPost.current_post_username || ''),\n      link: String(request.link || '').trim(),\n      service_id: String(request.serviceId || ''),\n      quantity,\n      comment_count: null,\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    order_ok: true,\n    provider: 'smmwiz',\n    provider_order_id: providerOrderId,\n    order_type: 'likes',\n    post_id: String(storedPost.current_post_id || ''),\n    telegram_chat_id: String(route.telegram_chat_id || ''),\n    x_username: String(storedPost.current_post_username || ''),\n    link: String(request.link || '').trim(),\n    service_id: String(request.serviceId || ''),\n    quantity,\n    comment_count: null,\n    request_payload: { quantity },\n    provider_add_response: addResponse,\n    provider_status: 'Pending',\n    normalized_status: 'pending',\n    next_check_at: new Date().toISOString(),\n  },\n}];"
+      },
+      "id": "cee50ec8-94e3-4ceb-9a84-a15a94f13062",
+      "name": "Normalize Likes Order Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11952,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.\"Order Info\" (\n  provider,\n  provider_order_id,\n  order_type,\n  post_id,\n  telegram_chat_id,\n  x_username,\n  link,\n  service_id,\n  quantity,\n  comment_count,\n  request_payload,\n  provider_add_response,\n  provider_status,\n  normalized_status,\n  next_check_at\n)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::integer, $10::integer, $11::jsonb, $12::jsonb, $13, $14, $15::timestamptz)\nON CONFLICT (provider, provider_order_id) DO UPDATE\nSET\n  order_type = EXCLUDED.order_type,\n  post_id = EXCLUDED.post_id,\n  telegram_chat_id = EXCLUDED.telegram_chat_id,\n  x_username = EXCLUDED.x_username,\n  link = EXCLUDED.link,\n  service_id = EXCLUDED.service_id,\n  quantity = EXCLUDED.quantity,\n  comment_count = EXCLUDED.comment_count,\n  request_payload = EXCLUDED.request_payload,\n  provider_add_response = EXCLUDED.provider_add_response,\n  provider_status = EXCLUDED.provider_status,\n  normalized_status = EXCLUDED.normalized_status,\n  next_check_at = EXCLUDED.next_check_at,\n  last_error = NULL\nRETURNING *;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$json.provider, $json.provider_order_id, $json.order_type, $json.post_id, $json.telegram_chat_id, $json.x_username, $json.link, $json.service_id, $json.quantity, $json.comment_count, JSON.stringify($json.request_payload), JSON.stringify($json.provider_add_response), $json.provider_status, $json.normalized_status, $json.next_check_at] }}"
+        }
+      },
+      "id": "27806b0b-a5c1-4198-a6de-795f190cdc32",
+      "name": "Create Likes Order Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -11504,
+        1376
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.\"Posts\"\nSET status = 'Processing'\nWHERE post_id = $1\nRETURNING post_id, status;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$('Create Likes Order Info').item.json.post_id] }}"
+        }
+      },
+      "id": "23946477-6758-4507-827f-d7ad3450d451",
+      "name": "Mark Likes Order Processing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -11280,
+        1376
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Create Likes Order Info').item.json.telegram_chat_id }}",
+        "text": "=The likes order has been placed successfully.\n\nOrder ID: {{ $('Create Likes Order Info').item.json.provider_order_id }}\nPost: {{ $('Create Likes Order Info').item.json.post_id }}\nQuantity: {{ $('Create Likes Order Info').item.json.quantity }}\n\nI will check the status automatically and notify you when it finishes.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0c89aeb6-07ff-40e1-8e33-77c7d8aae473",
+      "name": "Send Likes Order Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -11056,
+        1376
+      ],
+      "webhookId": "455ab710-e42c-4e6a-8315-d914604a2dd0",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "40000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ !!$json.callback_message_id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f05a3d1d-0ebf-4f69-b283-09a4e0b6f001",
+      "name": "If Status Origin Is Callback",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -13648,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "40000000-0000-4000-8000-000000000002",
+              "leftValue": "={{ $json.show_resume }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9f2a3ce1-bbc4-4539-8dff-810b79e8f002",
+      "name": "If Edit Resume Button",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -13360,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "messageId": "={{ $json.callback_message_id }}",
+        "replyMarkup": "inlineKeyboard",
+        "text": "={{ $json.edited_alert_message }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Resume post",
+                    "additionalFields": {
+                      "callback_data": "={{ 'resume:' + $json.post_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "0ccb8f6e-7ce2-4997-9dd9-39407e35f003",
+      "name": "Edit Status Alert With Resume",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -13072,
+        448
+      ],
+      "webhookId": "5e842b7c-1c8f-49ac-9ec6-48d1734b5e40",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "messageId": "={{ $json.callback_message_id }}",
+        "text": "={{ $json.edited_alert_message }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "cc5521e8-c661-4baa-b035-56174bbff004",
+      "name": "Edit Status Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -13072,
+        640
+      ],
+      "webhookId": "b834e553-80d7-4b15-ab8c-0860fb6c2584",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
+        "text": "Comment order canceled. I will not place an order for this post.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "3dee61ca-c9f2-4d10-a63c-cd156d7b6f84",
+      "name": "Send Comment Order Canceled",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -11056,
+        816
+      ],
+      "webhookId": "ccd1f821-41d3-4fbb-999d-51e67a0906cf",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "id": "fa342f76-265f-4bdb-8a9b-3e57479e1768",
+      "name": "If Comment Order Accepted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -10384,
+        352
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "comment-order-ok",
+              "leftValue": "={{ $json.order_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5e679b54-a0e9-49d1-9d85-2413c63fa584",
+      "name": "Send Comment Order Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -10160,
+        544
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "={{ $json.order_user_message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "2060c21f-e069-439b-851b-01a7dc6324b9",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "id": "e2c64bdd-91a1-438e-876c-4756b97551d2",
+      "name": "If Likes Order Accepted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -11728,
+        1376
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "likes-order-ok",
+              "leftValue": "={{ $json.order_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9fd0265d-8818-4ede-b574-140756265277",
+      "name": "Send Likes Order Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -11504,
+        1568
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "={{ $json.order_user_message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "6cdc1849-4ff0-435e-a218-5daf0bb5c178",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
     }
   ],
   "connections": {
@@ -2464,7 +3424,7 @@
       "main": [
         [
           {
-            "node": "Switch On Intent",
+            "node": "Route Telegram Intent",
             "type": "main",
             "index": 0
           }
@@ -2712,55 +3672,11 @@
         ]
       ]
     },
-    "Clear Telegram Users": {
-      "main": [
-        [
-          {
-            "node": "Clear Tracked Users",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Clear Tracked Users": {
-      "main": [
-        [
-          {
-            "node": "Parse Users To Track",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Split Users To Track": {
       "main": [
         [
           {
-            "node": "Get X User",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Add Tracked User": {
-      "main": [
-        [
-          {
-            "node": "Add Telegram User",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Add Telegram User": {
-      "main": [
-        [
-          {
-            "node": "Send Tracking Success",
+            "node": "Lookup X User By Username",
             "type": "main",
             "index": 0
           }
@@ -2771,92 +3687,7 @@
       "main": [
         [
           {
-            "node": "Split Users To Track",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Switch On Intent": {
-      "main": [
-        [
-          {
-            "node": "Send Help Manual",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Generate X OAuth Link",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Post For Hide",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Post For Status Change",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Post For Status Change",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Post For Status Change",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Clear Telegram Users",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get Post For Comments",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "If Likes Amount Prompt",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send Default Help",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get X User": {
-      "main": [
-        [
-          {
-            "node": "Add Tracked User",
+            "node": "If Track Users Input Valid",
             "type": "main",
             "index": 0
           }
@@ -2961,6 +3792,11 @@
             "node": "If Status Callback",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Build Developer Alert - Status Validation",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2983,48 +3819,9 @@
             "node": "If Resume Button",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Post For Comments": {
-      "main": [
-        [
+          },
           {
-            "node": "Get User1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Replies": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Split Out",
+            "node": "If Status Origin Is Callback",
             "type": "main",
             "index": 0
           }
@@ -3035,7 +3832,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "AI Agent",
+            "node": "Generate Counter Replies",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -3046,209 +3843,8 @@
       "ai_outputParser": [
         [
           {
-            "node": "AI Agent",
+            "node": "Generate Counter Replies",
             "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Split Out": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Loop Over Items1": {
-      "main": [
-        [
-          {
-            "node": "Get all counter replies for current post",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Update a row",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update a row": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request": {
-      "main": [
-        [
-          {
-            "node": "Check Order Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set Comment Order Data": {
-      "main": [
-        [
-          {
-            "node": "HTTP Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Order Status": {
-      "main": [
-        [
-          {
-            "node": "Set post status to Pending",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set post status to Pending": {
-      "main": [
-        [
-          {
-            "node": "Send a text message2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get all counter replies for current post": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript2": {
-      "main": [
-        [
-          {
-            "node": "Edit Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send message and wait for response": {
-      "main": [
-        [
-          {
-            "node": "Switch",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript3": {
-      "main": [
-        [
-          {
-            "node": "Send a text message1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send a text message1": {
-      "main": [
-        [
-          {
-            "node": "Send message and wait for response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Switch": {
-      "main": [
-        [
-          {
-            "node": "Set Comment Order Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Store Current Post": {
-      "main": [
-        [
-          {
-            "node": "Get Replies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get User1": {
-      "main": [
-        [
-          {
-            "node": "Store Current Post",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Likes Amount Prompt": {
-      "main": [
-        [
-          {
-            "node": "Answer Likes Callback",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Validate Likes Order Input",
-            "type": "main",
             "index": 0
           }
         ]
@@ -3291,7 +3887,7 @@
       "main": [
         [
           {
-            "node": "Get Post For Likes1",
+            "node": "Get Post For Likes Order",
             "type": "main",
             "index": 0
           }
@@ -3305,88 +3901,725 @@
         ]
       ]
     },
-    "Order Likes1": {
+    "Send Track Users Input Error": {
       "main": [
         [
           {
-            "node": "Check Order Status2",
+            "node": "Build Developer Alert - Track Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Edit Fields2": {
+    "Build Developer Alert - Track Input": {
       "main": [
         [
           {
-            "node": "Set Likes Order Data1",
+            "node": "Send Developer Alert - Track Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Post For Likes1": {
+    "Build Track User Lookup Error": {
       "main": [
         [
           {
-            "node": "Get User2",
+            "node": "Send Track User Lookup Error",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Developer Alert - Track Lookup",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get User2": {
+    "Send Auth Required": {
       "main": [
         [
           {
-            "node": "Store Current Post2",
+            "node": "Build Developer Alert - Auth Required",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Current Post2": {
+    "Build Developer Alert - Auth Required": {
       "main": [
         [
           {
-            "node": "Edit Fields2",
+            "node": "Send Developer Alert - Auth Required",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Likes Order Data1": {
+    "Send No Replies": {
       "main": [
         [
           {
-            "node": "Order Likes1",
+            "node": "Build Developer Alert - No Replies",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Order Status2": {
+    "Build Developer Alert - No Replies": {
       "main": [
-        []
+        [
+          {
+            "node": "Send Developer Alert - No Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Developer Alert - Status Validation": {
+      "main": [
+        [
+          {
+            "node": "Send Developer Alert - Status Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If X User Lookup Successful": {
+      "main": [
+        [
+          {
+            "node": "Upsert Tracked X User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Track User Lookup Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Telegram Intent": {
+      "main": [
+        [
+          {
+            "node": "Send Help Manual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate X OAuth Link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Post For Hide",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Post For Status Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Post For Status Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Post For Status Change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Clear Telegram User Links",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Post For Comment Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Likes Amount Needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Default Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Telegram User Links": {
+      "main": [
+        [
+          {
+            "node": "Clear Tracked Users For Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Tracked Users For Chat": {
+      "main": [
+        [
+          {
+            "node": "Parse Users To Track",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Tracked X User": {
+      "main": [
+        [
+          {
+            "node": "Link Telegram User To X User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link Telegram User To X User": {
+      "main": [
+        [
+          {
+            "node": "Send Tracking Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Track Users Input Valid": {
+      "main": [
+        [
+          {
+            "node": "Split Users To Track",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Track Users Input Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup X User By Username": {
+      "main": [
+        [
+          {
+            "node": "If X User Lookup Successful",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Track User Lookup Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Post For Comment Order": {
+      "main": [
+        [
+          {
+            "node": "Get Comment Post Tracked User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Comment Post Tracked User": {
+      "main": [
+        [
+          {
+            "node": "Store Comment Order Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Comment Order Post": {
+      "main": [
+        [
+          {
+            "node": "Get Replies For Comment Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Replies For Comment Order": {
+      "main": [
+        [
+          {
+            "node": "Build Counter Reply Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Counter Reply Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Counter Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Counter Replies": {
+      "main": [
+        [
+          {
+            "node": "Split Counter Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Counter Replies": {
+      "main": [
+        [
+          {
+            "node": "Loop Counter Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Counter Replies": {
+      "main": [
+        [
+          {
+            "node": "Get Fresh Counter Replies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Counter Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Counter Reply": {
+      "main": [
+        [
+          {
+            "node": "Loop Counter Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Fresh Counter Replies": {
+      "main": [
+        [
+          {
+            "node": "Build Comment Order Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Comment Order Payload": {
+      "main": [
+        [
+          {
+            "node": "Set Comment Service Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Comment Service Config": {
+      "main": [
+        [
+          {
+            "node": "Chunk Suggested Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Suggested Comments": {
+      "main": [
+        [
+          {
+            "node": "Send Suggested Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Suggested Comments": {
+      "main": [
+        [
+          {
+            "node": "Ask Comment Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Comment Order Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Route Comment Order Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Comment Order Decision": {
+      "main": [
+        [
+          {
+            "node": "Prepare Comment Order Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Comment Order Canceled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Comment Order Request": {
+      "main": [
+        [
+          {
+            "node": "Place Comment Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Comment Order Processing": {
+      "main": [
+        [
+          {
+            "node": "Send Comment Order Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Likes Amount Needed": {
+      "main": [
+        [
+          {
+            "node": "Answer Likes Callback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Likes Order Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Post For Likes Order": {
+      "main": [
+        [
+          {
+            "node": "Get Likes Post Tracked User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Likes Post Tracked User": {
+      "main": [
+        [
+          {
+            "node": "Store Likes Order Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Likes Order Post": {
+      "main": [
+        [
+          {
+            "node": "Set Likes Service Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Likes Service Config": {
+      "main": [
+        [
+          {
+            "node": "Prepare Likes Order Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Likes Order Request": {
+      "main": [
+        [
+          {
+            "node": "Place Likes Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Place Comment Order": {
+      "main": [
+        [
+          {
+            "node": "Normalize Comment Order Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Comment Order Info": {
+      "main": [
+        [
+          {
+            "node": "Mark Comment Order Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Place Likes Order": {
+      "main": [
+        [
+          {
+            "node": "Normalize Likes Order Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Likes Order Info": {
+      "main": [
+        [
+          {
+            "node": "Mark Likes Order Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Likes Order Processing": {
+      "main": [
+        [
+          {
+            "node": "Send Likes Order Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Status Origin Is Callback": {
+      "main": [
+        [
+          {
+            "node": "If Edit Resume Button",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Edit Resume Button": {
+      "main": [
+        [
+          {
+            "node": "Edit Status Alert With Resume",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Status Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Comment Order Info": {
+      "main": [
+        [
+          {
+            "node": "If Comment Order Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Comment Order Accepted": {
+      "main": [
+        [
+          {
+            "node": "Create Comment Order Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Comment Order Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Likes Order Info": {
+      "main": [
+        [
+          {
+            "node": "If Likes Order Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Likes Order Accepted": {
+      "main": [
+        [
+          {
+            "node": "Create Likes Order Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Likes Order Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "CCzwnMyoy7UequuI",
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "staticData": null,
-  "meta": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
   "nodeGroups": [],
-  "pinData": {},
-  "versionId": "10989bee-2851-4ad9-ba64-6f1a2a79c12a",
+  "pinData": {
+    "Order Likes1": [
+      {
+        "json": {
+          "order": 29862735
+        }
+      }
+    ]
+  },
+  "versionId": "ef72235a-2522-433a-8c27-a7475062daef",
   "activeVersionId": null,
-  "versionCounter": 2,
+  "versionCounter": 36,
   "triggerCount": 0,
   "sourceWorkflowId": null,
   "shared": [
@@ -3409,6 +4642,13 @@
       }
     }
   ],
-  "tags": [],
+  "tags": [
+    {
+      "updatedAt": "2026-06-16T17:15:10.769Z",
+      "createdAt": "2026-06-16T17:15:10.769Z",
+      "id": "CapkBTEZDHfdjRgZ",
+      "name": "Codex"
+    }
+  ],
   "activeVersion": null
 }

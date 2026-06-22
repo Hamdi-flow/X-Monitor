@@ -1,0 +1,116 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910001,
+        "callback_query": {
+          "id": "test-hide-replies-callback",
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "message": {
+            "message_id": 201,
+            "chat": {
+              "id": 8677383067,
+              "first_name": "Test",
+              "type": "private"
+            },
+            "date": 1781631500,
+            "text": "Post controls"
+          },
+          "data": "hide_replies:2060604129798496702"
+        }
+      }
+    }
+  ],
+  "Get Post For Hide": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "username": "RebelHam_",
+        "post_text": "Pinned test post for hide-replies regression."
+      }
+    }
+  ],
+  "Get X Auth Account": [
+    {
+      "json": {
+        "x_user_id": "951803761",
+        "x_username": "RebelHam_",
+        "telegram_chat_id": "8677383067",
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "scope": "tweet.read tweet.write tweet.moderate.write users.read offline.access"
+      }
+    }
+  ],
+  "Get Replies For Post": [
+    {
+      "json": {
+        "reply_id": "2060605000000000001",
+        "post_id": "2060604129798496702",
+        "text": "Pinned reply one",
+        "status": "New"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060605000000000002",
+        "post_id": "2060604129798496702",
+        "text": "Pinned reply two",
+        "status": "New"
+      }
+    }
+  ],
+  "Hide Reply On X": [
+    {
+      "json": {
+        "data": {
+          "hidden": true
+        }
+      }
+    },
+    {
+      "json": {
+        "data": {
+          "hidden": true
+        }
+      }
+    }
+  ],
+  "Update Reply Status": [
+    {
+      "json": {
+        "reply_id": "2060605000000000001",
+        "status": "hidden"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060605000000000002",
+        "status": "hidden"
+      }
+    }
+  ],
+  "Send Hide Summary": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 301,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Hide replies complete.\nPost: 2060604129798496702\nHidden: 2\nFailed: 0"
+        }
+      }
+    }
+  ]
+}

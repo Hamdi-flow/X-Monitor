@@ -1,0 +1,264 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910003,
+        "message": {
+          "message_id": 203,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "Test",
+            "type": "private"
+          },
+          "date": 1781631500,
+          "text": "/order_comments 2060604129798496702",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 15,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Get Post For Comment Order": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "post_text": "Pinned test post for comment-order regression.",
+        "status": "New"
+      }
+    }
+  ],
+  "Get Comment Post Tracked User": [
+    {
+      "json": {
+        "user_id": "951803761",
+        "username": "RebelHam_"
+      }
+    }
+  ],
+  "Get Replies For Comment Order": [
+    {
+      "json": {
+        "reply_id": "2060606000000000001",
+        "post_id": "2060604129798496702",
+        "text": "Pinned source reply one"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060606000000000002",
+        "post_id": "2060604129798496702",
+        "text": "Pinned source reply two"
+      }
+    }
+  ],
+  "Generate Counter Replies": [
+    {
+      "json": {
+        "output": {
+          "post_id": "2060604129798496702",
+          "counter_replies": [
+            {
+              "reply_id": "2060606000000000001",
+              "counter_reply_text": "Pinned counter reply 1"
+            },
+            {
+              "reply_id": "2060606000000000002",
+              "counter_reply_text": "Pinned counter reply 2"
+            },
+            {
+              "reply_id": "2060606000000000003",
+              "counter_reply_text": "Pinned counter reply 3"
+            },
+            {
+              "reply_id": "2060606000000000004",
+              "counter_reply_text": "Pinned counter reply 4"
+            },
+            {
+              "reply_id": "2060606000000000005",
+              "counter_reply_text": "Pinned counter reply 5"
+            },
+            {
+              "reply_id": "2060606000000000006",
+              "counter_reply_text": "Pinned counter reply 6"
+            },
+            {
+              "reply_id": "2060606000000000007",
+              "counter_reply_text": "Pinned counter reply 7"
+            },
+            {
+              "reply_id": "2060606000000000008",
+              "counter_reply_text": "Pinned counter reply 8"
+            },
+            {
+              "reply_id": "2060606000000000009",
+              "counter_reply_text": "Pinned counter reply 9"
+            },
+            {
+              "reply_id": "2060606000000000010",
+              "counter_reply_text": "Pinned counter reply 10"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Save Counter Reply": [
+    {
+      "json": {
+        "reply_id": "2060606000000000001",
+        "counter_reply_text": "Pinned counter reply 1"
+      }
+    }
+  ],
+  "Get Fresh Counter Replies": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 1"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 2"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 3"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 4"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 5"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 6"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 7"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 8"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 9"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 10"
+      }
+    }
+  ],
+  "Send Suggested Comments": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 302,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned suggested comments sent"
+        }
+      }
+    }
+  ],
+  "Ask Comment Order Confirmation": [
+    {
+      "json": {
+        "data": {
+          "What would you like to do?": [
+            "Confirm"
+          ]
+        }
+      }
+    }
+  ],
+  "Place Comment Order": [
+    {
+      "json": {
+        "order": 88000002
+      }
+    }
+  ],
+  "Create Comment Order Info": [
+    {
+      "json": {
+        "id": "44444444-4444-4444-8444-444444444444",
+        "provider": "smmwiz",
+        "provider_order_id": "88000002",
+        "order_type": "comments",
+        "post_id": "2060604129798496702",
+        "telegram_chat_id": "8677383067",
+        "x_username": "RebelHam_",
+        "link": "https://x.com/i/web/status/2060604129798496702?s=20",
+        "service_id": "8404",
+        "quantity": null,
+        "comment_count": 10,
+        "provider_status": "Pending",
+        "normalized_status": "pending",
+        "notified_at": null
+      }
+    }
+  ],
+  "Mark Comment Order Processing": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "status": "Processing"
+      }
+    }
+  ],
+  "Send Comment Order Success": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 303,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "The order has been placed successfully. Here are its details."
+        }
+      }
+    }
+  ]
+}

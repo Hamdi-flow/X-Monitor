@@ -1,0 +1,101 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910002,
+        "message": {
+          "message_id": 202,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "Test",
+            "type": "private"
+          },
+          "date": 1781631500,
+          "text": "/order_likes 2060604129798496702 25",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 12,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Get Post For Likes Order": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "post_text": "Pinned test post for likes-order regression.",
+        "status": "New"
+      }
+    }
+  ],
+  "Get Likes Post Tracked User": [
+    {
+      "json": {
+        "user_id": "951803761",
+        "username": "RebelHam_"
+      }
+    }
+  ],
+  "Place Likes Order": [
+    {
+      "json": {
+        "order": 88000001
+      }
+    }
+  ],
+  "Create Likes Order Info": [
+    {
+      "json": {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "provider": "smmwiz",
+        "provider_order_id": "88000001",
+        "order_type": "likes",
+        "post_id": "2060604129798496702",
+        "telegram_chat_id": "8677383067",
+        "x_username": "RebelHam_",
+        "link": "https://x.com/i/web/status/2060604129798496702?s=20",
+        "service_id": "12104",
+        "quantity": 25,
+        "comment_count": null,
+        "provider_status": "Pending",
+        "normalized_status": "pending",
+        "notified_at": null
+      }
+    }
+  ],
+  "Mark Likes Order Processing": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "status": "Processing"
+      }
+    }
+  ],
+  "Send Likes Order Success": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 304,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "The likes order has been placed successfully."
+        }
+      }
+    }
+  ]
+}

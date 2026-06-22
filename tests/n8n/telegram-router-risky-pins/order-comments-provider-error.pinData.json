@@ -1,0 +1,229 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910005,
+        "message": {
+          "message_id": 205,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "Test",
+            "type": "private"
+          },
+          "date": 1781631500,
+          "text": "/order_comments 2060604129798496702",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 15,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Get Post For Comment Order": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "post_text": "Pinned test post for comment-order provider error regression.",
+        "status": "New"
+      }
+    }
+  ],
+  "Get Comment Post Tracked User": [
+    {
+      "json": {
+        "user_id": "951803761",
+        "username": "RebelHam_"
+      }
+    }
+  ],
+  "Get Replies For Comment Order": [
+    {
+      "json": {
+        "reply_id": "2060606000000000001",
+        "post_id": "2060604129798496702",
+        "text": "Pinned source reply one"
+      }
+    }
+  ],
+  "Generate Counter Replies": [
+    {
+      "json": {
+        "output": {
+          "post_id": "2060604129798496702",
+          "counter_replies": [
+            {
+              "reply_id": "2060606000000000001",
+              "counter_reply_text": "Pinned counter reply 1"
+            },
+            {
+              "reply_id": "2060606000000000002",
+              "counter_reply_text": "Pinned counter reply 2"
+            },
+            {
+              "reply_id": "2060606000000000003",
+              "counter_reply_text": "Pinned counter reply 3"
+            },
+            {
+              "reply_id": "2060606000000000004",
+              "counter_reply_text": "Pinned counter reply 4"
+            },
+            {
+              "reply_id": "2060606000000000005",
+              "counter_reply_text": "Pinned counter reply 5"
+            },
+            {
+              "reply_id": "2060606000000000006",
+              "counter_reply_text": "Pinned counter reply 6"
+            },
+            {
+              "reply_id": "2060606000000000007",
+              "counter_reply_text": "Pinned counter reply 7"
+            },
+            {
+              "reply_id": "2060606000000000008",
+              "counter_reply_text": "Pinned counter reply 8"
+            },
+            {
+              "reply_id": "2060606000000000009",
+              "counter_reply_text": "Pinned counter reply 9"
+            },
+            {
+              "reply_id": "2060606000000000010",
+              "counter_reply_text": "Pinned counter reply 10"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Save Counter Reply": [
+    {
+      "json": {
+        "reply_id": "2060606000000000001",
+        "counter_reply_text": "Pinned counter reply 1"
+      }
+    }
+  ],
+  "Get Fresh Counter Replies": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 1"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 2"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 3"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 4"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 5"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 6"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 7"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 8"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 9"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "counter_reply_text": "Pinned counter reply 10"
+      }
+    }
+  ],
+  "Send Suggested Comments": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 305,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned suggested comments sent"
+        }
+      }
+    }
+  ],
+  "Ask Comment Order Confirmation": [
+    {
+      "json": {
+        "data": {
+          "What would you like to do?": [
+            "Confirm"
+          ]
+        }
+      }
+    }
+  ],
+  "Place Comment Order": [
+    {
+      "json": {
+        "error": "Not enough funds on balance"
+      }
+    }
+  ],
+  "Send Comment Order Error": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 306,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "I could not place the comment order because the SMM provider balance does not have enough funds."
+        }
+      }
+    }
+  ]
+}

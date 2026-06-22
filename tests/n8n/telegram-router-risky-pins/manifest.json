@@ -1,0 +1,188 @@
+{
+  "workflowId": "oLwwjO05IcRjtF8E",
+  "workflowName": "XMonitor - Telegram Router Staging",
+  "fixtures": [
+    {
+      "id": "hide-replies-success",
+      "file": "hide-replies-success.pinData.json",
+      "input": "callback_query.data=hide_replies:2060604129798496702",
+      "riskPinned": [
+        "Get Post For Hide",
+        "Get X Auth Account",
+        "Get Replies For Post",
+        "Hide Reply On X",
+        "Update Reply Status",
+        "Send Hide Summary"
+      ],
+      "expected": {
+        "reaches": [
+          "Build Hide Summary",
+          "Send Hide Summary"
+        ],
+        "doesNotCallLive": [
+          "X API hide endpoint",
+          "Supabase reply status update",
+          "Telegram sendMessage"
+        ]
+      }
+    },
+    {
+      "id": "order-likes-success",
+      "file": "order-likes-success.pinData.json",
+      "input": "message.text=/order_likes 2060604129798496702 25",
+      "riskPinned": [
+        "Get Post For Likes Order",
+        "Get Likes Post Tracked User",
+        "Place Likes Order",
+        "Create Likes Order Info",
+        "Mark Likes Order Processing",
+        "Send Likes Order Success"
+      ],
+      "expected": {
+        "reaches": [
+          "Place Likes Order",
+          "Normalize Likes Order Info",
+          "If Likes Order Accepted",
+          "Create Likes Order Info",
+          "Send Likes Order Success"
+        ],
+        "doesNotCallLive": [
+          "SMM add order",
+          "Supabase reads/writes",
+          "Telegram sendMessage"
+        ]
+      }
+    },
+    {
+      "id": "order-comments-confirm-success",
+      "file": "order-comments-confirm-success.pinData.json",
+      "input": "message.text=/order_comments 2060604129798496702",
+      "riskPinned": [
+        "Get Post For Comment Order",
+        "Get Comment Post Tracked User",
+        "Get Replies For Comment Order",
+        "Generate Counter Replies",
+        "Save Counter Reply",
+        "Get Fresh Counter Replies",
+        "Send Suggested Comments",
+        "Ask Comment Order Confirmation",
+        "Place Comment Order",
+        "Create Comment Order Info",
+        "Mark Comment Order Processing",
+        "Send Comment Order Success"
+      ],
+      "expected": {
+        "reaches": [
+          "Route Comment Order Decision",
+          "Place Comment Order",
+          "Normalize Comment Order Info",
+          "If Comment Order Accepted",
+          "Create Comment Order Info",
+          "Send Comment Order Success"
+        ],
+        "doesNotCallLive": [
+          "OpenAI/agent generation",
+          "SMM add order",
+          "Supabase reads/writes",
+          "Telegram send/sendAndWait"
+        ]
+      }
+    },
+    {
+      "id": "order-comments-cancel",
+      "file": "order-comments-cancel.pinData.json",
+      "input": "message.text=/order_comments 2060604129798496702, confirmation=Do nothing",
+      "riskPinned": [
+        "Get Post For Comment Order",
+        "Get Comment Post Tracked User",
+        "Get Replies For Comment Order",
+        "Generate Counter Replies",
+        "Save Counter Reply",
+        "Get Fresh Counter Replies",
+        "Send Suggested Comments",
+        "Ask Comment Order Confirmation",
+        "Send Comment Order Canceled"
+      ],
+      "expected": {
+        "reaches": [
+          "Route Comment Order Decision",
+          "Send Comment Order Canceled"
+        ],
+        "doesNotReach": [
+          "Place Comment Order",
+          "Create Comment Order Info",
+          "Mark Comment Order Processing",
+          "Send Comment Order Success"
+        ],
+        "doesNotCallLive": [
+          "OpenAI/agent generation",
+          "Supabase reads/writes",
+          "Telegram send/sendAndWait"
+        ]
+      }
+    },
+    {
+      "id": "order-comments-provider-error",
+      "file": "order-comments-provider-error.pinData.json",
+      "input": "message.text=/order_comments 2060604129798496702, provider error=Not enough funds on balance",
+      "riskPinned": [
+        "Get Post For Comment Order",
+        "Get Comment Post Tracked User",
+        "Get Replies For Comment Order",
+        "Generate Counter Replies",
+        "Save Counter Reply",
+        "Get Fresh Counter Replies",
+        "Send Suggested Comments",
+        "Ask Comment Order Confirmation",
+        "Place Comment Order",
+        "Send Comment Order Error"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Comment Order Info",
+          "If Comment Order Accepted",
+          "Send Comment Order Error"
+        ],
+        "doesNotReach": [
+          "Create Comment Order Info",
+          "Mark Comment Order Processing",
+          "Send Comment Order Success"
+        ],
+        "doesNotCallLive": [
+          "OpenAI/agent generation",
+          "SMM add order",
+          "Supabase reads/writes",
+          "Telegram send/sendAndWait"
+        ]
+      }
+    },
+    {
+      "id": "order-likes-provider-error",
+      "file": "order-likes-provider-error.pinData.json",
+      "input": "message.text=/order_likes 2060604129798496702 25, provider error=Incorrect service ID",
+      "riskPinned": [
+        "Get Post For Likes Order",
+        "Get Likes Post Tracked User",
+        "Place Likes Order",
+        "Send Likes Order Error"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Likes Order Info",
+          "If Likes Order Accepted",
+          "Send Likes Order Error"
+        ],
+        "doesNotReach": [
+          "Create Likes Order Info",
+          "Mark Likes Order Processing",
+          "Send Likes Order Success"
+        ],
+        "doesNotCallLive": [
+          "SMM add order",
+          "Supabase reads/writes",
+          "Telegram sendMessage"
+        ]
+      }
+    }
+  ]
+}

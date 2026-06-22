@@ -1,0 +1,218 @@
+{
+  "updatedAt": "2026-06-16T18:32:52.889Z",
+  "createdAt": "2026-06-16T18:22:47.044Z",
+  "id": "CCzwnMyoy7UequuI",
+  "name": "XMonitor - Staging Developer Error Alerts",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        0
+      ],
+      "id": "61f4b7f5-a093-4e10-91c3-eb4ff1d573df",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const DEVELOPER_CHAT_ID = '8677383067';\nconst execution = $json.execution || {};\nconst workflow = $json.workflow || {};\nconst error = execution.error || $json.error || {};\nconst lastNode = execution.lastNodeExecuted || error.node?.name || error.node || 'unknown';\nconst errorMessage = error.message || error.description || error.stack || 'Unknown workflow error';\nconst executionId = execution.id || $json.executionId || 'unknown';\nconst workflowName = workflow.name || workflow.id || 'unknown workflow';\nconst mode = execution.mode || $json.mode || 'unknown';\nconst startedAt = execution.startedAt || execution.started_at || '';\nconst message = ['<b>XMonitor staging workflow error</b>', `Workflow: ${workflowName}`, `Execution: ${executionId}`, `Mode: ${mode}`, `Last node: ${lastNode}`, `Started: ${startedAt}`, `Error: ${String(errorMessage).slice(0, 1500)}`].filter(Boolean).join('\\n');\nreturn [{ json: { developer_chat_id: DEVELOPER_CHAT_ID, message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        0
+      ],
+      "id": "87a21756-f719-46d9-9e33-72ce26a31b48",
+      "name": "Build Developer Error Alert"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        },
+        "resource": "message",
+        "operation": "sendMessage"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "4b5f1139-192d-4891-9680-7799346cd322",
+      "name": "Send Developer Error Alert",
+      "webhookId": "8496bb98-4df1-4ae1-b7b7-86a47abe7fc5",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Developer Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Developer Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Developer Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "3d0944a4-2f40-4a79-9470-5be1d447b0a7",
+  "activeVersionId": "3d0944a4-2f40-4a79-9470-5be1d447b0a7",
+  "versionCounter": 3,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-06-16T18:22:47.047Z",
+      "createdAt": "2026-06-16T18:22:47.047Z",
+      "role": "workflow:owner",
+      "workflowId": "CCzwnMyoy7UequuI",
+      "projectId": "HqQCDls654d5OYVX",
+      "project": {
+        "updatedAt": "2026-04-10T14:35:09.715Z",
+        "createdAt": "2026-04-10T14:33:58.687Z",
+        "id": "HqQCDls654d5OYVX",
+        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-16T18:37:30Z",
+    "createdAt": "2026-06-16T18:32:18.614Z",
+    "versionId": "3d0944a4-2f40-4a79-9470-5be1d447b0a7",
+    "workflowId": "CCzwnMyoy7UequuI",
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.errorTrigger",
+        "typeVersion": 1,
+        "position": [
+          -560,
+          0
+        ],
+        "id": "61f4b7f5-a093-4e10-91c3-eb4ff1d573df",
+        "name": "Error Trigger"
+      },
+      {
+        "parameters": {
+          "jsCode": "const DEVELOPER_CHAT_ID = '8677383067';\nconst execution = $json.execution || {};\nconst workflow = $json.workflow || {};\nconst error = execution.error || $json.error || {};\nconst lastNode = execution.lastNodeExecuted || error.node?.name || error.node || 'unknown';\nconst errorMessage = error.message || error.description || error.stack || 'Unknown workflow error';\nconst executionId = execution.id || $json.executionId || 'unknown';\nconst workflowName = workflow.name || workflow.id || 'unknown workflow';\nconst mode = execution.mode || $json.mode || 'unknown';\nconst startedAt = execution.startedAt || execution.started_at || '';\nconst message = ['<b>XMonitor staging workflow error</b>', `Workflow: ${workflowName}`, `Execution: ${executionId}`, `Mode: ${mode}`, `Last node: ${lastNode}`, `Started: ${startedAt}`, `Error: ${String(errorMessage).slice(0, 1500)}`].filter(Boolean).join('\\n');\nreturn [{ json: { developer_chat_id: DEVELOPER_CHAT_ID, message } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -320,
+          0
+        ],
+        "id": "87a21756-f719-46d9-9e33-72ce26a31b48",
+        "name": "Build Developer Error Alert"
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.developer_chat_id }}",
+          "text": "={{ $json.message }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          },
+          "resource": "message",
+          "operation": "sendMessage"
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -80,
+          0
+        ],
+        "id": "4b5f1139-192d-4891-9680-7799346cd322",
+        "name": "Send Developer Error Alert",
+        "webhookId": "8496bb98-4df1-4ae1-b7b7-86a47abe7fc5",
+        "credentials": {
+          "telegramApi": {
+            "id": "1PkKyBUkopLzyBuI",
+            "name": "Testing Telegram API"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Error Trigger": {
+        "main": [
+          [
+            {
+              "node": "Build Developer Error Alert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Developer Error Alert": {
+        "main": [
+          [
+            {
+              "node": "Send Developer Error Alert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Hamdi Said",
+    "name": "Version 3d0944a4",
+    "description": "",
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-16T18:37:30.145Z",
+        "id": 66,
+        "workflowId": "CCzwnMyoy7UequuI",
+        "versionId": "3d0944a4-2f40-4a79-9470-5be1d447b0a7",
+        "event": "activated",
+        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    ]
+  }
+}

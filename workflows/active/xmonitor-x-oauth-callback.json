@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-09T17:28:22.526Z",
+  "updatedAt": "2026-06-18T19:00:44.363Z",
   "createdAt": "2026-05-25T10:45:41.851Z",
   "id": "JQ9KM3l1kRJQhWxb",
   "name": "XMonitor - X OAuth Callback",
@@ -21,7 +21,7 @@
       ],
       "id": "f1131be9-95ad-4821-a1ff-433f7f6ae98f",
       "name": "OAuth Callback Webhook",
-      "webhookId": "f0f8c349-d356-4d41-844a-f0f36f1f4061"
+      "webhookId": "86fca553-fb90-4259-9c44-8b7cf687880e"
     },
     {
       "parameters": {
@@ -483,7 +483,7 @@
       ],
       "id": "fb4d30bd-119a-432a-a879-df8f2cf32beb",
       "name": "Send Telegram Success",
-      "webhookId": "55a1f730-4539-43a7-9f47-a7ca6f66ae55",
+      "webhookId": "66d87b63-33a5-427f-b559-2be03417d6fd",
       "credentials": {
         "telegramApi": {
           "id": "93Zba0R65BeREluv",
@@ -702,15 +702,16 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "availableInMCP": true
   },
   "staticData": null,
   "meta": null,
   "nodeGroups": [],
   "pinData": {},
-  "versionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
-  "activeVersionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
-  "versionCounter": 32,
+  "versionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
+  "activeVersionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
+  "versionCounter": 34,
   "triggerCount": 1,
   "sourceWorkflowId": null,
   "shared": [
@@ -742,9 +743,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-05-30T07:58:45Z",
-    "createdAt": "2026-05-30T07:58:36.547Z",
-    "versionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
+    "updatedAt": "2026-06-18T19:00:44.364Z",
+    "createdAt": "2026-06-18T19:00:44.364Z",
+    "versionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
     "workflowId": "JQ9KM3l1kRJQhWxb",
     "nodes": [
       {
@@ -761,7 +762,7 @@
         ],
         "id": "f1131be9-95ad-4821-a1ff-433f7f6ae98f",
         "name": "OAuth Callback Webhook",
-        "webhookId": "f0f8c349-d356-4d41-844a-f0f36f1f4061"
+        "webhookId": "86fca553-fb90-4259-9c44-8b7cf687880e"
       },
       {
         "parameters": {
@@ -1223,7 +1224,7 @@
         ],
         "id": "fb4d30bd-119a-432a-a879-df8f2cf32beb",
         "name": "Send Telegram Success",
-        "webhookId": "55a1f730-4539-43a7-9f47-a7ca6f66ae55",
+        "webhookId": "66d87b63-33a5-427f-b559-2be03417d6fd",
         "credentials": {
           "telegramApi": {
             "id": "93Zba0R65BeREluv",
@@ -1442,16 +1443,40 @@
     },
     "nodeGroups": [],
     "authors": "Hamdi Said",
-    "name": "Version 054aa95c",
-    "description": "",
-    "autosaved": true,
+    "name": null,
+    "description": null,
+    "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-05-30T07:58:45.179Z",
-        "id": 41,
+        "createdAt": "2026-06-18T19:00:44.575Z",
+        "id": 74,
         "workflowId": "JQ9KM3l1kRJQhWxb",
-        "versionId": "054aa95c-544d-4d80-99a8-17647a8dd393",
+        "versionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
         "event": "activated",
+        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      },
+      {
+        "createdAt": "2026-06-18T19:01:19.713Z",
+        "id": 80,
+        "workflowId": "JQ9KM3l1kRJQhWxb",
+        "versionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
+        "event": "activated",
+        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      },
+      {
+        "createdAt": "2026-06-18T19:00:44.501Z",
+        "id": 73,
+        "workflowId": "JQ9KM3l1kRJQhWxb",
+        "versionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
+        "event": "deactivated",
+        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      },
+      {
+        "createdAt": "2026-06-18T19:01:19.654Z",
+        "id": 79,
+        "workflowId": "JQ9KM3l1kRJQhWxb",
+        "versionId": "5685e01f-d35a-4d5f-9775-7ace8275339a",
+        "event": "deactivated",
         "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
       }
     ]
