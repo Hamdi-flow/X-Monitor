@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-06-18T19:03:20.3410868Z",
+  "exportedAt": "2026-06-22T16:26:00.475Z",
   "workflows": [
     {
       "id": "Emb26wP77eFXgnVi",
@@ -35,6 +35,13 @@
       "active": false,
       "updatedAt": "2026-06-16T18:46:27.183Z",
       "file": "workflows/staging/xmonitor-scheduled-post-tracking-staging.json"
+    },
+    {
+      "id": "f2eFqB2wO91HAYMJ",
+      "name": "XMonitor - Scheduled Post Tracking Native Sentiment Staging",
+      "active": false,
+      "updatedAt": "2026-06-22T16:26:00.475Z",
+      "file": "workflows/staging/xmonitor-scheduled-post-tracking-native-sentiment-staging.json"
     },
     {
       "id": "CCzwnMyoy7UequuI",

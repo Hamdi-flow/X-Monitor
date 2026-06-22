@@ -1,0 +1,1199 @@
+{
+  "updatedAt": "2026-06-22T16:26:00.475Z",
+  "createdAt": "2026-06-22T16:24:58.049Z",
+  "id": "f2eFqB2wO91HAYMJ",
+  "name": "XMonitor - Scheduled Post Tracking Native Sentiment Staging",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "7930df6b-6b80-4972-8b5c-0cb0862875e7",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2000,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH blocked AS (\n  SELECT post_id\n  FROM public.\"Posts\"\n  WHERE status IN ('Ignored', 'Snoozed')\n),\nadvanced AS (\n  UPDATE public.\"Posts\"\n  SET\n    snooze_runs_remaining = GREATEST(snooze_runs_remaining - 1, 0),\n    status = CASE\n      WHEN snooze_runs_remaining <= 1 THEN 'New'\n      ELSE 'Snoozed'\n    END\n  WHERE status = 'Snoozed'\n  RETURNING post_id\n)\nSELECT COALESCE(array_agg(post_id), ARRAY[]::text[]) AS blocked_post_ids\nFROM blocked;",
+        "options": {}
+      },
+      "id": "a38073f5-35e3-4b64-82dd-783f2b1734cc",
+      "name": "Advance Post Suppression State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1776,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "Tracked Users",
+        "returnAll": true
+      },
+      "id": "88048edd-0325-4fee-8ed0-1210eacedaf0",
+      "name": "Get Tracked Users",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        448
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const DAYS_AGO = 60;\nconst usernames = [...new Set($input.all().map(item => String(item.json.username || '').trim()).filter(Boolean))];\nif (usernames.length === 0) { return [{ json: { should_continue: false, scheduler_alert_type: 'NO_TRACKED_USERS', message: 'Scheduled tracking ran with no tracked users configured.' } }]; }\nconst startDate = new Date();\nstartDate.setUTCDate(startDate.getUTCDate() - DAYS_AGO);\nreturn [{ json: { should_continue: true, query: usernames.map(username => `from:${username}`).join(' OR '), start_time: startDate.toISOString(), usernames, user_count: usernames.length } }];"
+      },
+      "id": "2d478419-af19-428d-9b04-71d3407dffa7",
+      "name": "Build X API Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1328,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "bf30e8c8-0115-4de7-8c8d-5bd5a4219828",
+      "name": "Split Out Posts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all().filter(item => !blocked.has(String(item.json.id || '')));"
+      },
+      "id": "58c22c13-36de-4ace-b921-faca8fcf356a",
+      "name": "Filter Suppressed Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const conversationIds = [...new Set(\n  $input.all()\n    .map(item => String(item.json.conversation_id || '').trim())\n    .filter(Boolean)\n)];\n\nif (conversationIds.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    query: conversationIds\n      .map(id => `(conversation_id:${id} is:reply)`)\n      .join(' OR '),\n    conversation_ids: conversationIds,\n    conversation_count: conversationIds.length,\n  },\n}];"
+      },
+      "id": "3602a7d8-1c89-438a-80f1-41e9238efeb5",
+      "name": "Build Replies Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        448
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a938b3cf-aaae-4173-bc7a-155c2df1c612",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        16,
+        448
+      ],
+      "webhookId": "d3e844f0-dc66-4af6-8b53-eda3f74d4720"
+    },
+    {
+      "parameters": {
+        "jsCode": "const postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: String(item.json.id),\n      postText: String(item.json.text || '').replace(/\\s+/g, ' ').trim(),\n      userId: String(item.json.author_id),\n      repliesByText: new Map(),\n    },\n  ])\n);\n\nfor (const group of $('Get Replies').all()) {\n  for (const reply of group.json.data || []) {\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    const text = String(reply.text || '').replace(/\\s+/g, ' ').trim();\n    const normalized = text.normalize('NFKC').toLocaleLowerCase('en-US');\n    const key = normalized || `__empty__:${reply.id}`;\n    const duplicateReplies = post.repliesByText.get(key) || [];\n    duplicateReplies.push({ id: String(reply.id), text });\n    post.repliesByText.set(key, duplicateReplies);\n  }\n}\n\nconst output = [];\nfor (const post of postsByConversation.values()) {\n  for (const duplicateReplies of post.repliesByText.values()) {\n    const representative = duplicateReplies[0];\n    const postContext = post.postText.slice(0, 500);\n    const replyText = representative.text.slice(0, 700);\n\n    output.push({\n      json: {\n        postId: post.postId,\n        postText: post.postText,\n        userId: post.userId,\n        duplicateReplies,\n        analysisText: `Original post:\\n${postContext}\\n\\nReply to classify:\\n${replyText}`,\n      },\n    });\n  }\n}\n\nreturn output;"
+      },
+      "id": "6709d845-b024-42d2-a045-184a0dda4440",
+      "name": "Build Deduplicated Reply Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.analysisText }}",
+        "options": {
+          "categories": "Positive, Neutral, Negative",
+          "systemPromptTemplate": "You are a precise sentiment classifier for replies to social-media posts. The text may be Lebanese Arabic, Modern Standard Arabic, English, French, Arabizi, emojis, or code-switching. Classify the reply sentiment toward the original post or its author. Treat insults, mockery, threats, hostile sarcasm, and dismissive ridicule as Negative; clear praise, support, gratitude, and friendly humor as Positive; factual, ambiguous, mixed, unrelated, or unclear content as Neutral. Consider negation and context. Categorize it into exactly one of: {categories}. Use the provided formatting instructions. Only output the JSON.",
+          "includeDetailedResults": false,
+          "enableAutoFixing": false,
+          "batching": {
+            "batchSize": 5,
+            "delayBetweenBatches": 0
+          }
+        }
+      },
+      "id": "dccd843b-5736-4148-b170-6b2ae46c12f7",
+      "name": "Analyze Reply Sentiment",
+      "type": "@n8n/n8n-nodes-langchain.sentimentAnalysis",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts = new Map();\n\nfor (const item of items) {\n  const data = item.json || {};\n  const sentiment = String(data.sentimentAnalysis?.category || '').toLowerCase();\n  if (!['positive', 'neutral', 'negative'].includes(sentiment)) continue;\n\n  const postId = String(data.postId || '');\n  if (!postId) continue;\n\n  if (!posts.has(postId)) {\n    posts.set(postId, {\n      postId,\n      postText: data.postText,\n      userId: data.userId,\n      replies: [],\n      positive_count: 0,\n      neutral_count: 0,\n      negative_count: 0,\n    });\n  }\n\n  const post = posts.get(postId);\n  const duplicates = Array.isArray(data.duplicateReplies) ? data.duplicateReplies : [];\n  for (const reply of duplicates) {\n    post.replies.push({\n      id: reply.id,\n      text: reply.text,\n      sentiment: sentiment[0].toUpperCase() + sentiment.slice(1),\n    });\n    post[`${sentiment}_count`] += 1;\n  }\n}\n\nconst analyzedPosts = [...posts.values()].map(post => {\n  post.comments_count = post.replies.length;\n  post.negative_ratio = post.comments_count > 0\n    ? post.negative_count / post.comments_count\n    : 0;\n  post.negative_percentage = Math.round(post.negative_ratio * 100);\n\n  post.overall_tag = 'Neutral';\n  if (post.positive_count > post.neutral_count && post.positive_count > post.negative_count) {\n    post.overall_tag = 'Positive';\n  } else if (post.negative_count > post.neutral_count && post.negative_count > post.positive_count) {\n    post.overall_tag = 'Negative';\n  }\n\n  return post;\n});\n\nreturn [{\n  json: {\n    posts: analyzedPosts.filter(post => post.negative_ratio >= 0.5),\n  },\n}];"
+      },
+      "id": "588619c4-fb92-4402-bdb2-fe65d6ceb218",
+      "name": "Calculate/Filter Sentiment Counts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "posts",
+        "options": {}
+      },
+      "id": "8f6ce74b-53ef-4e1b-8851-0ed66f815750",
+      "name": "Split Out Reply Analysis",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "post_id",
+              "value": "={{ $json.postId }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "post_text",
+              "value": "={{ $json.postText }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "comment_count",
+              "value": "={{ $json.comments_count }}",
+              "type": "number"
+            },
+            {
+              "id": "4",
+              "name": "negative_count",
+              "value": "={{ $json.negative_count }}",
+              "type": "number"
+            },
+            {
+              "id": "5",
+              "name": "status",
+              "value": "New",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "user_id",
+              "value": "={{ $json.userId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "60be5326-bc9a-470d-89ff-bc3fa0397107",
+      "name": "Prepare Post Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1488,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.\"Posts\" (\n  post_id,\n  post_text,\n  comment_count,\n  negative_count,\n  status,\n  user_id,\n  created_at,\n  snooze_runs_remaining\n)\nVALUES ($1, $2, $3, $4, 'New', $5, now(), 0)\nON CONFLICT (post_id) DO UPDATE\nSET\n  post_text = EXCLUDED.post_text,\n  comment_count = EXCLUDED.comment_count,\n  negative_count = EXCLUDED.negative_count,\n  user_id = EXCLUDED.user_id,\n  created_at = now()\nRETURNING post_id, post_text, comment_count, negative_count, status, user_id, created_at, snooze_runs_remaining;",
+        "options": {
+          "queryBatching": "independently",
+          "queryReplacement": "={{ [$json.post_id, $json.post_text, $json.comment_count, $json.negative_count, $json.user_id] }}"
+        }
+      },
+      "id": "645ce1d5-9277-4a1f-b9c8-3164b1bfc814",
+      "name": "Insert or update posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1712,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allPosts = $(\"Split Out Reply Analysis\").all();\n\nconst allReplies = allPosts.flatMap(post => {\n  const replies = post.json.replies || [];\n  return replies.map(reply => ({\n    ...reply,\n    postId: post.json.postId,\n    postText: post.json.postText\n  }));\n});\n\nreturn allReplies.map(reply => ({ json: reply }));"
+      },
+      "id": "fefbddee-9020-4a43-9bce-bf6003192909",
+      "name": "Flatten All Replies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "aefb6dea-0b7c-4773-b143-24d263298b38",
+              "leftValue": "={{ $json.sentiment }}",
+              "rightValue": "Negative",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a4f113ae-6b34-4a96-ab3f-83c0125bd01a",
+      "name": "Filter Negative Replies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        2160,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "reply_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "post_id",
+              "value": "={{ $json.postId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7b5cf07e-3371-4965-8ed3-eb097d266d65",
+      "name": "Prepare Reply Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2384,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Replies",
+          "mode": "list",
+          "cachedResultName": "Replies"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "reply_id": "={{ $json.reply_id }}",
+            "text": "={{ $json.text }}",
+            "post_id": "={{ $json.post_id }}",
+            "created_at": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "reply_id"
+          ],
+          "schema": [
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "reply_id",
+              "displayName": "reply_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "post_id",
+              "displayName": "post_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "19353550-7dc8-4af3-ba60-0345244454f9",
+      "name": "Insert or update replies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2608,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "Telegram Users",
+        "returnAll": true,
+        "filterType": "none"
+      },
+      "id": "5a504821-0f54-4bea-bedb-27ed688d5d09",
+      "name": "Get Telegram Users",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2832,
+        448
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "6hDGofcoxdcQctBK",
+          "name": "Supabase Staging API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts = $('Split Out Reply Analysis').all().map(item => item.json || {});\nfunction escapeHtml(value) { return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\\"/g, '&quot;'); }\nif (posts.length === 0) { return []; }\nconst telegramUsers = $input.all().map(item => item.json || {}).filter(user => user.chat_id);\nif (telegramUsers.length === 0) { return [{ json: { notify_ready: false, scheduler_alert_type: 'NO_TELEGRAM_RECIPIENTS', post_count: posts.length, post_ids: posts.map(post => String(post.postId || '')).filter(Boolean), message: `Scheduled tracking generated ${posts.length} negative alert post(s), but no Telegram recipients are configured.` } }]; }\nreturn telegramUsers.flatMap(user => posts.map((post, index) => {\n  const postId = String(post.postId || ''); const text = escapeHtml(post.postText || ''); const replies = post.comments_count ?? 0; const negativePercentage = post.negative_percentage ?? 0; const overall = escapeHtml(post.overall_tag || 'Negative'); const tweetUrl = `https://x.com/i/web/status/${postId}`;\n  const message = `⚠️ Negative Sentiment Alert\\n\\n🚨 Post #${index + 1}\\n🆔 ID: <code>${postId}</code>\\n🔗 Link: ${tweetUrl}\\n📝 Text: ${text}\\n💬 Replies: ${replies}\\n📊 Negative Sentiment: ${negativePercentage}%\\n🏷️ Overall: ${overall}`;\n  return { json: { notify_ready: true, chat_id: user.chat_id, post_id: postId, message, snooze_button_text: 'Snooze', snooze_callback_data: `snooze:${postId}`, ignore_button_text: 'Ignore', ignore_callback_data: `ignore:${postId}`, hide_button_text: `Hide replies for Post #${index + 1}`, hide_callback_data: `hide_replies:${postId}` } };\n}));"
+      },
+      "id": "70b98b2f-e854-414e-a9ef-56dd5aff4d42",
+      "name": "Build Negative Alert Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3056,
+        448
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.snooze_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.snooze_callback_data }}"
+                    }
+                  },
+                  {
+                    "text": "={{ $json.ignore_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.ignore_callback_data }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.hide_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.hide_callback_data }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Order Likes",
+                    "additionalFields": {
+                      "callback_data": "={{ '/order_likes ' + $json.post_id }}"
+                    }
+                  },
+                  {
+                    "text": "Order Comments",
+                    "additionalFields": {
+                      "callback_data": "={{ '/order_comments ' + $json.post_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "1ffb2076-bf29-4fc6-8050-114227717be0",
+      "name": "Send Negative Alert Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3280,
+        448
+      ],
+      "webhookId": "8536005c-1f5b-403d-9c0d-257531cb5000",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a5a9f6cf-61ca-4352-8f32-3aa762ea2e2f",
+              "leftValue": "={{ $json.public_metrics.reply_count }}",
+              "rightValue": 10,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3747ce11-dfa7-44f3-b9a0-5dcb038224c5",
+      "name": "Keep Posts With 10+ Replies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -432,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.x.com/2/tweets/search/all",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "tweet.fields",
+              "value": "created_at,author_id,text,public_metrics,conversation_id"
+            },
+            {
+              "name": "start_time",
+              "value": "={{ $json.start_time }}"
+            },
+            {
+              "name": "max_results",
+              "value": "50"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "399b536c-ac26-44bd-951f-fc50b4ca3b9b",
+      "name": "Get posts of tracked users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1104,
+        448
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "GVFVtsc16enrOS6k",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.x.com/2/tweets/search/all",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "max_results",
+              "value": "200"
+            },
+            {
+              "name": "tweet.fields",
+              "value": "created_at,conversation_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8127ba58-c603-4e5d-bd2f-f07777518d4f",
+      "name": "Get Replies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        448
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "GVFVtsc16enrOS6k",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f5552dbf-8422-4152-8202-80713c3daa92",
+              "leftValue": "={{ $json.should_continue }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1216,
+        448
+      ],
+      "id": "0e25a139-c0ed-4f24-841e-71dc53328309",
+      "name": "If Scheduler Should Continue"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "78a24d3d-b4b3-412c-b7e0-a483a98c26b3",
+              "leftValue": "={{ $json.notify_ready }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3168,
+        448
+      ],
+      "id": "3e2525e6-4535-49d5-92f9-c0c9ab4c5071",
+      "name": "If Notifications Ready"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json || {};\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Scheduled Post Tracking Staging',`Path: ${data.scheduler_alert_type || 'scheduler validation'}`,`Reason: ${data.message || 'Scheduler stopped before sending alerts.'}`,data.post_count !== undefined ? `Post count: ${data.post_count}` : '',Array.isArray(data.post_ids) && data.post_ids.length ? `Posts: ${data.post_ids.slice(0, 20).join(', ')}` : ''].filter(Boolean).join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        704
+      ],
+      "id": "a2f6d4d3-65f0-4efc-8be6-5623cfd76882",
+      "name": "Build Scheduler Developer Alert"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3344,
+        704
+      ],
+      "id": "4127306d-f2f4-4832-8dfb-29e468b1542a",
+      "name": "Send Scheduler Developer Alert",
+      "webhookId": "66f0271e-57da-438b-9808-59ca3c75e600",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "builtInTools": {},
+        "options": {
+          "temperature": 0,
+          "maxTokens": 100,
+          "maxRetries": 1,
+          "timeout": 60000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        672
+      ],
+      "id": "a8efcb9e-19a4-4f43-8ea4-5d40d1e0aab1",
+      "name": "OpenAI Chat Model - Sentiment",
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1040,
+        448
+      ],
+      "id": "f47ecb07-156d-4cb4-a260-8c8a03166477",
+      "name": "Merge Sentiment Categories"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Advance Post Suppression State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advance Post Suppression State": {
+      "main": [
+        [
+          {
+            "node": "Get Tracked Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tracked Users": {
+      "main": [
+        [
+          {
+            "node": "Build X API Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Posts": {
+      "main": [
+        [
+          {
+            "node": "Filter Suppressed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Suppressed Posts": {
+      "main": [
+        [
+          {
+            "node": "Keep Posts With 10+ Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Replies Query": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate/Filter Sentiment Counts": {
+      "main": [
+        [
+          {
+            "node": "Split Out Reply Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Reply Analysis": {
+      "main": [
+        [
+          {
+            "node": "Prepare Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Post Data": {
+      "main": [
+        [
+          {
+            "node": "Insert or update posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert or update posts": {
+      "main": [
+        [
+          {
+            "node": "Flatten All Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten All Replies": {
+      "main": [
+        [
+          {
+            "node": "Filter Negative Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Negative Replies": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reply Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reply Data": {
+      "main": [
+        [
+          {
+            "node": "Insert or update replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert or update replies": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Telegram Users": {
+      "main": [
+        [
+          {
+            "node": "Build Negative Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Negative Alert Notification": {
+      "main": [
+        [
+          {
+            "node": "If Notifications Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Posts With 10+ Replies": {
+      "main": [
+        [
+          {
+            "node": "Build Replies Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build X API Query": {
+      "main": [
+        [
+          {
+            "node": "If Scheduler Should Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get posts of tracked users": {
+      "main": [
+        [
+          {
+            "node": "Split Out Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Replies": {
+      "main": [
+        [
+          {
+            "node": "Build Deduplicated Reply Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Scheduler Should Continue": {
+      "main": [
+        [
+          {
+            "node": "Get posts of tracked users",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Scheduler Developer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Notifications Ready": {
+      "main": [
+        [
+          {
+            "node": "Send Negative Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Scheduler Developer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Scheduler Developer Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Scheduler Developer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deduplicated Reply Items": {
+      "main": [
+        [
+          {
+            "node": "Analyze Reply Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Reply Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Merge Sentiment Categories",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Sentiment Categories",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Merge Sentiment Categories",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Sentiment": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze Reply Sentiment",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Sentiment Categories": {
+      "main": [
+        [
+          {
+            "node": "Calculate/Filter Sentiment Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "CCzwnMyoy7UequuI"
+  },
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "6e4f8763-70d5-465c-8638-4f4c58f6cedd",
+  "activeVersionId": null,
+  "versionCounter": 2,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-06-22T16:24:58.052Z",
+      "createdAt": "2026-06-22T16:24:58.052Z",
+      "role": "workflow:owner",
+      "workflowId": "f2eFqB2wO91HAYMJ",
+      "projectId": "HqQCDls654d5OYVX",
+      "project": {
+        "updatedAt": "2026-04-10T14:35:09.715Z",
+        "createdAt": "2026-04-10T14:33:58.687Z",
+        "id": "HqQCDls654d5OYVX",
+        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}
