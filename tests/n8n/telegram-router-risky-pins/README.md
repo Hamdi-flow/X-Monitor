@@ -29,3 +29,12 @@ These fixtures should be treated as safe regression tests only while all
 credentialed and HTTP nodes listed in the file remain pinned. If a risky path
 adds a new external node, add it to the relevant fixture before running the test.
 
+## Live Order Info database integration
+
+Run `node tests/n8n/order-info-database.integration.test.mjs` from the repository
+root to prove that staging Postgres can insert and conflict-update an `Order Info`
+row. The test creates an inactive, temporary n8n workflow and pins only its
+manual trigger and fake SMM response. Its Postgres nodes run live, verify all 28
+columns returned by the table, delete the deterministic test row, confirm that
+zero rows remain, and then delete the temporary workflow. It never calls the SMM
+provider, Telegram, X, or OpenAI.
