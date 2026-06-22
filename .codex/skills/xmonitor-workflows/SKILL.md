@@ -19,7 +19,8 @@ Use this skill for XMonitor workflow changes and validation. Keep the process si
 - If n8n MCP returns an authentication-required error, follow **Stable n8n MCP Authentication** before asking the user to take manual action. Do not silently fall back to REST for MCP auth failures.
 - If a workflow is not MCP-enabled after MCP auth is valid, use the n8n REST API from `keys.env` only when needed, and report that MCP could not access it.
 - Prefer the Supabase MCP for any direct staging database inspection, cleanup, schema work, or SQL verification. The project Supabase MCP server is `supabase` at `https://mcp.supabase.com/mcp?project_ref=npytqidroqxgikaqofmq`.
-- If a Supabase task comes up and Supabase MCP tools are not visible in the current Codex session, first check `codex mcp list`. If the `supabase` server is present but tools are unavailable or auth is stale, ask the user to reauthenticate/reload the MCP session before falling back to n8n-mediated database access.
+- Use bearer-token authentication for Supabase MCP. The personal access token is stored as `SUPABASE_ACCESS_TOKEN` in ignored `keys.env`; never use interactive OAuth as the normal path.
+- If Supabase tools are missing or `codex mcp list` reports `Not logged in`, follow **Stable Supabase MCP Authentication** before falling back to n8n-mediated database access or asking the user to act.
 - Use existing staging credentials:
   - Supabase API: `Supabase Staging API`
   - Postgres: `Supabase Staging Postgres`
@@ -44,6 +45,21 @@ For authentication failures:
 2. Compare the configured MCP URL with `N8N_MCP_URL` from `keys.env` without printing credentials.
 3. Re-run `scripts/configure-n8n-mcp.ps1` and restart Codex if the registration or environment is stale.
 4. Ask the user to generate a new n8n MCP access token only when the configured bearer token is present but n8n rejects it with HTTP 401. Update ignored `keys.env`, rerun the script, and restart Codex after rotation.
+
+## Stable Supabase MCP Authentication
+
+Register `supabase` with Codex's `--bearer-token-env-var` option so database work does not require browser authorization:
+
+1. Run `scripts/configure-supabase-mcp.ps1` from the repository root. It reads `SUPABASE_ACCESS_TOKEN` from ignored `keys.env`, stores it in the current Windows user's environment without printing it, and registers the project-scoped server.
+2. Restart Codex or the IDE after the first setup so the process inherits the persisted user environment variable.
+3. Check `codex mcp get supabase`. Require `bearer_token_env_var: SUPABASE_ACCESS_TOKEN`; `Not logged in` is not the desired configuration.
+4. Verify access with a Supabase MCP read operation. Never place the token itself in `config.toml`, a command argument, logs, or committed files.
+
+For authentication failures:
+
+1. Check whether `SUPABASE_ACCESS_TOKEN` is present in the Codex process environment; report only present/missing.
+2. Re-run `scripts/configure-supabase-mcp.ps1` and restart Codex if the registration or inherited environment is stale.
+3. Ask the user to generate a new Supabase personal access token only when the configured token is present but Supabase rejects it with HTTP 401. Update ignored `keys.env`, rerun the script, and restart Codex after rotation.
 
 ## Known Staging Workflows
 
