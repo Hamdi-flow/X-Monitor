@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-18T19:00:42.077Z",
+  "updatedAt": "2026-06-30T18:43:54.333Z",
   "createdAt": "2026-05-25T11:22:54.341Z",
   "id": "cWczsttyDbTBbRAC",
   "name": "XMonitor - Telegram Router",
@@ -9,7 +9,7 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nconst callbackMatch = callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/);\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_POST';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      snooze: 'SNOOZE_POST',\n      resume: 'RESUME_POST',\n    };\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (!callbackMatch && commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setPostIntent('SNOOZE_POST', command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    input_source,\n  },\n}];"
+        "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nconst SNOOZE_OPTIONS = {\n  '1h': { runs: 1, label: '1 hour' },\n  '4h': { runs: 4, label: '4 hours' },\n  '12h': { runs: 12, label: '12 hours' },\n  '24h': { runs: 24, label: '24 hours' },\n};\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet snooze_duration_key = '';\nlet snooze_duration_label = '';\nlet snooze_runs_remaining = null;\nlet snooze_duration_invalid = '';\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nfunction setSnoozeDuration(key) {\n  const option = SNOOZE_OPTIONS[String(key || '').toLowerCase()];\n  if (!option) return false;\n  snooze_duration_key = String(key).toLowerCase();\n  snooze_duration_label = option.label;\n  snooze_runs_remaining = option.runs;\n  return true;\n}\n\nconst snoozeDurationMatch = callbackData.match(/^snooze_duration:([0-9]{1,19}):(1h|4h|12h|24h)$/i);\nif (snoozeDurationMatch) {\n  post_id = snoozeDurationMatch[1];\n  command = 'snooze_duration';\n  command_args = `${post_id} ${snoozeDurationMatch[2].toLowerCase()}`;\n  intent = 'SNOOZE_POST';\n  setSnoozeDuration(snoozeDurationMatch[2]);\n}\n\nconst callbackMatch = !snoozeDurationMatch ? callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/) : null;\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_MENU';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !snoozeDurationMatch && !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setSnoozeIntent(commandName, args) {\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  const duration = String(tokens[1] || '').toLowerCase();\n\n  if (!post_id) {\n    intent = 'SNOOZE_POST';\n    return;\n  }\n\n  if (duration) {\n    intent = 'SNOOZE_POST';\n    if (!setSnoozeDuration(duration)) {\n      snooze_duration_invalid = duration;\n    }\n    return;\n  }\n\n  intent = 'SNOOZE_MENU';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})(?:\\s+(\\S+))?$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      resume: 'RESUME_POST',\n    };\n    if (action === 'snooze') {\n      setSnoozeIntent(action, `${actionMatch[2]} ${actionMatch[3] || ''}`.trim());\n      return;\n    }\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setSnoozeIntent(command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!snoozeDurationMatch && !callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    snooze_duration_key,\n    snooze_duration_label,\n    snooze_runs_remaining,\n    snooze_duration_invalid,\n    input_source,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -762,7 +762,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
+        "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Choose how long to snooze alerts\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
@@ -992,7 +992,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
+        "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Choose how long to snooze alerts\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
@@ -1269,6 +1269,30 @@
               },
               "renameOutput": true,
               "outputKey": "ORDER_LIKES"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "snooze-menu-route",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "SNOOZE_MENU",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SNOOZE_MENU"
             }
           ]
         },
@@ -1375,7 +1399,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst post = $input.first()?.json || {};\nconst SNOOZE_RUNS = 4;\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nfunction buildEditedAlert(values) {\n  const source = route.callback_message_text || `Post ${values.post_id || route.post_id}`;\n  const base = escapeHtml(source).slice(0, 3500);\n  const statusLine = values.action_valid\n    ? `<b>XMonitor status:</b> ${escapeHtml(values.message)}`\n    : `<b>XMonitor status:</b> ${escapeHtml(values.message || values.callback_text || 'Action rejected.')}`;\n  return `${base}\\n\\n${statusLine}`;\n}\n\nfunction result(values) {\n  const payload = {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: String(route.post_id || ''),\n    action_valid: false,\n    show_resume: false,\n    next_status: '',\n    snooze_runs_remaining: 0,\n    callback_text: '',\n    ...values,\n  };\n  payload.edited_alert_message = buildEditedAlert(payload);\n  return [{ json: payload }];\n}\n\nif (!route.post_id) {\n  return result({\n    message: 'Please provide a valid post ID.',\n    callback_text: 'Missing post ID.',\n  });\n}\n\nif (!post.post_id) {\n  return result({\n    message: `Post ${route.post_id} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  });\n}\n\nconst currentStatus = String(post.status || 'New');\n\nif (route.intent === 'SNOOZE_POST' && currentStatus === 'Ignored') {\n  return result({\n    current_status: currentStatus,\n    message: `Post ${route.post_id} is ignored. Resume it before snoozing.`,\n    callback_text: 'Resume the post before snoozing.',\n  });\n}\n\nif (route.intent === 'IGNORE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Ignored',\n    snooze_runs_remaining: 0,\n    show_resume: true,\n    message: `Post ${route.post_id} is now ignored and will not generate scheduled alerts.`,\n    callback_text: 'Post ignored.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Snoozed',\n    snooze_runs_remaining: SNOOZE_RUNS,\n    show_resume: true,\n    message: `Post ${route.post_id} is snoozed for ${SNOOZE_RUNS} schedule runs (about 2 hours at the current interval).`,\n    callback_text: 'Post snoozed.',\n  });\n}\n\nif (route.intent === 'RESUME_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'New',\n    snooze_runs_remaining: 0,\n    show_resume: false,\n    message: `Post ${route.post_id} is active again and can appear in scheduled alerts.`,\n    callback_text: 'Post resumed.',\n  });\n}\n\nreturn result({\n  current_status: currentStatus,\n  message: 'Unsupported post status action.',\n  callback_text: 'Unsupported action.',\n});"
+        "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst post = $input.first()?.json || {};\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\\\"/g, '&quot;');\n}\n\nfunction buildEditedAlert(values) {\n  const source = route.callback_message_text || `Post ${values.post_id || route.post_id}`;\n  const base = escapeHtml(source).slice(0, 3500);\n  const statusLine = values.action_valid\n    ? `<b>XMonitor status:</b> ${escapeHtml(values.message)}`\n    : `<b>XMonitor status:</b> ${escapeHtml(values.message || values.callback_text || 'Action rejected.')}`;\n  return `${base}\\n\\n${statusLine}`;\n}\n\nfunction result(values) {\n  const payload = {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: String(route.post_id || ''),\n    action_valid: false,\n    show_resume: false,\n    next_status: '',\n    snooze_runs_remaining: 0,\n    callback_text: '',\n    ...values,\n  };\n  payload.edited_alert_message = buildEditedAlert(payload);\n  return [{ json: payload }];\n}\n\nif (!route.post_id) {\n  return result({\n    message: 'Please provide a valid post ID.',\n    callback_text: 'Missing post ID.',\n  });\n}\n\nif (!post.post_id) {\n  return result({\n    message: `Post ${route.post_id} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  });\n}\n\nconst currentStatus = String(post.status || 'New');\n\nif (route.intent === 'SNOOZE_POST' && currentStatus === 'Ignored') {\n  return result({\n    current_status: currentStatus,\n    message: `Post ${route.post_id} is ignored. Resume it before snoozing.`,\n    callback_text: 'Resume the post before snoozing.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST' && route.snooze_duration_invalid) {\n  return result({\n    current_status: currentStatus,\n    message: `Unsupported snooze duration \"${route.snooze_duration_invalid}\". Choose one of: 1h, 4h, 12h, 24h.`,\n    callback_text: 'Unsupported snooze duration.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST' && !Number.isInteger(Number(route.snooze_runs_remaining))) {\n  return result({\n    current_status: currentStatus,\n    message: 'Please choose a snooze duration: 1h, 4h, 12h, or 24h.',\n    callback_text: 'Choose a snooze duration.',\n  });\n}\n\nif (route.intent === 'IGNORE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Ignored',\n    snooze_runs_remaining: 0,\n    show_resume: true,\n    message: `Post ${route.post_id} is now ignored and will not generate scheduled alerts.`,\n    callback_text: 'Post ignored.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST') {\n  const runs = Number(route.snooze_runs_remaining);\n  const durationLabel = route.snooze_duration_label || `${runs} hour${runs === 1 ? '' : 's'}`;\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Snoozed',\n    snooze_runs_remaining: runs,\n    show_resume: true,\n    message: `Post ${route.post_id} is snoozed for ${durationLabel} (${runs} schedule run${runs === 1 ? '' : 's'}).`,\n    callback_text: `Post snoozed for ${durationLabel}.`,\n  });\n}\n\nif (route.intent === 'RESUME_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'New',\n    snooze_runs_remaining: 0,\n    show_resume: false,\n    message: `Post ${route.post_id} is active again and can appear in scheduled alerts.`,\n    callback_text: 'Post resumed.',\n  });\n}\n\nreturn result({\n  current_status: currentStatus,\n  message: 'Unsupported post status action.',\n  callback_text: 'Unsupported action.',\n});"
       },
       "id": "d3d71160-7cc6-4bfc-8996-b031302e5c9d",
       "name": "Prepare Post Status Change",
@@ -3413,6 +3437,86 @@
           "name": "TrackedUsersManager"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $('Parse Telegram Message').first().json;\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\\\"/g, '&quot;');\n}\n\nconst postId = String(route.post_id || '').trim();\nconst menuMessage = postId\n  ? `<b>Choose snooze duration for post <code>${escapeHtml(postId)}</code>:</b>`\n  : 'Please provide a valid post ID to snooze.';\n\nreturn [{\n  json: {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: postId,\n    menu_message: menuMessage,\n  },\n}];"
+      },
+      "id": "b450d87e-1c41-433d-b1d2-33296f041001",
+      "name": "Build Snooze Duration Menu",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -14544,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "={{ $json.menu_message }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "1 hour",
+                    "additionalFields": {
+                      "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':1h' }}"
+                    }
+                  },
+                  {
+                    "text": "4 hours",
+                    "additionalFields": {
+                      "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':4h' }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "12 hours",
+                    "additionalFields": {
+                      "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':12h' }}"
+                    }
+                  },
+                  {
+                    "text": "24 hours",
+                    "additionalFields": {
+                      "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':24h' }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "97791811-843d-4127-a322-b44cb667c004",
+      "name": "Send Snooze Duration Menu",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -14096,
+        352
+      ],
+      "webhookId": "d056ebbd-1206-4694-9ea6-059aaeb467e2",
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      }
     }
   ],
   "connections": {
@@ -4075,6 +4179,13 @@
         ],
         [
           {
+            "node": "Build Snooze Duration Menu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Send Default Help",
             "type": "main",
             "index": 0
@@ -4588,6 +4699,17 @@
           }
         ]
       ]
+    },
+    "Build Snooze Duration Menu": {
+      "main": [
+        [
+          {
+            "node": "Send Snooze Duration Menu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -4609,9 +4731,9 @@
       }
     ]
   },
-  "versionId": "0088f372-8027-4670-853b-a18027fa7b48",
-  "activeVersionId": "0088f372-8027-4670-853b-a18027fa7b48",
-  "versionCounter": 303,
+  "versionId": "3b12951f-f3fd-4ecd-98dc-f7c7a7242da9",
+  "activeVersionId": "3b12951f-f3fd-4ecd-98dc-f7c7a7242da9",
+  "versionCounter": 305,
   "triggerCount": 1,
   "sourceWorkflowId": null,
   "shared": [
@@ -4643,14 +4765,14 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-06-18T19:00:42.08Z",
-    "createdAt": "2026-06-18T19:00:42.08Z",
-    "versionId": "0088f372-8027-4670-853b-a18027fa7b48",
+    "updatedAt": "2026-06-30T18:43:54.335Z",
+    "createdAt": "2026-06-30T18:43:54.335Z",
+    "versionId": "3b12951f-f3fd-4ecd-98dc-f7c7a7242da9",
     "workflowId": "cWczsttyDbTBbRAC",
     "nodes": [
       {
         "parameters": {
-          "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nconst callbackMatch = callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/);\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_POST';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      snooze: 'SNOOZE_POST',\n      resume: 'RESUME_POST',\n    };\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (!callbackMatch && commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setPostIntent('SNOOZE_POST', command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    input_source,\n  },\n}];"
+          "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nconst SNOOZE_OPTIONS = {\n  '1h': { runs: 1, label: '1 hour' },\n  '4h': { runs: 4, label: '4 hours' },\n  '12h': { runs: 12, label: '12 hours' },\n  '24h': { runs: 24, label: '24 hours' },\n};\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet snooze_duration_key = '';\nlet snooze_duration_label = '';\nlet snooze_runs_remaining = null;\nlet snooze_duration_invalid = '';\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nfunction setSnoozeDuration(key) {\n  const option = SNOOZE_OPTIONS[String(key || '').toLowerCase()];\n  if (!option) return false;\n  snooze_duration_key = String(key).toLowerCase();\n  snooze_duration_label = option.label;\n  snooze_runs_remaining = option.runs;\n  return true;\n}\n\nconst snoozeDurationMatch = callbackData.match(/^snooze_duration:([0-9]{1,19}):(1h|4h|12h|24h)$/i);\nif (snoozeDurationMatch) {\n  post_id = snoozeDurationMatch[1];\n  command = 'snooze_duration';\n  command_args = `${post_id} ${snoozeDurationMatch[2].toLowerCase()}`;\n  intent = 'SNOOZE_POST';\n  setSnoozeDuration(snoozeDurationMatch[2]);\n}\n\nconst callbackMatch = !snoozeDurationMatch ? callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/) : null;\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_MENU';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !snoozeDurationMatch && !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setSnoozeIntent(commandName, args) {\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  const duration = String(tokens[1] || '').toLowerCase();\n\n  if (!post_id) {\n    intent = 'SNOOZE_POST';\n    return;\n  }\n\n  if (duration) {\n    intent = 'SNOOZE_POST';\n    if (!setSnoozeDuration(duration)) {\n      snooze_duration_invalid = duration;\n    }\n    return;\n  }\n\n  intent = 'SNOOZE_MENU';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})(?:\\s+(\\S+))?$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      resume: 'RESUME_POST',\n    };\n    if (action === 'snooze') {\n      setSnoozeIntent(action, `${actionMatch[2]} ${actionMatch[3] || ''}`.trim());\n      return;\n    }\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setSnoozeIntent(command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!snoozeDurationMatch && !callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    snooze_duration_key,\n    snooze_duration_label,\n    snooze_runs_remaining,\n    snooze_duration_invalid,\n    input_source,\n  },\n}];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -5403,7 +5525,7 @@
       {
         "parameters": {
           "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-          "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
+          "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Choose how long to snooze alerts\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
           "replyMarkup": "inlineKeyboard",
           "inlineKeyboard": {
             "rows": [
@@ -5633,7 +5755,7 @@
       {
         "parameters": {
           "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-          "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Skip alerts for 4 schedule runs\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
+          "text": "<b>XMonitor</b>\n\nMonitor tracked X accounts, review negative reply alerts, and act on flagged posts from Telegram.\n\n<b>Fast start</b>\n<code>/auth_x</code> - Connect the X account that owns posts you may need to moderate\n<code>/track USERS</code> - Replace the tracked X accounts\n<code>/help</code> - Show this guide\n\n<b>Alert actions</b>\nUse the buttons on each alert when possible. Commands also work:\n<code>/ignore POST_ID</code> - Stop scheduled alerts for a post\n<code>/snooze POST_ID</code> - Choose how long to snooze alerts\n<code>/resume POST_ID</code> - Return a post to active monitoring\n<code>/hide_replies POST_ID</code> - Hide stored negative replies for an owned post\n<code>/order_likes POST_ID AMOUNT</code> - Order likes after validation\n<code>/order_comments POST_ID</code> - Generate and confirm counter replies\n\n<b>Tracking examples</b>\n<code>/track username</code>\n<code>/track @username</code>\n<code>/track username1 username2</code>\n<code>/track https://x.com/username</code>\n\nTracking replaces the full tracked-user list for this chat. Usernames are normalized and deduplicated.",
           "replyMarkup": "inlineKeyboard",
           "inlineKeyboard": {
             "rows": [
@@ -5910,6 +6032,30 @@
                 },
                 "renameOutput": true,
                 "outputKey": "ORDER_LIKES"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "snooze-menu-route",
+                      "leftValue": "={{ $json.intent }}",
+                      "rightValue": "SNOOZE_MENU",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "SNOOZE_MENU"
               }
             ]
           },
@@ -6016,7 +6162,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst post = $input.first()?.json || {};\nconst SNOOZE_RUNS = 4;\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nfunction buildEditedAlert(values) {\n  const source = route.callback_message_text || `Post ${values.post_id || route.post_id}`;\n  const base = escapeHtml(source).slice(0, 3500);\n  const statusLine = values.action_valid\n    ? `<b>XMonitor status:</b> ${escapeHtml(values.message)}`\n    : `<b>XMonitor status:</b> ${escapeHtml(values.message || values.callback_text || 'Action rejected.')}`;\n  return `${base}\\n\\n${statusLine}`;\n}\n\nfunction result(values) {\n  const payload = {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: String(route.post_id || ''),\n    action_valid: false,\n    show_resume: false,\n    next_status: '',\n    snooze_runs_remaining: 0,\n    callback_text: '',\n    ...values,\n  };\n  payload.edited_alert_message = buildEditedAlert(payload);\n  return [{ json: payload }];\n}\n\nif (!route.post_id) {\n  return result({\n    message: 'Please provide a valid post ID.',\n    callback_text: 'Missing post ID.',\n  });\n}\n\nif (!post.post_id) {\n  return result({\n    message: `Post ${route.post_id} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  });\n}\n\nconst currentStatus = String(post.status || 'New');\n\nif (route.intent === 'SNOOZE_POST' && currentStatus === 'Ignored') {\n  return result({\n    current_status: currentStatus,\n    message: `Post ${route.post_id} is ignored. Resume it before snoozing.`,\n    callback_text: 'Resume the post before snoozing.',\n  });\n}\n\nif (route.intent === 'IGNORE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Ignored',\n    snooze_runs_remaining: 0,\n    show_resume: true,\n    message: `Post ${route.post_id} is now ignored and will not generate scheduled alerts.`,\n    callback_text: 'Post ignored.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Snoozed',\n    snooze_runs_remaining: SNOOZE_RUNS,\n    show_resume: true,\n    message: `Post ${route.post_id} is snoozed for ${SNOOZE_RUNS} schedule runs (about 2 hours at the current interval).`,\n    callback_text: 'Post snoozed.',\n  });\n}\n\nif (route.intent === 'RESUME_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'New',\n    snooze_runs_remaining: 0,\n    show_resume: false,\n    message: `Post ${route.post_id} is active again and can appear in scheduled alerts.`,\n    callback_text: 'Post resumed.',\n  });\n}\n\nreturn result({\n  current_status: currentStatus,\n  message: 'Unsupported post status action.',\n  callback_text: 'Unsupported action.',\n});"
+          "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst post = $input.first()?.json || {};\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\\\"/g, '&quot;');\n}\n\nfunction buildEditedAlert(values) {\n  const source = route.callback_message_text || `Post ${values.post_id || route.post_id}`;\n  const base = escapeHtml(source).slice(0, 3500);\n  const statusLine = values.action_valid\n    ? `<b>XMonitor status:</b> ${escapeHtml(values.message)}`\n    : `<b>XMonitor status:</b> ${escapeHtml(values.message || values.callback_text || 'Action rejected.')}`;\n  return `${base}\\n\\n${statusLine}`;\n}\n\nfunction result(values) {\n  const payload = {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: String(route.post_id || ''),\n    action_valid: false,\n    show_resume: false,\n    next_status: '',\n    snooze_runs_remaining: 0,\n    callback_text: '',\n    ...values,\n  };\n  payload.edited_alert_message = buildEditedAlert(payload);\n  return [{ json: payload }];\n}\n\nif (!route.post_id) {\n  return result({\n    message: 'Please provide a valid post ID.',\n    callback_text: 'Missing post ID.',\n  });\n}\n\nif (!post.post_id) {\n  return result({\n    message: `Post ${route.post_id} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  });\n}\n\nconst currentStatus = String(post.status || 'New');\n\nif (route.intent === 'SNOOZE_POST' && currentStatus === 'Ignored') {\n  return result({\n    current_status: currentStatus,\n    message: `Post ${route.post_id} is ignored. Resume it before snoozing.`,\n    callback_text: 'Resume the post before snoozing.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST' && route.snooze_duration_invalid) {\n  return result({\n    current_status: currentStatus,\n    message: `Unsupported snooze duration \"${route.snooze_duration_invalid}\". Choose one of: 1h, 4h, 12h, 24h.`,\n    callback_text: 'Unsupported snooze duration.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST' && !Number.isInteger(Number(route.snooze_runs_remaining))) {\n  return result({\n    current_status: currentStatus,\n    message: 'Please choose a snooze duration: 1h, 4h, 12h, or 24h.',\n    callback_text: 'Choose a snooze duration.',\n  });\n}\n\nif (route.intent === 'IGNORE_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Ignored',\n    snooze_runs_remaining: 0,\n    show_resume: true,\n    message: `Post ${route.post_id} is now ignored and will not generate scheduled alerts.`,\n    callback_text: 'Post ignored.',\n  });\n}\n\nif (route.intent === 'SNOOZE_POST') {\n  const runs = Number(route.snooze_runs_remaining);\n  const durationLabel = route.snooze_duration_label || `${runs} hour${runs === 1 ? '' : 's'}`;\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'Snoozed',\n    snooze_runs_remaining: runs,\n    show_resume: true,\n    message: `Post ${route.post_id} is snoozed for ${durationLabel} (${runs} schedule run${runs === 1 ? '' : 's'}).`,\n    callback_text: `Post snoozed for ${durationLabel}.`,\n  });\n}\n\nif (route.intent === 'RESUME_POST') {\n  return result({\n    action_valid: true,\n    current_status: currentStatus,\n    next_status: 'New',\n    snooze_runs_remaining: 0,\n    show_resume: false,\n    message: `Post ${route.post_id} is active again and can appear in scheduled alerts.`,\n    callback_text: 'Post resumed.',\n  });\n}\n\nreturn result({\n  current_status: currentStatus,\n  message: 'Unsupported post status action.',\n  callback_text: 'Unsupported action.',\n});"
         },
         "id": "d3d71160-7cc6-4bfc-8996-b031302e5c9d",
         "name": "Prepare Post Status Change",
@@ -8054,6 +8200,86 @@
             "name": "TrackedUsersManager"
           }
         }
+      },
+      {
+        "parameters": {
+          "jsCode": "const route = $('Parse Telegram Message').first().json;\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\\\"/g, '&quot;');\n}\n\nconst postId = String(route.post_id || '').trim();\nconst menuMessage = postId\n  ? `<b>Choose snooze duration for post <code>${escapeHtml(postId)}</code>:</b>`\n  : 'Please provide a valid post ID to snooze.';\n\nreturn [{\n  json: {\n    telegram_chat_id: route.telegram_chat_id,\n    callback_query_id: route.callback_query_id || '',\n    callback_message_id: route.callback_message_id || '',\n    post_id: postId,\n    menu_message: menuMessage,\n  },\n}];"
+        },
+        "id": "b450d87e-1c41-433d-b1d2-33296f041001",
+        "name": "Build Snooze Duration Menu",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -14544,
+          256
+        ]
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.telegram_chat_id }}",
+          "text": "={{ $json.menu_message }}",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "1 hour",
+                      "additionalFields": {
+                        "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':1h' }}"
+                      }
+                    },
+                    {
+                      "text": "4 hours",
+                      "additionalFields": {
+                        "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':4h' }}"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "12 hours",
+                      "additionalFields": {
+                        "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':12h' }}"
+                      }
+                    },
+                    {
+                      "text": "24 hours",
+                      "additionalFields": {
+                        "callback_data": "={{ 'snooze_duration:' + $json.post_id + ':24h' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "additionalFields": {
+            "appendAttribution": false,
+            "disable_web_page_preview": true,
+            "parse_mode": "HTML"
+          }
+        },
+        "id": "97791811-843d-4127-a322-b44cb667c004",
+        "name": "Send Snooze Duration Menu",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -14096,
+          352
+        ],
+        "webhookId": "d056ebbd-1206-4694-9ea6-059aaeb467e2",
+        "credentials": {
+          "telegramApi": {
+            "id": "93Zba0R65BeREluv",
+            "name": "TrackedUsersManager"
+          }
+        }
       }
     ],
     "connections": {
@@ -8716,6 +8942,13 @@
           ],
           [
             {
+              "node": "Build Snooze Duration Menu",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
               "node": "Send Default Help",
               "type": "main",
               "index": 0
@@ -9229,6 +9462,17 @@
             }
           ]
         ]
+      },
+      "Build Snooze Duration Menu": {
+        "main": [
+          [
+            {
+              "node": "Send Snooze Duration Menu",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
     "nodeGroups": [],
@@ -9238,34 +9482,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-18T19:00:42.537Z",
-        "id": 70,
+        "createdAt": "2026-06-30T18:43:54.847Z",
+        "id": 145,
         "workflowId": "cWczsttyDbTBbRAC",
-        "versionId": "0088f372-8027-4670-853b-a18027fa7b48",
+        "versionId": "3b12951f-f3fd-4ecd-98dc-f7c7a7242da9",
         "event": "activated",
         "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
       },
       {
-        "createdAt": "2026-06-18T19:01:18.725Z",
-        "id": 76,
+        "createdAt": "2026-06-30T18:43:54.659Z",
+        "id": 144,
         "workflowId": "cWczsttyDbTBbRAC",
-        "versionId": "0088f372-8027-4670-853b-a18027fa7b48",
-        "event": "activated",
-        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
-      },
-      {
-        "createdAt": "2026-06-18T19:00:42.386Z",
-        "id": 69,
-        "workflowId": "cWczsttyDbTBbRAC",
-        "versionId": "0088f372-8027-4670-853b-a18027fa7b48",
-        "event": "deactivated",
-        "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
-      },
-      {
-        "createdAt": "2026-06-18T19:01:18.549Z",
-        "id": 75,
-        "workflowId": "cWczsttyDbTBbRAC",
-        "versionId": "0088f372-8027-4670-853b-a18027fa7b48",
+        "versionId": "3b12951f-f3fd-4ecd-98dc-f7c7a7242da9",
         "event": "deactivated",
         "userId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
       }
