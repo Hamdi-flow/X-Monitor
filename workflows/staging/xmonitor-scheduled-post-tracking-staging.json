@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-16T18:46:27.183Z",
+  "updatedAt": "2026-06-28T11:50:54.611Z",
   "createdAt": "2026-06-16T13:09:20.86Z",
   "id": "l4eKZucUZXzfz0H8",
   "name": "XMonitor - Scheduled Post Tracking Staging",
@@ -12,8 +12,7 @@
         "rule": {
           "interval": [
             {
-              "field": "minutes",
-              "minutesInterval": 30
+              "field": "hours"
             }
           ]
         }
@@ -99,7 +98,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all().filter(item => !blocked.has(String(item.json.id || '')));"
+        "jsCode": "const state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\nconst postSearch = $('Get posts of tracked users').first()?.json || {};\nconst usersById = new Map(\n  (postSearch.includes?.users || []).map(user => [String(user.id), user])\n);\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all()\n  .filter(item => !blocked.has(String(item.json.id || '')))\n  .map(item => {\n    const author = usersById.get(String(item.json.author_id)) || {};\n    const username = String(author.username || '').trim();\n    const name = String(author.name || '').trim();\n\n    return {\n      json: {\n        ...item.json,\n        author_username: username,\n        author_name: name,\n        post_author: username ? `@${username}` : (name || String(item.json.author_id || 'unknown')),\n      },\n    };\n  });"
       },
       "id": "58c22c13-36de-4ace-b921-faca8fcf356a",
       "name": "Filter Suppressed Posts",
@@ -137,7 +136,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      replies: [],\n    },\n  ])\n);\n\nfor (const group of $('Get Replies').all()) {\n  for (const reply of group.json.data || []) {\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    post.replies.push({\n      id: reply.id,\n      text: String(reply.text || '').replace(/\\s+/g, ' ').trim(),\n    });\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results: [...postsByConversation.values()] }),\n  },\n}];"
+        "jsCode": "const postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      postAuthor: item.json.post_author || (item.json.author_username ? `@${item.json.author_username}` : String(item.json.author_id || 'unknown')),\n      authorUsername: item.json.author_username || '',\n      authorName: item.json.author_name || '',\n      totalReplyCount: Number(item.json.public_metrics?.reply_count ?? 0),\n      replies: [],\n    },\n  ])\n);\n\nfor (const group of $('Get Replies').all()) {\n  for (const reply of group.json.data || []) {\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    post.replies.push({\n      id: reply.id,\n      text: String(reply.text || '').replace(/\\s+/g, ' ').trim(),\n    });\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results: [...postsByConversation.values()] }),\n  },\n}];"
       },
       "id": "6709d845-b024-42d2-a045-184a0dda4440",
       "name": "Attach replies to posts",
@@ -192,7 +191,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nreturn items.map(item => {\n  const posts = parseResults(item).map(post => {\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n    const counts = { positive: 0, neutral: 0, negative: 0 };\n\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(counts, sentiment)) {\n        counts[sentiment] += 1;\n      }\n    }\n\n    const comments_count = replies.length;\n    const negative_ratio = comments_count > 0\n      ? counts.negative / comments_count\n      : 0;\n\n    let overall_tag = 'Neutral';\n    if (counts.positive > counts.neutral && counts.positive > counts.negative) {\n      overall_tag = 'Positive';\n    } else if (counts.negative > counts.neutral && counts.negative > counts.positive) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId,\n      replies,\n      comments_count,\n      positive_count: counts.positive,\n      neutral_count: counts.neutral,\n      negative_count: counts.negative,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n    };\n  });\n\n  return {\n    json: {\n      posts: posts.filter(post => post.negative_ratio >= 0.5),\n    },\n  };\n});"
+        "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nfunction parseInputPosts() {\n  const raw = $('Attach replies to posts').first()?.json?.text;\n  if (!raw) return [];\n  try {\n    const parsed = JSON.parse(raw);\n    return Array.isArray(parsed.results) ? parsed.results : [];\n  } catch {\n    return [];\n  }\n}\n\nconst inputPostsById = new Map(\n  parseInputPosts().map(post => [String(post.postId || ''), post])\n);\n\nreturn items.map(item => {\n  const posts = parseResults(item).map(post => {\n    const metadata = inputPostsById.get(String(post.postId || '')) || {};\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n    const counts = { positive: 0, neutral: 0, negative: 0 };\n\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(counts, sentiment)) {\n        counts[sentiment] += 1;\n      }\n    }\n\n    const comments_count = replies.length;\n    const total_reply_count = Number(metadata.totalReplyCount ?? comments_count);\n    const negative_ratio = comments_count > 0\n      ? counts.negative / comments_count\n      : 0;\n\n    let overall_tag = 'Neutral';\n    if (counts.positive > counts.neutral && counts.positive > counts.negative) {\n      overall_tag = 'Positive';\n    } else if (counts.negative > counts.neutral && counts.negative > counts.positive) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId || metadata.userId,\n      postAuthor: metadata.postAuthor || post.postAuthor || String(post.userId || metadata.userId || 'unknown'),\n      authorUsername: metadata.authorUsername || post.authorUsername || '',\n      authorName: metadata.authorName || post.authorName || '',\n      replies,\n      comments_count,\n      total_reply_count,\n      positive_count: counts.positive,\n      neutral_count: counts.neutral,\n      negative_count: counts.negative,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n    };\n  });\n\n  return {\n    json: {\n      posts: posts.filter(post => post.negative_ratio >= 0.5),\n    },\n  };\n});"
       },
       "id": "588619c4-fb92-4402-bdb2-fe65d6ceb218",
       "name": "Calculate/Filter Sentiment Counts",
@@ -484,7 +483,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const posts = $('Split Out Reply Analysis').all().map(item => item.json || {});\nfunction escapeHtml(value) { return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\\"/g, '&quot;'); }\nif (posts.length === 0) { return []; }\nconst telegramUsers = $input.all().map(item => item.json || {}).filter(user => user.chat_id);\nif (telegramUsers.length === 0) { return [{ json: { notify_ready: false, scheduler_alert_type: 'NO_TELEGRAM_RECIPIENTS', post_count: posts.length, post_ids: posts.map(post => String(post.postId || '')).filter(Boolean), message: `Scheduled tracking generated ${posts.length} negative alert post(s), but no Telegram recipients are configured.` } }]; }\nreturn telegramUsers.flatMap(user => posts.map((post, index) => {\n  const postId = String(post.postId || ''); const text = escapeHtml(post.postText || ''); const replies = post.comments_count ?? 0; const negativePercentage = post.negative_percentage ?? 0; const overall = escapeHtml(post.overall_tag || 'Negative'); const tweetUrl = `https://x.com/i/web/status/${postId}`;\n  const message = `⚠️ Negative Sentiment Alert\\n\\n🚨 Post #${index + 1}\\n🆔 ID: <code>${postId}</code>\\n🔗 Link: ${tweetUrl}\\n📝 Text: ${text}\\n💬 Replies: ${replies}\\n📊 Negative Sentiment: ${negativePercentage}%\\n🏷️ Overall: ${overall}`;\n  return { json: { notify_ready: true, chat_id: user.chat_id, post_id: postId, message, snooze_button_text: 'Snooze', snooze_callback_data: `snooze:${postId}`, ignore_button_text: 'Ignore', ignore_callback_data: `ignore:${postId}`, hide_button_text: `Hide replies for Post #${index + 1}`, hide_callback_data: `hide_replies:${postId}` } };\n}));"
+        "jsCode": "const posts = $('Split Out Reply Analysis').all().map(item => item.json || {});\nconst replyCountsByPostId = new Map(\n  $('Get Reply Status Counts').all().map(item => {\n    const row = item.json || {};\n    return [String(row.post_id || ''), {\n      hiddenNegative: Number(row.hidden_negative_replies_count || 0),\n      nonHiddenNegative: Number(row.non_hidden_negative_replies_count || 0),\n    }];\n  })\n);\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nif (posts.length === 0) { return []; }\nconst telegramUsers = $input.all().map(item => item.json || {}).filter(user => user.chat_id);\nif (telegramUsers.length === 0) { return [{ json: { notify_ready: false, scheduler_alert_type: 'NO_TELEGRAM_RECIPIENTS', post_count: posts.length, post_ids: posts.map(post => String(post.postId || '')).filter(Boolean), message: `Scheduled tracking generated ${posts.length} negative alert post(s), but no Telegram recipients are configured.` } }]; }\nreturn telegramUsers.flatMap(user => posts.map((post, index) => {\n  const postId = String(post.postId || '');\n  const counts = replyCountsByPostId.get(postId) || {};\n  const text = escapeHtml(post.postText || '');\n  const author = escapeHtml(post.postAuthor || post.authorUsername || post.userId || 'unknown');\n  const totalReplies = Number(post.total_reply_count ?? post.comments_count ?? 0);\n  const analyzedReplies = Number(post.comments_count ?? 0);\n  const negativeCount = Number(post.negative_count ?? 0);\n  const hiddenNegativeReplies = Number(counts.hiddenNegative ?? 0);\n  const nonHiddenNegativeReplies = Number(counts.nonHiddenNegative ?? Math.max(negativeCount - hiddenNegativeReplies, 0));\n  const negativePercentage = post.negative_percentage ?? 0;\n  const overall = escapeHtml(post.overall_tag || 'Negative');\n  const tweetUrl = `https://x.com/i/web/status/${postId}`;\n  const message = [\n    '<b>XMonitor Scheduled Post Alert</b>',\n    '',\n    `<b>Post ${index + 1}</b>`,\n    `Author: ${author}`,\n    `Post ID: <code>${postId}</code>`,\n    `Link: ${tweetUrl}`,\n    '',\n    '<b>Key Metrics</b>',\n    `Total replies: ${totalReplies}`,\n    `Analyzed replies: ${analyzedReplies}`,\n    `Negative replies: ${negativeCount}`,\n    `Hidden negative replies: ${hiddenNegativeReplies}`,\n    `Visible negative replies: ${nonHiddenNegativeReplies}`,\n    `Negative sentiment: ${negativePercentage}%`,\n    `Overall sentiment: ${overall}`,\n    '',\n    '<b>Post Text</b>',\n    text || '(empty)',\n  ].join('\\n');\n  return { json: { notify_ready: true, chat_id: user.chat_id, post_id: postId, message, snooze_button_text: 'Snooze', snooze_callback_data: `snooze:${postId}`, ignore_button_text: 'Ignore', ignore_callback_data: `ignore:${postId}`, hide_button_text: `Hide replies for Post #${index + 1}`, hide_callback_data: `hide_replies:${postId}` } };\n}));"
       },
       "id": "70b98b2f-e854-414e-a9ef-56dd5aff4d42",
       "name": "Build Negative Alert Notification",
@@ -623,6 +622,14 @@
             {
               "name": "tweet.fields",
               "value": "created_at,author_id,text,public_metrics,conversation_id"
+            },
+            {
+              "name": "expansions",
+              "value": "author_id"
+            },
+            {
+              "name": "user.fields",
+              "value": "id,name,username"
             },
             {
               "name": "start_time",
@@ -793,6 +800,30 @@
         "telegramApi": {
           "id": "1PkKyBUkopLzyBuI",
           "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "id": "5e38c6f3-109d-4105-9bf2-6b62c7247d46",
+      "name": "Get Reply Status Counts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2832,
+        448
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH requested AS (\n  SELECT *\n  FROM unnest($1::text[], $2::text[]) AS item(post_id, reply_id)\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE lower(COALESCE(replies.status, 'New')) = 'hidden')::int AS hidden_negative_replies_count,\n  COUNT(*) FILTER (WHERE lower(COALESCE(replies.status, 'New')) <> 'hidden')::int AS non_hidden_negative_replies_count\nFROM requested\nLEFT JOIN public.\"Replies\" replies ON replies.reply_id = requested.reply_id\nGROUP BY requested.post_id;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Filter Negative Replies').all().map(item => String(item.json.postId || '')), $('Filter Negative Replies').all().map(item => String(item.json.id || ''))] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
         }
       }
     }
@@ -967,7 +998,7 @@
       "main": [
         [
           {
-            "node": "Get Telegram Users",
+            "node": "Get Reply Status Counts",
             "type": "main",
             "index": 0
           }
@@ -1097,6 +1128,17 @@
           }
         ]
       ]
+    },
+    "Get Reply Status Counts": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1112,9 +1154,9 @@
   },
   "nodeGroups": [],
   "pinData": {},
-  "versionId": "5e9fc024-51ce-4e39-b0ec-95c259c06b19",
+  "versionId": "a380d734-27c0-4c14-a721-81af5849b88a",
   "activeVersionId": null,
-  "versionCounter": 12,
+  "versionCounter": 13,
   "triggerCount": 0,
   "sourceWorkflowId": null,
   "shared": [
