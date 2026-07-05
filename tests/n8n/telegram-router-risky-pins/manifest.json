@@ -27,6 +27,34 @@
       }
     },
     {
+      "id": "hide-replies-provider-error",
+      "file": "hide-replies-provider-error.pinData.json",
+      "input": "callback_query.data=hide_replies:2060604129798496702, partial X hide failures=missing moderation permission and reply not found",
+      "riskPinned": [
+        "Get Post For Hide",
+        "Get X Auth Account",
+        "Get Replies For Post",
+        "Hide Reply On X",
+        "Update Reply Status",
+        "Send Hide Summary",
+        "Send Developer Alert - Hide Failures"
+      ],
+      "expected": {
+        "reaches": [
+          "Prepare Hide Result",
+          "Build Hide Summary",
+          "Send Hide Summary",
+          "Build Developer Alert - Hide Failures",
+          "Send Developer Alert - Hide Failures"
+        ],
+        "doesNotCallLive": [
+          "X API hide endpoint",
+          "Supabase reply status update",
+          "Telegram sendMessage"
+        ]
+      }
+    },
+    {
       "id": "order-likes-success",
       "file": "order-likes-success.pinData.json",
       "input": "message.text=/order_likes 2060604129798496702 25",

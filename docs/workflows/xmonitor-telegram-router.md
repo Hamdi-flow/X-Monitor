@@ -10,8 +10,8 @@ Production Telegram workflow that receives bot commands and alert button callbac
 - Environment: production
 - Active: yes
 - Local export: `workflows/active/xmonitor-telegram-router.json`
-- Node count: `112`
-- Last observed live update: `2026-06-30T18:43:54.333Z`
+- Node count: `114`
+- Last observed live update: `2026-07-05T13:48:50.043Z`
 - Main trigger node: `Telegram Trigger`
 
 ## Supported Inputs And Intents
@@ -88,7 +88,9 @@ The hide branch validates that the target post exists in `Posts`, finds the X au
 
 `PUT https://api.x.com/2/tweets/<reply_id>/hidden`
 
-Successful hide results upsert `Replies.status='hidden'`; failures are summarized back to Telegram. This is an X write action and should only be live-tested after explicit approval.
+`Hide Reply On X` captures the full X response and does not throw on non-2xx provider responses. `Prepare Hide Result` classifies each reply into safe failure categories such as missing moderation permission, rejected token, non-owner moderation attempt, reply not found, already hidden, rate limited, X unavailable, network error, or unknown rejection.
+
+Successful or already-hidden results upsert `Replies.status='hidden'`; failed attempts upsert `Replies.status='hide_failed'`. `Build Hide Summary` keeps successful output concise, but when failures occur it adds grouped user-facing reasons and sample reply IDs. `Build Developer Alert - Hide Failures` sends a sanitized developer alert only when at least one reply fails. This is an X write action and should only be live-tested after explicit approval.
 
 ### Comment Orders
 
@@ -132,6 +134,7 @@ On confirmation, it sends a SMMWiz `add` request with service `8404`, normalizes
 - Safe pinned or low-risk checks include `/help`, `/auth_x` link generation with pinned side-effect nodes, invalid command handling, and validation-only status/order input branches.
 - Reuse fixtures in `tests/n8n/telegram-router-risky-pins/` for risky paths:
   - `hide-replies-success.pinData.json`
+  - `hide-replies-provider-error.pinData.json`
   - `order-likes-success.pinData.json`
   - `order-comments-confirm-success.pinData.json`
 - Keep any new credentialed, HTTP, Telegram, OpenAI, or Supabase write node pinned in risky-path tests.

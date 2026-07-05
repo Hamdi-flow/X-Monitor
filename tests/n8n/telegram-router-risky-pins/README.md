@@ -17,6 +17,9 @@ Use each `*.pinData.json` file as the `pinData` argument for n8n MCP
 
 - `hide-replies-success.pinData.json`: exercises `hide_replies:<POST_ID>` and
   pins `Hide Reply On X` as a successful X hide response.
+- `hide-replies-provider-error.pinData.json`: exercises `hide_replies:<POST_ID>`
+  with one successful X hide, one missing moderation permission failure, and one
+  reply-not-found failure; it pins both user and developer Telegram outputs.
 - `order-likes-success.pinData.json`: exercises `/order_likes POST_ID AMOUNT`
   and pins the SMM add/status calls.
 - `order-comments-confirm-success.pinData.json`: exercises `/order_comments`,

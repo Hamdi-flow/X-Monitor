@@ -1,0 +1,161 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910002,
+        "callback_query": {
+          "id": "test-hide-replies-provider-error-callback",
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "message": {
+            "message_id": 202,
+            "chat": {
+              "id": 8677383067,
+              "first_name": "Test",
+              "type": "private"
+            },
+            "date": 1781631600,
+            "text": "Post controls"
+          },
+          "data": "hide_replies:2060604129798496702"
+        }
+      }
+    }
+  ],
+  "Get Post For Hide": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "username": "RebelHam_",
+        "post_text": "Pinned test post for hide-replies provider-error regression."
+      }
+    }
+  ],
+  "Get X Auth Account": [
+    {
+      "json": {
+        "x_user_id": "951803761",
+        "x_username": "RebelHam_",
+        "telegram_chat_id": "8677383067",
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "scope": "tweet.read tweet.write tweet.moderate.write users.read offline.access"
+      }
+    }
+  ],
+  "Get Replies For Post": [
+    {
+      "json": {
+        "reply_id": "2060605000000000001",
+        "post_id": "2060604129798496702",
+        "text": "Pinned reply one",
+        "status": "New"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060605000000000002",
+        "post_id": "2060604129798496702",
+        "text": "Pinned reply two",
+        "status": "New"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060605000000000003",
+        "post_id": "2060604129798496702",
+        "text": "Pinned reply three",
+        "status": "New"
+      }
+    }
+  ],
+  "Hide Reply On X": [
+    {
+      "json": {
+        "statusCode": 200,
+        "body": {
+          "data": {
+            "hidden": true
+          }
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 403,
+        "body": {
+          "title": "Forbidden",
+          "detail": "The access token does not have tweet.moderate.write scope.",
+          "type": "https://api.x.com/2/problems/not-authorized-for-resource"
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 404,
+        "body": {
+          "title": "Not Found Error",
+          "detail": "Could not find tweet with id 2060605000000000003.",
+          "type": "https://api.x.com/2/problems/resource-not-found"
+        }
+      }
+    }
+  ],
+  "Update Reply Status": [
+    {
+      "json": {
+        "reply_id": "2060605000000000001",
+        "status": "hidden"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060605000000000002",
+        "status": "hide_failed"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "2060605000000000003",
+        "status": "hide_failed"
+      }
+    }
+  ],
+  "Send Hide Summary": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 302,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Hide replies complete.\nPost: 2060604129798496702\nTotal replies: 3\nHidden: 1\nFailed: 2\n\nFailure reasons\n- 1 The connected X account is missing moderation permission. Reconnect with /auth_x so X grants tweet.moderate.write. Replies: 2060605000000000002\n- 1 X could not find the reply. It may have been deleted or is no longer available. Replies: 2060605000000000003"
+        }
+      }
+    }
+  ],
+  "Send Developer Alert - Hide Failures": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 303,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned hide failure developer alert sent"
+        }
+      }
+    }
+  ]
+}

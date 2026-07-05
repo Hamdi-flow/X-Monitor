@@ -142,9 +142,11 @@ Notes:
 
 - The implementation should not trade lower OpenAI cost for much higher X API cost. Confirm the retrieval limit and pagination behavior before changing the query pattern.
 
+## Completed Tasks
+
 ### Show clearer hide-reply failure reasons
 
-- Status: open
+- Status: done
 - Priority: high
 - Complexity: `M`
 - Source: request, 2026-06-30
@@ -152,16 +154,17 @@ Notes:
 Design:
 
 1. Improve hide-reply transparency so Telegram output explains why hiding a reply failed when a failure occurs.
-2. Inspect the Telegram router hide-replies path, including X moderation responses, Supabase reply status updates, and final Telegram summary formatting.
-3. Capture provider error details safely without leaking credentials, raw tokens, or overly noisy response bodies.
-4. Surface actionable failure categories such as missing auth, insufficient X scope, non-owner moderation attempt, reply not found, already hidden, rate limit, or provider/network error.
+2. Capture provider error details safely without leaking credentials, raw tokens, headers, or overly noisy response bodies.
+3. Surface actionable failure categories such as missing auth, insufficient X scope, non-owner moderation attempt, reply not found, already hidden, rate limit, or provider/network error.
+4. Send a sanitized developer alert only when at least one reply hide attempt fails.
 
 Validation:
 
-- Add or update pinned Telegram router tests for hide-reply provider errors and partial failures.
-- Verify successful hide output remains concise and unchanged except where useful.
-- Verify failure output includes per-reply or summarized reasons that match the captured provider response.
-- Confirm no secrets, bearer tokens, credential IDs, or full raw response bodies appear in Telegram output, pin data, docs, or logs.
+- Staging router `oLwwjO05IcRjtF8E` was updated on 2026-07-05 with X hide full-response capture, per-reply failure classification, grouped user summaries, and a developer alert only when hide failures occur.
+- Pinned staging validation executions: `3715` for the all-success hide path and `3716` for partial hide failures covering `missing_moderation_permission` and `reply_not_found`.
+- Live staging validation on 2026-07-05 used Supabase post `2060604129798496702`, unhid three real replies on X in temporary helper execution `3731`, then re-hid `20` real replies and reproduced one synthetic failure in temporary helper execution `3732`. The synthetic row was deleted afterward; final Supabase check showed `20` replies, `20` hidden, `0` `hide_failed`, and `0` probe rows remaining.
+- Production router `cWczsttyDbTBbRAC` was promoted on 2026-07-05. Pinned production validation execution `3736` covered the all-success hide path (`total=2`, `hidden=2`, `failed=0`, no developer alert). Pinned production validation execution `3737` covered partial failures (`total=3`, `hidden=1`, `failed=2`) with grouped `missing_moderation_permission` and `reply_not_found` reasons plus one developer-alert payload.
+- Live mutation of auth scopes/tokens was intentionally not used to recreate `missing_moderation_permission`; pinned executions cover that branch because changing stored OAuth state would be a higher-risk test.
 
 Open Questions:
 
@@ -169,8 +172,5 @@ Open Questions:
 
 Notes:
 
-- Existing fixture `tests/n8n/telegram-router-risky-pins/order-comments-provider-error.pinData.json` may be a useful pattern for provider-error pin coverage, but hide-replies needs its own targeted fixture if one is not already present.
-
-## Completed Tasks
-
-_No completed tasks currently._
+- Production workflow remained active after promotion and now has `114` nodes.
+- Live X writes were performed only in staging after explicit approval; production validation was pinned and did not call X, write Supabase rows, or send Telegram messages.
