@@ -2,24 +2,22 @@
   "Telegram Trigger": [
     {
       "json": {
-        "update_id": 910001,
+        "update_id": 910102,
         "callback_query": {
-          "id": "test-hide-replies-callback",
+          "id": "test-hide-replies-all-hidden-callback",
           "from": {
             "id": 8677383067,
             "is_bot": false,
             "first_name": "Test",
-            "last_name": "User",
             "language_code": "en"
           },
           "message": {
-            "message_id": 201,
+            "message_id": 212,
             "chat": {
               "id": 8677383067,
-              "first_name": "Test",
               "type": "private"
             },
-            "date": 1781631500,
+            "date": 1783762310,
             "text": "Post controls"
           },
           "data": "hide_replies:2060604129798496702"
@@ -33,7 +31,7 @@
         "post_id": "2060604129798496702",
         "user_id": "951803761",
         "username": "RebelHam_",
-        "post_text": "Pinned test post for hide-replies regression."
+        "post_text": "Pinned test post for all-hidden regression."
       }
     }
   ],
@@ -53,62 +51,32 @@
   "Get Replies For Post": [
     {
       "json": {
-        "reply_id": "2060605000000000001",
+        "reply_id": "2060605000000000201",
         "post_id": "2060604129798496702",
-        "text": "Pinned reply one",
-        "status": "New"
-      }
-    },
-    {
-      "json": {
-        "reply_id": "2060605000000000002",
-        "post_id": "2060604129798496702",
-        "text": "Pinned reply two",
-        "status": "New"
-      }
-    }
-  ],
-  "Hide Reply On X": [
-    {
-      "json": {
-        "data": {
-          "hidden": true
-        }
-      }
-    },
-    {
-      "json": {
-        "data": {
-          "hidden": true
-        }
-      }
-    }
-  ],
-  "Update Reply Status": [
-    {
-      "json": {
-        "reply_id": "2060605000000000001",
+        "text": "Pinned already hidden reply one",
         "status": "hidden"
       }
     },
     {
       "json": {
-        "reply_id": "2060605000000000002",
+        "reply_id": "2060605000000000202",
+        "post_id": "2060604129798496702",
+        "text": "Pinned already hidden reply two",
         "status": "hidden"
       }
     }
   ],
-  "Send Hide Summary": [
+  "Send No Replies": [
     {
       "json": {
         "ok": true,
         "result": {
-          "message_id": 301,
+          "message_id": 312,
           "chat": {
             "id": 8677383067,
             "type": "private"
           },
-          "text": "Hide replies complete.\nPost: 2060604129798496702\nTotal replies: 2\nHidden: 2\nFailed: 0"
+          "text": "Pinned all-hidden message sent"
         }
       }
     }

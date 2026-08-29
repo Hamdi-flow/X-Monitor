@@ -1,0 +1,1237 @@
+{
+  "id": "vm4UNW7OIx2zEGb4",
+  "name": "XMonitor - Moderation Queue Drain",
+  "active": true,
+  "activeVersionId": "f19a65a0-3710-4528-8d0f-a10aec6ed13d",
+  "nodeCount": 34,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "UmKr9JkZ3ec3GDH5",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "parentFolderId": null,
+  "canExecute": true,
+  "connections": {
+    "Find Drainable Tokens": {
+      "main": [
+        [
+          {
+            "node": "Plan Drain Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Drain Pass": {
+      "main": [
+        [
+          {
+            "node": "Route Token Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Token Plan": {
+      "main": [
+        [
+          {
+            "node": "If Token Needs Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Defer Token Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fail Token Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Token Needs Refresh": {
+      "main": [
+        [
+          {
+            "node": "Prepare Drain Refresh Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ready To Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Drain Refresh Request": {
+      "main": [
+        [
+          {
+            "node": "Refresh Drain X Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Drain X Token": {
+      "main": [
+        [
+          {
+            "node": "Apply Drain Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Drain Refresh": {
+      "main": [
+        [
+          {
+            "node": "If Drain Refresh OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Drain Refresh OK": {
+      "main": [
+        [
+          {
+            "node": "Upsert Refreshed Drain Account",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Refresh Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Refreshed Drain Account": {
+      "main": [
+        [
+          {
+            "node": "Ready To Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready To Claim": {
+      "main": [
+        [
+          {
+            "node": "Claim Due Hide Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Refresh Failure": {
+      "main": [
+        [
+          {
+            "node": "Defer Token Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fail Token Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defer Token Rows": {
+      "main": [
+        [
+          {
+            "node": "Build Developer Alert - Drain Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fail Token Rows": {
+      "main": [
+        [
+          {
+            "node": "Build Developer Alert - Drain Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Due Hide Rows": {
+      "main": [
+        [
+          {
+            "node": "Prepare Hide Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Hide Requests": {
+      "main": [
+        [
+          {
+            "node": "Hide Reply On X",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hide Reply On X": {
+      "main": [
+        [
+          {
+            "node": "Prepare Drain Hide Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Drain Hide Result": {
+      "main": [
+        [
+          {
+            "node": "Persist Queue Outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Queue Outcomes": {
+      "main": [
+        [
+          {
+            "node": "Persist Reply Statuses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Reply Statuses": {
+      "main": [
+        [
+          {
+            "node": "Persist X Rate Limits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist X Rate Limits": {
+      "main": [
+        [
+          {
+            "node": "Defer Rate Limited Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Defer Rate Limited Tokens": {
+      "main": [
+        [
+          {
+            "node": "Read Batch Progress",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Developer Alert - Drain Failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Batch Progress": {
+      "main": [
+        [
+          {
+            "node": "Build Progress Edits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Progress Edits": {
+      "main": [
+        [
+          {
+            "node": "Edit Telegram Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Developer Alert - Drain Failures": {
+      "main": [
+        [
+          {
+            "node": "Send Developer Alert - Drain Failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Developer Alert - Drain Blocked": {
+      "main": [
+        [
+          {
+            "node": "Send Developer Alert - Drain Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Drain Authorized": {
+      "main": [
+        [
+          {
+            "node": "Find Drainable Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Unauthorized Drain Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drain Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify Drain Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Drain Secret": {
+      "main": [
+        [
+          {
+            "node": "If Drain Authorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "id": "25423d28-08ef-42e3-a63b-b8746ec8f80a",
+      "name": "Find Drainable Tokens",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -680,
+        -60
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- One row per X account that has hide work due, with the quota that account\n-- may spend this pass. allowance falls back to the full 50-per-15-minute\n-- window when there is no observation yet or the last window has reset --\n-- that is the true X limit, not an optimistic guess.\nWITH due AS (\n  SELECT x_user_id, count(*) AS due_count, min(not_before) AS earliest_due\n  FROM public.\"Moderation Queue\"\n  WHERE status = 'queued' AND action = 'hide' AND not_before <= now()\n  GROUP BY x_user_id\n)\nSELECT d.x_user_id, d.due_count, d.earliest_due,\n       CASE WHEN r.x_user_id IS NULL OR r.reset_at IS NULL OR r.reset_at <= now()\n            THEN 50 ELSE GREATEST(COALESCE(r.remaining, 0), 0) END AS allowance,\n       r.remaining AS known_remaining, r.reset_at, r.observed_at,\n       a.x_username, a.telegram_chat_id AS account_chat_id, a.expires_at,\n       a.access_token, a.refresh_token,\n       (a.x_user_id IS NOT NULL) AS has_account\nFROM due d\nLEFT JOIN public.\"X Rate Limits\" r\n       ON r.x_user_id = d.x_user_id AND r.endpoint = 'PUT /2/tweets/:id/hidden'\nLEFT JOIN public.\"X Auth Accounts\" a ON a.x_user_id = d.x_user_id\nORDER BY d.earliest_due;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "8dab3162-73d1-4005-bfa6-b2c313182861",
+      "name": "Plan Drain Pass",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        -60
+      ],
+      "parameters": {
+        "jsCode": "const ENDPOINT = 'PUT /2/tweets/:id/hidden';\n// X allows 50 hides per 15 minutes per token. Never claim more than one\n// full window in a single pass even if allowance somehow reads higher.\nconst MAX_BATCH = 50;\nconst REFRESH_BUFFER_MS = 2 * 60 * 1000;\nconst CANNOT_REFRESH_DEFER_MS = 10 * 60 * 1000;\n\nfunction envValue(name) {\n  try {\n    if (typeof $env === 'undefined' || !$env) return '';\n    return String($env[name] || '');\n  } catch (error) {\n    return '';\n  }\n}\n\n// The router keeps the X OAuth client credentials inline in a Code node. The\n// drain deliberately does NOT copy that secret into a second workflow: it\n// reads instance environment variables instead. When they are unset the drain\n// defers stale-token rows rather than burning attempts on a 401 it cannot fix.\nconst clientId = envValue('X_OAUTH_CLIENT_ID');\nconst clientSecret = envValue('X_OAUTH_CLIENT_SECRET');\nconst canRefresh = Boolean(clientId && clientSecret);\nconst nowMs = Date.now();\n\nreturn $input.all().map(function (item) {\n  const row = item.json || {};\n  const xUserId = String(row.x_user_id || '');\n  const base = {\n    x_user_id: xUserId,\n    x_username: row.x_username || '',\n    telegram_chat_id: row.account_chat_id || null,\n    due_count: Number(row.due_count || 0),\n    endpoint: ENDPOINT,\n    can_refresh: canRefresh,\n  };\n\n  if (!row.has_account || !row.access_token) {\n    return { json: Object.assign({}, base, {\n      mode: 'block',\n      access_token: '',\n      allowance: 0,\n      block_code: 'x_auth_rejected',\n      block_reason: 'No connected X account for x_user_id ' + xUserId\n        + '. Reconnect that account with /auth_x, then hide again.',\n    }) };\n  }\n\n  const allowance = Math.max(0, Math.min(Number(row.allowance || 0), MAX_BATCH));\n  const resetAt = row.reset_at ? new Date(row.reset_at).toISOString() : '';\n\n  // Section 2.2 step 3: quota gone and the window is still open -> push the\n  // rows past the reset and spend no requests at all.\n  if (allowance <= 0) {\n    return { json: Object.assign({}, base, {\n      mode: 'defer',\n      access_token: '',\n      allowance: 0,\n      defer_until: resetAt || new Date(nowMs + CANNOT_REFRESH_DEFER_MS).toISOString(),\n      defer_code: 'x_rate_limited',\n      defer_reason: 'X hide quota for ' + xUserId + ' is spent; window resets at '\n        + (resetAt || 'an unknown time') + '.',\n      alert: false,\n    }) };\n  }\n\n  const expiresAtMs = row.expires_at ? new Date(row.expires_at).getTime() : 0;\n  const tokenStale = !expiresAtMs || Number.isNaN(expiresAtMs)\n    || expiresAtMs <= nowMs + REFRESH_BUFFER_MS;\n\n  if (tokenStale && !row.refresh_token) {\n    return { json: Object.assign({}, base, {\n      mode: 'block',\n      access_token: '',\n      allowance: 0,\n      block_code: 'x_auth_rejected',\n      block_reason: 'The X connection for ' + xUserId\n        + ' expired and has no refresh token. Send /auth_x again.',\n    }) };\n  }\n\n  if (tokenStale && !canRefresh) {\n    return { json: Object.assign({}, base, {\n      mode: 'defer',\n      access_token: '',\n      allowance: 0,\n      defer_until: new Date(nowMs + CANNOT_REFRESH_DEFER_MS).toISOString(),\n      defer_code: 'drain_cannot_refresh',\n      defer_reason: 'Access token for ' + xUserId + ' is stale and the drain cannot refresh it: X_OAUTH_CLIENT_ID / X_OAUTH_CLIENT_SECRET are not set on this n8n instance. Rows deferred, not failed.',\n      alert: true,\n    }) };\n  }\n\n  return { json: Object.assign({}, base, {\n    mode: 'drain',\n    needs_refresh: tokenStale,\n    allowance: allowance,\n    access_token: row.access_token,\n    refresh_token: row.refresh_token || '',\n    expires_at: row.expires_at || null,\n    reset_at: resetAt,\n  }) };\n});"
+      }
+    },
+    {
+      "id": "7f69d6ea-1d9a-4327-aec0-aa892d30f817",
+      "name": "Route Token Plan",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -240,
+        -60
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "drain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "drain"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "defer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "defer"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "block",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "block"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "81792a22-ad9d-4dbe-9d73-772bc6c5714a",
+      "name": "If Token Needs Refresh",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        -180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.needs_refresh }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "85eb9afa-97ed-4cd5-b1a1-c4b603a1688d",
+      "name": "Prepare Drain Refresh Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        -320
+      ],
+      "parameters": {
+        "jsCode": "function envValue(name) {\n  try {\n    if (typeof $env === 'undefined' || !$env) return '';\n    return String($env[name] || '');\n  } catch (error) {\n    return '';\n  }\n}\n\nconst clientId = envValue('X_OAUTH_CLIENT_ID');\nconst clientSecret = envValue('X_OAUTH_CLIENT_SECRET');\n\nif (!clientId || !clientSecret) {\n  throw new Error('X_OAUTH_CLIENT_ID / X_OAUTH_CLIENT_SECRET are not set on this n8n instance. Plan Drain Pass should have deferred this token instead of routing it here.');\n}\n\nconst authorization = 'Basic ' + Buffer.from(clientId + ':' + clientSecret).toString('base64');\n\nreturn $input.all().map(function (item) {\n  return { json: Object.assign({}, item.json, { authorization: authorization }) };\n});"
+      }
+    },
+    {
+      "id": "4a782b55-ab2a-4ced-9c9a-dabee070f0bf",
+      "name": "Refresh Drain X Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        200,
+        -320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.x.com/2/oauth2/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authorization }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{ $json.refresh_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "8ca0f870-847a-4360-90be-ad7eba3b6b69",
+      "name": "Apply Drain Refresh",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        -320
+      ],
+      "parameters": {
+        "jsCode": "const CANNOT_REFRESH_DEFER_MS = 10 * 60 * 1000;\nconst requests = $('Prepare Drain Refresh Request').all().map(function (item) {\n  return item.json || {};\n});\n\nfunction parseJson(value) {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch (error) { return value; }\n}\n\nfunction statusOf(response) {\n  const candidates = [\n    response && response.statusCode,\n    response && response.status,\n    response && response.error && response.error.statusCode,\n  ];\n  for (const candidate of candidates) {\n    const parsed = Number(candidate);\n    if (Number.isFinite(parsed) && parsed > 0) return parsed;\n  }\n  return null;\n}\n\nreturn $input.all().map(function (item, index) {\n  const previous = requests[index] || {};\n  const response = item.json || {};\n  const body = parseJson(response.body !== undefined ? response.body : response) || {};\n  const statusCode = statusOf(response);\n  const accessToken = body.access_token || '';\n\n  if (accessToken) {\n    const expiresIn = Number(body.expires_in || 0);\n    return { json: Object.assign({}, previous, {\n      refresh_ok: true,\n      access_token: accessToken,\n      refresh_token: body.refresh_token || previous.refresh_token || '',\n      expires_at: expiresIn > 0\n        ? new Date(Date.now() + expiresIn * 1000).toISOString()\n        : previous.expires_at,\n      scope: body.scope || '',\n    }) };\n  }\n\n  const detail = String(\n    body.error_description || body.error || body.detail || body.title\n      || ('HTTP ' + statusCode)\n  ).slice(0, 500);\n\n  // invalid_grant means the refresh token itself is dead -- reconnecting is the\n  // only fix, so fail the rows rather than retrying five times against a wall.\n  const permanent = statusCode === 400 || statusCode === 401\n    || /invalid_grant|invalid_request|unauthorized_client/i.test(String(body.error || ''));\n\n  if (permanent) {\n    return { json: Object.assign({}, previous, {\n      refresh_ok: false,\n      refresh_failure_mode: 'block',\n      block_code: 'x_auth_rejected',\n      block_reason: 'X refused to refresh the token for ' + previous.x_user_id\n        + ': ' + detail + '. Reconnect that account with /auth_x.',\n    }) };\n  }\n\n  return { json: Object.assign({}, previous, {\n    refresh_ok: false,\n    refresh_failure_mode: 'defer',\n    defer_until: new Date(Date.now() + CANNOT_REFRESH_DEFER_MS).toISOString(),\n    defer_code: 'x_unavailable',\n    defer_reason: 'Token refresh for ' + previous.x_user_id\n      + ' failed transiently: ' + detail,\n    alert: false,\n  }) };\n});"
+      }
+    },
+    {
+      "id": "683a7ef1-b45b-4ae3-80b6-97ffda2ae97f",
+      "name": "If Drain Refresh OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        -320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.refresh_ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "582284e9-24cc-452d-a21e-cff43191bc20",
+      "name": "Upsert Refreshed Drain Account",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        860,
+        -240
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- RETURNING carries the token context forward. The claim step needs\n-- allowance, which does not live on \"X Auth Accounts\", so it is echoed\n-- through as $5 -- that keeps both refresh and no-refresh branches\n-- arriving at \"Ready To Claim\" with an identical item shape.\nUPDATE public.\"X Auth Accounts\" a\nSET access_token = $2,\n    refresh_token = $3,\n    expires_at = $4::timestamptz,\n    updated_at = now()\nWHERE a.x_user_id = $1\nRETURNING a.x_user_id, a.x_username, a.telegram_chat_id,\n          a.access_token, $5::int AS allowance;",
+        "options": {
+          "queryReplacement": "={{ [$json.x_user_id, $json.access_token, $json.refresh_token, $json.expires_at, $json.allowance] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "469fe0bd-95b7-4d43-8654-a601a5ea72ef",
+      "name": "Ready To Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "// Two branches feed this node: tokens that needed no refresh (straight from\n// \"If Token Needs Refresh\") and tokens just refreshed (from the RETURNING of\n// \"Upsert Refreshed Drain Account\"). Normalise both to one shape so the claim\n// query does not care which path an item took.\nreturn $input.all().map(function (item) {\n  const row = item.json || {};\n  return { json: {\n    x_user_id: String(row.x_user_id || ''),\n    x_username: row.x_username || '',\n    telegram_chat_id: row.telegram_chat_id || null,\n    access_token: row.access_token || '',\n    allowance: Math.max(0, Number(row.allowance || 0)),\n  } };\n}).filter(function (item) {\n  return item.json.x_user_id && item.json.access_token && item.json.allowance > 0;\n});"
+      }
+    },
+    {
+      "id": "f840f084-fbcc-4a28-8df1-ddabcef19661",
+      "name": "Route Refresh Failure",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        860,
+        -480
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.refresh_failure_mode }}",
+                    "rightValue": "defer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "defer"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.refresh_failure_mode }}",
+                    "rightValue": "block",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "block"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5ff9b50d-83b7-4e43-af0f-a78efd509e8a",
+      "name": "Defer Token Rows",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -20,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Reached when quota is spent, or when a token is stale and cannot be\n-- refreshed. Rows are pushed forward, never failed: nothing here says the\n-- hide itself is impossible.\nUPDATE public.\"Moderation Queue\"\nSET not_before = $2::timestamptz\nWHERE x_user_id = $1\n  AND status = 'queued'\n  AND action = 'hide'\n  AND not_before < $2::timestamptz\nRETURNING id, reply_id, not_before;",
+        "options": {
+          "queryReplacement": "={{ [$json.x_user_id, $json.defer_until] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "8cae06da-63d8-454f-be4b-27eddadeda14",
+      "name": "Fail Token Rows",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -20,
+        380
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Reached only for permanent auth problems: no connected account, no refresh\n-- token, or X refusing the refresh outright. Retrying cannot fix any of them,\n-- so the rows fail immediately instead of consuming five attempts.\nUPDATE public.\"Moderation Queue\"\nSET status = 'failed',\n    last_error = $2,\n    last_error_code = $3\nWHERE x_user_id = $1\n  AND status = 'queued'\n  AND action = 'hide'\nRETURNING id, reply_id;",
+        "options": {
+          "queryReplacement": "={{ [$json.x_user_id, $json.block_reason, $json.block_code] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "97585b48-d332-47d5-ac7c-aac85e55b84c",
+      "name": "Claim Due Hide Rows",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Atomic claim. FOR UPDATE SKIP LOCKED lets a second drain pass (or a\n-- future console worker) take different rows instead of blocking, and the\n-- outer AND q.status = 'queued' re-check means a row another transaction\n-- claimed between the SELECT and the UPDATE is dropped rather than\n-- double-claimed.\n--\n-- LIMIT $2 is the per-token allowance computed from real x-rate-limit-*\n-- headers, so a pass never dispatches more requests than X will honour.\nUPDATE public.\"Moderation Queue\" q\nSET status = 'in_flight',\n    attempts = q.attempts + 1\nWHERE q.id IN (\n  SELECT id FROM public.\"Moderation Queue\"\n  WHERE status = 'queued'\n    AND action = 'hide'\n    AND x_user_id = $1\n    AND not_before <= now()\n  ORDER BY not_before, created_at, id\n  LIMIT $2\n  FOR UPDATE SKIP LOCKED\n)\nAND q.status = 'queued'\nRETURNING q.id, q.reply_id, q.post_id, q.x_user_id, q.batch_id::text AS batch_id,\n          q.telegram_chat_id, q.telegram_message_id, q.attempts;",
+        "options": {
+          "queryReplacement": "={{ [$json.x_user_id, $json.allowance] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "0a9c8317-d647-4b65-8db4-745325227f39",
+      "name": "Prepare Hide Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "// Claimed rows come back from Postgres without the token that pays for them.\n// Look the token up by x_user_id rather than relying on paired-item resolution\n// across the refresh branch, which is not guaranteed through a DB node.\nconst tokens = new Map();\nfor (const item of $('Ready To Claim').all()) {\n  const row = item.json || {};\n  if (row.x_user_id) tokens.set(String(row.x_user_id), row);\n}\n\nreturn $input.all().filter(function (item) {\n  return item.json && item.json.id;\n}).map(function (item) {\n  const row = item.json;\n  const token = tokens.get(String(row.x_user_id)) || {};\n  return { json: Object.assign({}, row, {\n    access_token: token.access_token || '',\n    x_username: token.x_username || '',\n    endpoint: 'PUT /2/tweets/:id/hidden',\n  }) };\n});"
+      }
+    },
+    {
+      "id": "dd4959d1-fa48-4dfd-94ad-46304cfb9c88",
+      "name": "Hide Reply On X",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1740,
+        -180
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.x.com/2/tweets/{{ $json.reply_id }}/hidden",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"hidden\": true\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "dc299b4a-f3bb-4506-87a7-79f2300c395f",
+      "name": "Prepare Drain Hide Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "const ENDPOINT = 'PUT /2/tweets/:id/hidden';\n// Section 2.2 step 5.\nconst MAX_ATTEMPTS = 5;\n\nconst requests = $('Prepare Hide Requests').all().map(function (item) {\n  return item.json || {};\n});\n\nfunction parseJson(value) {\n  if (typeof value !== 'string') return value;\n  try { return JSON.parse(value); } catch (error) { return value; }\n}\n\nfunction asText(value) {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (typeof value === 'number' || typeof value === 'boolean') return String(value);\n  try { return JSON.stringify(value); } catch (error) { return String(value); }\n}\n\nfunction cleanText(value, maxLength) {\n  const limit = maxLength || 700;\n  return asText(value).replace(/\\s+/g, ' ').trim().slice(0, limit);\n}\n\nfunction extractBody(response) {\n  if (response && Object.prototype.hasOwnProperty.call(response, 'body')) {\n    return parseJson(response.body);\n  }\n  return parseJson(response);\n}\n\nfunction extractStatusCode(response) {\n  const candidates = [\n    response && response.statusCode,\n    response && response.status,\n    response && response.response && response.response.statusCode,\n    response && response.error && response.error.statusCode,\n  ];\n  for (const candidate of candidates) {\n    const parsed = Number(candidate);\n    if (Number.isFinite(parsed) && parsed > 0) return parsed;\n  }\n  return null;\n}\n\nfunction extractHeaders(response) {\n  return (response && response.headers)\n    || (response && response.response && response.response.headers)\n    || (response && response.error && response.error.headers)\n    || {};\n}\n\nfunction headerValue(headers, name) {\n  const wanted = name.toLowerCase();\n  for (const entry of Object.entries(headers || {})) {\n    if (String(entry[0]).toLowerCase() === wanted) {\n      return Array.isArray(entry[1]) ? entry[1][0] : entry[1];\n    }\n  }\n  return '';\n}\n\nfunction extractRateLimit(response) {\n  const headers = extractHeaders(response);\n  const limit = Number(headerValue(headers, 'x-rate-limit-limit'));\n  const remaining = Number(headerValue(headers, 'x-rate-limit-remaining'));\n  const reset = Number(headerValue(headers, 'x-rate-limit-reset'));\n  return {\n    has_any: Number.isFinite(limit) || Number.isFinite(remaining) || Number.isFinite(reset),\n    limit: Number.isFinite(limit) ? limit : null,\n    remaining: Number.isFinite(remaining) ? remaining : null,\n    reset: Number.isFinite(reset) ? reset : null,\n    reset_at: Number.isFinite(reset) && reset > 0\n      ? new Date(reset * 1000).toISOString() : '',\n  };\n}\n\nfunction pushPart(parts, value) {\n  const text = cleanText(value);\n  if (text && !parts.includes(text)) parts.push(text);\n}\n\nfunction extractErrorText(response, body) {\n  const parts = [];\n  const errors = Array.isArray(body && body.errors) ? body.errors : [];\n  pushPart(parts, body && body.title);\n  pushPart(parts, body && body.detail);\n  pushPart(parts, body && body.message);\n  pushPart(parts, body && body.error_description);\n  pushPart(parts, body && body.error);\n  for (const error of errors) {\n    pushPart(parts, error && error.title);\n    pushPart(parts, error && error.detail);\n    pushPart(parts, error && error.message);\n    pushPart(parts, error && error.code);\n    pushPart(parts, error && error.type);\n  }\n  pushPart(parts, response && response.message);\n  pushPart(parts, response && response.error && response.error.message);\n  return parts.join(' | ');\n}\n\n// Categories are copied verbatim from the router node \"Prepare Hide Result\"\n// so the queue classifies failures exactly as the inline path used to.\nfunction classifyFailure(statusCode, errorText, body) {\n  const lower = errorText.toLowerCase();\n  const title = cleanText(body && body.title, 160);\n  const detail = cleanText((body && body.detail) || errorText, 700);\n\n  function result(code, reason, userMessage) {\n    return { code: code, reason: reason, userMessage: userMessage };\n  }\n\n  if (lower.includes('already hidden') || (lower.includes('already') && lower.includes('hidden'))) {\n    return result('already_hidden', 'Reply was already hidden on X.',\n      'X says one or more replies were already hidden.');\n  }\n  if (statusCode === 401 || lower.includes('invalid token') || lower.includes('expired token')\n    || lower.includes('token expired') || lower.includes('revoked')) {\n    return result('x_auth_rejected', detail || 'X rejected the access token.',\n      'X rejected the connected account token. Reconnect the owning X account with /auth_x and try again.');\n  }\n  if (lower.includes('tweet.moderate.write') || lower.includes('scope')\n    || lower.includes('permission') || lower.includes('permissions')) {\n    return result('missing_moderation_permission',\n      detail || 'X says the token is missing moderation permission.',\n      'The connected X account is missing moderation permission. Reconnect with /auth_x so X grants tweet.moderate.write.');\n  }\n  if (lower.includes('owner') || lower.includes('author') || lower.includes('own this')\n    || lower.includes('not authorized') || lower.includes('forbidden') || lower.includes('not allowed')) {\n    return result('not_post_owner_or_not_moderatable',\n      detail || 'X refused moderation for this reply.',\n      'X would not let the connected account hide this reply. Confirm the connected account owns the original post.');\n  }\n  if (statusCode === 403) {\n    return result('x_moderation_forbidden', detail || title || 'X returned 403 Forbidden.',\n      'X rejected the hide request as forbidden. Confirm ownership and moderation permissions.');\n  }\n  if (statusCode === 404 || lower.includes('not found') || lower.includes('does not exist')\n    || lower.includes('deleted')\n    || (statusCode === 400 && (lower.includes('invalid-request')\n      || lower.includes('one or more parameters')))) {\n    return result('reply_not_found', detail || 'The reply was not found on X.',\n      'X could not find the reply. It may have been deleted or is no longer available.');\n  }\n  if (statusCode === 429 || lower.includes('rate limit') || lower.includes('too many requests')) {\n    return result('x_rate_limited', detail || 'X rate limited the hide request.',\n      'X rate limit reached. The queue will retry automatically.');\n  }\n  if (statusCode && statusCode >= 500) {\n    return result('x_unavailable', detail || ('X returned HTTP ' + statusCode + '.'),\n      'X returned a server error while hiding replies.');\n  }\n  if (lower.includes('econn') || lower.includes('timeout') || lower.includes('network')\n    || lower.includes('socket')) {\n    return result('network_error', detail || 'Network error while calling X.',\n      'The hide request could not reach X reliably.');\n  }\n  if (statusCode) {\n    return result('x_hide_rejected', detail || title || ('X returned HTTP ' + statusCode + '.'),\n      'X rejected the hide request with HTTP ' + statusCode + '.');\n  }\n  return result('x_hide_not_confirmed', detail || 'X did not confirm the reply was hidden.',\n    'X did not confirm that the reply was hidden.');\n}\n\n// Verified against live X on 2026-08-27, not assumed: a deleted reply returns\n// 400 invalid-request (handled above), and X refuses to hide a SELF-authored\n// reply with a bare 403 Forbidden -> not_post_owner_or_not_moderatable.\n//\n// Section 2.2 step 5: \"Permanent failures (deleted reply, revoked token,\n// non-owner) must not be retried\". Everything outside this set is retried\n// until MAX_ATTEMPTS.\nconst PERMANENT = [\n  'x_auth_rejected',\n  'missing_moderation_permission',\n  'not_post_owner_or_not_moderatable',\n  'x_moderation_forbidden',\n  'reply_not_found',\n];\n\nconst outcomes = [];\nconst replyUpdates = [];\nconst rateLimitByToken = new Map();\nconst deferByToken = new Map();\nconst batchIds = [];\nconst results = [];\nlet hidden = 0;\nlet failed = 0;\nlet abandoned = 0;\nlet requeued = 0;\nlet rateLimited = 0;\n\nconst items = $input.all();\n\nitems.forEach(function (item, index) {\n  const original = requests[index] || {};\n  const response = item.json || {};\n  const body = extractBody(response) || {};\n  const statusCode = extractStatusCode(response);\n  const rateLimit = extractRateLimit(response);\n  const xUserId = String(original.x_user_id || '');\n\n  if (rateLimit.has_any && xUserId) {\n    rateLimitByToken.set(xUserId, {\n      x_user_id: xUserId,\n      endpoint: ENDPOINT,\n      limit_ceiling: rateLimit.limit,\n      remaining: rateLimit.remaining,\n      reset_at: rateLimit.reset_at || null,\n    });\n  }\n\n  const confirmedHidden = (body && body.data && body.data.hidden === true)\n    || (response && response.data && response.data.hidden === true);\n  const errorText = extractErrorText(response, body);\n  const hasError = Boolean(errorText || (response && response.error)\n    || (statusCode && statusCode >= 400));\n  const classification = confirmedHidden && !hasError\n    ? { code: '', reason: '', userMessage: '' }\n    : classifyFailure(statusCode, errorText, body);\n\n  const alreadyHidden = classification.code === 'already_hidden';\n  const success = confirmedHidden || alreadyHidden;\n  const attempts = Number(original.attempts || 0);\n  const batchId = original.batch_id ? String(original.batch_id) : '';\n  if (batchId && !batchIds.includes(batchId)) batchIds.push(batchId);\n\n  let nextStatus;\n  let notBefore = null;\n  let attemptsDelta = 0;\n\n  if (success) {\n    nextStatus = 'done';\n    hidden += 1;\n    replyUpdates.push({ reply_id: String(original.reply_id || ''), status: 'hidden' });\n  } else if (classification.code === 'x_rate_limited') {\n    // A 429 says nothing about whether this reply can be hidden, so the\n    // attempt is refunded and the row is pushed past the window reset.\n    nextStatus = 'queued';\n    attemptsDelta = -1;\n    rateLimited += 1;\n    requeued += 1;\n    notBefore = rateLimit.reset_at || new Date(Date.now() + 15 * 60 * 1000).toISOString();\n    if (xUserId) {\n      deferByToken.set(xUserId, { x_user_id: xUserId, defer_until: notBefore });\n      if (!rateLimitByToken.has(xUserId)) {\n        rateLimitByToken.set(xUserId, {\n          x_user_id: xUserId,\n          endpoint: ENDPOINT,\n          limit_ceiling: rateLimit.limit,\n          remaining: 0,\n          reset_at: notBefore,\n        });\n      } else {\n        rateLimitByToken.get(xUserId).remaining = 0;\n      }\n    }\n  } else if (PERMANENT.includes(classification.code)) {\n    nextStatus = 'failed';\n    failed += 1;\n    replyUpdates.push({ reply_id: String(original.reply_id || ''), status: 'hide_failed' });\n  } else if (attempts >= MAX_ATTEMPTS) {\n    nextStatus = 'abandoned';\n    abandoned += 1;\n    replyUpdates.push({ reply_id: String(original.reply_id || ''), status: 'hide_failed' });\n  } else {\n    nextStatus = 'queued';\n    requeued += 1;\n    const backoffMinutes = Math.min(Math.pow(2, attempts), 32);\n    notBefore = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();\n  }\n\n  outcomes.push({\n    id: original.id,\n    status: nextStatus,\n    last_error: success ? null : cleanText(classification.reason || errorText || 'Unknown X hide failure.'),\n    last_error_code: success ? null : classification.code,\n    not_before: notBefore,\n    attempts_delta: attemptsDelta,\n  });\n\n  results.push({\n    reply_id: original.reply_id,\n    post_id: original.post_id,\n    x_user_id: xUserId,\n    queue_status: nextStatus,\n    success: success,\n    code: success ? '' : classification.code,\n    reason: success ? '' : cleanText(classification.reason || errorText, 400),\n    user_message: success ? \"\" : classification.userMessage,\n    status_code: statusCode,\n    attempts: attempts,\n  });\n});\n\nconst rateLimits = Array.from(rateLimitByToken.values());\nconst deferTokens = Array.from(deferByToken.values());\n\nreturn [{ json: {\n  attempted: items.length,\n  hidden: hidden,\n  failed: failed,\n  abandoned: abandoned,\n  requeued: requeued,\n  rate_limited: rateLimited,\n  outcomes_json: JSON.stringify(outcomes),\n  reply_updates_json: JSON.stringify(replyUpdates),\n  rate_limits_json: JSON.stringify(rateLimits),\n  defer_tokens_json: JSON.stringify(deferTokens),\n  batch_ids_csv: batchIds.join(','),\n  results: results,\n} }];"
+      }
+    },
+    {
+      "id": "b94a65ac-4c24-483d-bb27-f6790d2c907f",
+      "name": "Persist Queue Outcomes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2180,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- One statement for the whole pass. attempts moves by a delta rather than\n-- being set, so a refunded 429 cannot race the claim step that incremented it.\nWITH outcome AS (\n  SELECT * FROM jsonb_to_recordset($1::jsonb)\n    AS o(id uuid, status text, last_error text, last_error_code text,\n         not_before timestamptz, attempts_delta int)\n)\nUPDATE public.\"Moderation Queue\" q\nSET status = o.status,\n    last_error = o.last_error,\n    last_error_code = o.last_error_code,\n    not_before = COALESCE(o.not_before, q.not_before),\n    attempts = GREATEST(q.attempts + COALESCE(o.attempts_delta, 0), 0)\nFROM outcome o\nWHERE q.id = o.id\nRETURNING q.id, q.reply_id, q.status, q.attempts;",
+        "options": {
+          "queryReplacement": "={{ [$json.outcomes_json] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "90c7bfa8-f08a-49fe-8175-3357ecae5ea2",
+      "name": "Persist Reply Statuses",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2400,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Keeps Replies.status as the router's candidate filter reads it: 'hidden'\n-- rows are excluded from the next enqueue, 'hide_failed' rows stay eligible.\nWITH updates AS (\n  SELECT * FROM jsonb_to_recordset($1::jsonb) AS u(reply_id text, status text)\n)\nUPDATE public.\"Replies\" r\nSET status = u.status,\n    moderated_at = now(),\n    moderated_by = 'moderation-queue-drain'\nFROM updates u\nWHERE r.reply_id = u.reply_id\nRETURNING r.reply_id, r.status;",
+        "options": {
+          "queryReplacement": "={{ [$('Prepare Drain Hide Result').first().json.reply_updates_json] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "4f194092-7ab0-4b8c-aa53-4749b23dba90",
+      "name": "Persist X Rate Limits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2620,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- This write is what replaces the n8n workflow static-data cache. Keyed by\n-- (x_user_id, endpoint), so the state follows the token rather than the\n-- workflow -- defect G.\nINSERT INTO public.\"X Rate Limits\"\n  (x_user_id, endpoint, limit_ceiling, remaining, reset_at, observed_at)\nSELECT s.x_user_id, s.endpoint, s.limit_ceiling, s.remaining, s.reset_at, now()\nFROM jsonb_to_recordset($1::jsonb)\n  AS s(x_user_id text, endpoint text, limit_ceiling int, remaining int,\n       reset_at timestamptz)\nON CONFLICT (x_user_id, endpoint) DO UPDATE\nSET limit_ceiling = EXCLUDED.limit_ceiling,\n    remaining = EXCLUDED.remaining,\n    reset_at = EXCLUDED.reset_at,\n    observed_at = EXCLUDED.observed_at\nRETURNING x_user_id, remaining, reset_at;",
+        "options": {
+          "queryReplacement": "={{ [$('Prepare Drain Hide Result').first().json.rate_limits_json] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "63ee48b3-f829-4a9e-afa8-67600217bef7",
+      "name": "Defer Rate Limited Tokens",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2840,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Section 2.2 step 3. A 429 anywhere in the pass pushes every remaining\n-- queued row for that token past the reset, so the next pass claims nothing\n-- for it and burns no requests.\nWITH tokens AS (\n  SELECT * FROM jsonb_to_recordset($1::jsonb) AS d(x_user_id text, defer_until timestamptz)\n)\nUPDATE public.\"Moderation Queue\" q\nSET not_before = t.defer_until\nFROM tokens t\nWHERE q.x_user_id = t.x_user_id\n  AND q.status = 'queued'\n  AND q.action = 'hide'\n  AND q.not_before < t.defer_until\nRETURNING q.id;",
+        "options": {
+          "queryReplacement": "={{ [$('Prepare Drain Hide Result').first().json.defer_tokens_json] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "b46f5008-255f-4a48-b4dc-dc13a93a7e07",
+      "name": "Read Batch Progress",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3060,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Progress is recomputed from the queue itself rather than accumulated in\n-- the workflow, so an edit is correct even if a previous pass crashed.\n-- The $1 <> '' guard keeps string_to_array from producing {''} and failing\n-- the uuid cast when a pass hid nothing.\nSELECT batch_id::text AS batch_id, telegram_chat_id, telegram_message_id, post_id,\n       count(*) AS total,\n       count(*) FILTER (WHERE status = 'done') AS done,\n       count(*) FILTER (WHERE status IN ('failed','abandoned')) AS failed,\n       count(*) FILTER (WHERE status IN ('queued','in_flight')) AS pending,\n       min(not_before) FILTER (WHERE status = 'queued') AS next_attempt_at\nFROM public.\"Moderation Queue\"\nWHERE $1 <> ''\n  AND batch_id = ANY(string_to_array($1, ',')::uuid[])\n  AND telegram_message_id IS NOT NULL\n  AND telegram_chat_id IS NOT NULL\nGROUP BY batch_id, telegram_chat_id, telegram_message_id, post_id;",
+        "options": {
+          "queryReplacement": "={{ [$('Prepare Drain Hide Result').first().json.batch_ids_csv] }}"
+        }
+      },
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "244fb2ec-75a5-4104-b764-d4bfd44d5399",
+      "name": "Build Progress Edits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3280,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "// Section 2.2 step 4: the drain edits the message the router sent, so the\n// user watches one message count up instead of collecting a new one every\n// five minutes.\nfunction escapeHtml(value) {\n  return String(value === null || value === undefined ? '' : value)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, \"&quot;\");\n}\n\nfunction clockTime(value) {\n  if (!value) return '';\n  const parsed = new Date(value);\n  if (Number.isNaN(parsed.getTime())) return '';\n  return parsed.toISOString().slice(11, 16) + ' UTC';\n}\n\nreturn $input.all().filter(function (item) {\n  const row = item.json || {};\n  return row.telegram_chat_id && row.telegram_message_id;\n}).map(function (item) {\n  const row = item.json;\n  const total = Number(row.total || 0);\n  const done = Number(row.done || 0);\n  const failed = Number(row.failed || 0);\n  const pending = Number(row.pending || 0);\n  const resumeAt = clockTime(row.next_attempt_at);\n\n  const lines = [\n    pending > 0 ? '<b>Hiding replies</b>' : '<b>Hide replies complete</b>',\n    'Post: <code>' + escapeHtml(row.post_id) + '</code>',\n    done + ' of ' + total + ' hidden',\n  ];\n\n  if (failed > 0) lines.push(failed + ' could not be hidden');\n  if (pending > 0) {\n    lines.push(resumeAt ? (pending + ' queued - resuming ' + resumeAt)\n      : (pending + ' still queued'));\n  }\n\n  return { json: {\n    telegram_chat_id: row.telegram_chat_id,\n    telegram_message_id: row.telegram_message_id,\n    batch_id: row.batch_id,\n    message: lines.join('\\n'),\n  } };\n});"
+      }
+    },
+    {
+      "id": "7c9b997e-7c77-4afc-9782-54439d245605",
+      "name": "Edit Telegram Progress",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3500,
+        -180
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "editMessageText",
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "messageId": "={{ $json.telegram_message_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "webhookId": "7b5540d6-d9bd-42d3-8343-9f274ab27291",
+      "onError": "continueRegularOutput",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      }
+    },
+    {
+      "id": "4462dbb5-9a05-4a4c-8df9-40786f4daf17",
+      "name": "Build Developer Alert - Drain Failures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3060,
+        60
+      ],
+      "parameters": {
+        "jsCode": "const summary = $('Prepare Drain Hide Result').first().json || {};\nconst results = Array.isArray(summary.results) ? summary.results : [];\nconst problems = results.filter(function (row) { return !row.success; });\n\n// Silence is the normal case. Only a pass that actually failed something\n// alerts, and a plain 429 is not a failure -- the queue handles it.\nconst alertable = problems.filter(function (row) {\n  return row.code !== 'x_rate_limited';\n});\nif (alertable.length === 0) return [];\n\nfunction escapeHtml(value) {\n  return String(value === null || value === undefined ? '' : value)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, \"&quot;\");\n}\n\nfunction line(value) {\n  return escapeHtml(String(value === null || value === undefined ? '' : value).slice(0, 400));\n}\n\nconst groups = new Map();\nfor (const row of alertable) {\n  const code = row.code || 'x_hide_not_confirmed';\n  const existing = groups.get(code) || {\n    code: code,\n    count: 0,\n    reason: row.reason || '',\n    queue_status: row.queue_status || '',\n    reply_ids: [],\n  };\n  existing.count += 1;\n  if (row.reply_id) existing.reply_ids.push(String(row.reply_id));\n  groups.set(code, existing);\n}\n\nconst groupLines = Array.from(groups.values()).slice(0, 8).map(function (group) {\n  const sample = group.reply_ids.slice(0, 3);\n  const more = group.reply_ids.length - sample.length;\n  const replies = sample.length\n    ? ' Replies: <code>' + line(sample.join(', ')) + (more > 0 ? ' +' + more + ' more' : '') + '</code>'\n    : '';\n  return '- ' + group.count + ' ' + line(group.code) + ' -> ' + line(group.queue_status)\n    + ': ' + line(group.reason || 'No detail') + replies;\n});\n\nconst message = [\n  '<b>XMonitor production handled error</b>',\n  'Workflow: Moderation Queue Drain',\n  'Path: hide replies X moderation',\n  'Attempted: ' + Number(summary.attempted || 0),\n  'Hidden: ' + Number(summary.hidden || 0),\n  'Failed (permanent): ' + Number(summary.failed || 0),\n  'Abandoned (attempts exhausted): ' + Number(summary.abandoned || 0),\n  'Requeued: ' + Number(summary.requeued || 0),\n  'Rate limited: ' + Number(summary.rate_limited || 0),\n  '',\n  '<b>Failure groups</b>',\n  ...groupLines,\n].join('\\n').slice(0, 3900);\n\nreturn [{ json: { developer_chat_id: '8677383067', message: message } }];"
+      }
+    },
+    {
+      "id": "def0ff8f-bd17-4e69-84c6-cf0e3f0f4cf1",
+      "name": "Send Developer Alert - Drain Failures",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3280,
+        60
+      ],
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "webhookId": "f228b623-9299-4293-9902-4a4e1994a79a",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      }
+    },
+    {
+      "id": "13d477dc-079f-4b7c-8086-bcf85eeee564",
+      "name": "Build Developer Alert - Drain Blocked",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        290
+      ],
+      "parameters": {
+        "jsCode": "// Fed by both \"Defer Token Rows\" and \"Fail Token Rows\". Deferrals are\n// usually routine (quota spent), so only the ones flagged alert:true and all\n// hard blocks are worth a message.\nconst rows = $input.all().map(function (item) { return item.json || {}; });\nif (rows.length === 0) return [];\n\nfunction escapeHtml(value) {\n  return String(value === null || value === undefined ? '' : value)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, \"&quot;\");\n}\n\nconst notable = [];\n\n// The DB nodes return ids, not reasons. The reason lives on the plan item\n// that routed the token here, so read those nodes by name instead.\nlet plans = [];\ntry {\n  plans = $('Plan Drain Pass').all().map(function (item) { return item.json || {}; });\n} catch (error) {\n  plans = [];\n}\ntry {\n  plans = plans.concat($('Apply Drain Refresh').all().map(function (item) {\n    return item.json || {};\n  }));\n} catch (error) { /* refresh branch did not run this pass */ }\n\nfor (const plan of plans) {\n  if (plan.block_code) {\n    notable.push({\n      kind: 'blocked',\n      x_user_id: plan.x_user_id,\n      code: plan.block_code,\n      reason: plan.block_reason,\n    });\n  } else if (plan.defer_code && plan.alert === true) {\n    notable.push({\n      kind: 'deferred',\n      x_user_id: plan.x_user_id,\n      code: plan.defer_code,\n      reason: plan.defer_reason,\n    });\n  }\n}\n\nif (notable.length === 0) return [];\n\nconst lines = notable.slice(0, 10).map(function (entry) {\n  return '- ' + escapeHtml(entry.kind) + ' ' + escapeHtml(entry.x_user_id) + ' ('\n    + escapeHtml(entry.code) + '): ' + escapeHtml(String(entry.reason || '').slice(0, 400));\n});\n\nconst message = [\n  '<b>XMonitor production handled error</b>',\n  'Workflow: Moderation Queue Drain',\n  'Path: token pre-flight',\n  '',\n  ...lines,\n].join('\\n').slice(0, 3900);\n\nreturn [{ json: { developer_chat_id: '8677383067', message: message } }];"
+      }
+    },
+    {
+      "id": "c3023b8a-95c7-43a8-91ba-255697ecd5d1",
+      "name": "Send Developer Alert - Drain Blocked",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        290
+      ],
+      "parameters": {
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "webhookId": "a3c83d0b-fb55-4b0d-af23-de662d2dff34",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      }
+    },
+    {
+      "id": "8657a625-52e8-4fbc-a1fb-4b92e48221a9",
+      "name": "Sticky Note 6928836b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1690,
+        -230
+      ],
+      "parameters": {
+        "content": "## Hide Reply On X: retryOnFail must stay false\n\nX allows **50 hides per 15 minutes per access token**. \"Claim Due Hide\nRows\" budgets exactly that many requests from the live\nx-rate-limit-remaining header before this node runs.\n\nAn n8n-level retry spends a request the claim never budgeted, which\npushes the pass over the limit and turns clean work into 429s.\n\nRetry belongs to the queue instead: attempts, not_before, and the\nexponential backoff in \"Prepare Drain Hide Result\". A 429 refunds the\nattempt; permanent failures are never retried at all.\n\nPinned by tests/n8n/moderation-queue-drain-guard.test.mjs",
+        "color": 3,
+        "width": 300,
+        "height": 200
+      }
+    },
+    {
+      "id": "e6389b1e-4a3d-4e7e-8179-0bde192f069a",
+      "name": "Sticky Note 09c09593",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -70,
+        -370
+      ],
+      "parameters": {
+        "content": "## X OAuth client credentials\n\nThe Telegram Router keeps the X OAuth client id and secret **inline** in\nits \"Prepare Refresh Request\" Code node. This workflow deliberately does\nnot copy them: it reads X_OAUTH_CLIENT_ID and X_OAUTH_CLIENT_SECRET\nfrom the n8n instance environment.\n\nIf they are unset, \"Plan Drain Pass\" **defers** stale-token rows and\nraises a developer alert. It never fails them — a missing env var is an\noperator problem, not a dead reply.\n\nSet both, or the drain can only use tokens that are still valid.",
+        "color": 3,
+        "width": 300,
+        "height": 200
+      }
+    },
+    {
+      "id": "bf7f25a2-7051-4493-883d-82ed5a95e625",
+      "name": "Drain Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1560,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "moderation-queue-drain",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "eafcc9e4-cc45-4f62-8d2e-cc5d5d9e24f3"
+    },
+    {
+      "id": "fca6484a-d029-4e0f-b5a6-4e055ee4cc59",
+      "name": "If Drain Authorized",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1120,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.authorized }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d0a0241f-055c-46a2-b6d0-f0a76211bad2",
+      "name": "Reject Unauthorized Drain Call",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "6bb816d9-1bd0-416d-ba3f-dcb30ab35ab3",
+      "name": "Verify Drain Secret",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1340,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- The comparison happens IN SQL, so the shared secret never enters n8n\n-- execution data at all -- only the boolean verdict does.\n--\n-- This replaced a Code node reading $env.MODERATION_DRAIN_SECRET. n8n Cloud\n-- blocks env access inside Code nodes ('access to env vars denied'), and\n-- $vars is empty on this instance, so that gate rejected every call. Vault is\n-- the one place the secret lives, and pg_cron reads the same row when it\n-- signs the request.\n--\n-- Fails closed on every path: missing header, empty header, wrong value, or a\n-- missing Vault row all yield false.\nselect exists (\n  select 1 from vault.decrypted_secrets\n  where name = 'moderation_drain_secret'\n    and decrypted_secret = $1\n) as authorized;",
+        "options": {
+          "queryReplacement": "={{ [$json.headers['x-drain-secret'] || ''] }}"
+        }
+      },
+      "retryOnFail": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    }
+  ],
+  "nodeGroups": [],
+  "activeVersion": {
+    "sameAsDraft": true
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 950004,
+        "message": {
+          "message_id": 504,
+          "from": {
+            "id": 9900000002,
+            "is_bot": false,
+            "first_name": "Tenancy",
+            "last_name": "Test",
+            "username": "tenancy_test",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 9900000002,
+            "first_name": "Tenancy",
+            "type": "private"
+          },
+          "date": 1756450000,
+          "text": "/resume 9990000000000000101",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 7,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Answer Access Refusal Callback": [
+    {
+      "json": {
+        "ok": true,
+        "result": true
+      }
+    }
+  ],
+  "Send Access Refusal": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9001
+        }
+      }
+    }
+  ],
+  "Send Developer Alert - Access Denied": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9002
+        }
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [
+          "cee74240-5942-4435-803e-5a7144ccd44e"
+        ],
+        "is_staff": false
+      }
+    }
+  ],
+  "Get Post For Status Change": [
+    {
+      "json": {
+        "post_id": "9990000000000000101",
+        "user_id": "TENANCY_TEST_A_USER",
+        "client_id": "cdd29e49-98e9-460c-a114-1b761f4da142",
+        "status": "New",
+        "comment_count": 12,
+        "negative_count": 5,
+        "analyzed_count": 12,
+        "snooze_runs_remaining": 0
+      }
+    }
+  ]
+}

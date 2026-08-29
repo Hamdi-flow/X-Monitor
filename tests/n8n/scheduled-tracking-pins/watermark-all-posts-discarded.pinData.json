@@ -1,0 +1,49 @@
+{
+  "Schedule Trigger": [{ "json": {} }],
+  "Get Run State": [
+    {
+      "json": {
+        "key": "scheduled_post_tracking",
+        "last_successful_run_at": null,
+        "run_started_at": "2026-08-25T09:20:00.000Z"
+      }
+    }
+  ],
+  "Advance Post Suppression State": [{ "json": { "blocked_post_ids": [] } }],
+  "Get Tracked Users": [{"json":{"user_id":"1062472974","username":"lynnharfoush","display_name":null,"telegram_chat_id":"8372903693","is_active":true,"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_slug":"house","client_name":"House Account","client_min_replies":10,"client_negative_threshold":0.5,"client_lookback_days":7}},{"json":{"user_id":"52998862","username":"michelhelou_lb","display_name":null,"telegram_chat_id":"8372903693","is_active":true,"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_slug":"house","client_name":"House Account","client_min_replies":10,"client_negative_threshold":0.5,"client_lookback_days":7}},{"json":{"user_id":"1450356373745774595","username":"camille_mourani","display_name":null,"telegram_chat_id":"8372903693","is_active":true,"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_slug":"house","client_name":"House Account","client_min_replies":10,"client_negative_threshold":0.5,"client_lookback_days":7}}],
+  "Get posts of tracked users": [
+    {
+      "json": {
+        "data": [
+          {
+            "id": "2092579307088490998",
+            "conversation_id": "2092579307088490998",
+            "author_id": "1062472974",
+            "created_at": "2026-08-26T11:45:59.000Z",
+            "text": "all-discarded post A",
+            "public_metrics": { "reply_count": 0 }
+          },
+          {
+            "id": "2091904118860165191",
+            "conversation_id": "2091904118860165191",
+            "author_id": "1062472974",
+            "created_at": "2026-08-24T15:04:12.000Z",
+            "text": "all-discarded post B",
+            "public_metrics": { "reply_count": 0 }
+          },
+          {
+            "id": "2091164657532690906",
+            "conversation_id": "2091164657532690906",
+            "author_id": "52998862",
+            "created_at": "2026-08-22T13:22:41.000Z",
+            "text": "all-discarded post C",
+            "public_metrics": { "reply_count": 9 }
+          }
+        ],
+        "meta": { "result_count": 3 }
+      }
+    }
+  ],
+  "Send Scheduler Developer Alert": [{ "json": { "ok": true } }],
+  "Send Negative Alert Notification": [{ "json": { "ok": true } }]
+}

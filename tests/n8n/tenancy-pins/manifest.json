@@ -1,0 +1,222 @@
+{
+  "workflowId": "oLwwjO05IcRjtF8E",
+  "workflowName": "XMonitor - Telegram Router Staging",
+  "alsoValidAgainst": [
+    {
+      "id": "cWczsttyDbTBbRAC",
+      "name": "XMonitor - Telegram Router",
+      "why": "Every fixture pins Resolve Caller Authorization, so authorization is decided by pinned data rather than by the environment's own Client Members / Staff rows. The same fixture therefore proves the same graph logic in either environment."
+    }
+  ],
+  "phase": "T2 - authorization (docs/architecture/multi-tenant-and-web-ui.md 12b)",
+  "why": "Before T2 all four Get Post For * lookups filtered on post_id alone. Post ids are public - they appear in every X URL - so any chat that could reach the bot could hide replies on, snooze, ignore, or place paid SMM orders against any post in the system, including another client's. These fixtures pin that hole shut and are the foundation T4 extends.",
+  "design": {
+    "resolver": "One shared step sits between Parse Telegram Message and Route Telegram Intent: Resolve Caller Authorization (Postgres) -> Build Caller Authorization (Code) -> If Caller Known (If). It resolves the caller once into { auth_client_ids, auth_is_staff, auth_is_known }.",
+    "gates": "Each of the four post lookups is followed by an If that passes only when the post exists AND (the caller is staff OR the post's client_id is in the caller's client_ids). All false branches, plus the unknown-chat branch and the /track staff gate, converge on one Build Access Refusal node.",
+    "failsClosed": "Resolve Caller Authorization has alwaysOutputData; an empty result yields no client_ids and is_staff=false, which refuses. Nothing about this design fails open."
+  },
+  "invariants": [
+    "post_not_found and cross_tenant_post MUST produce the SAME user-facing message. Only the post id - which the caller supplied themselves - may differ. Distinguishing them turns the bot into an oracle for probing which post ids exist inside other clients.",
+    "The true reason lives in Build Access Refusal's refusal_reason and in the developer alert. It is never in the reply to the user.",
+    "A refusal is clean: a friendly message, the callback answered where one exists, and no half-completed side effect.",
+    "Order placement is authorized BEFORE any SMMWiz call. The gate sits between the post lookup and Get Comment/Likes Post Tracked User, so it also precedes the OpenAI comment generation.",
+    "No fixture in this directory may run /order_comments or a valid /order_likes live. Place Comment Order and Place Likes Order are pinned in every fixture that reaches them."
+  ],
+  "stagingRows": {
+    "file": "staging-fixtures.sql",
+    "why": "The fixtures here are fully pinned and need no database rows. This script recreates the two synthetic tenants used for the live-resolver acceptance run (resolver and post lookups unpinned), which is how T2 was actually proved and how T4 should re-prove it.",
+    "creates": [
+      "Staff row for the staging operator chat 8677383067",
+      "Clients tenancy-test-a and tenancy-test-b",
+      "Client Members chat 9900000001 -> tenancy-test-a, chat 9900000002 -> tenancy-test-b",
+      "Tracked Users TENANCY_TEST_A_USER / TENANCY_TEST_B_USER",
+      "Posts 9990000000000000101 (client A) and 9990000000000000202 (client B)"
+    ],
+    "note": "The synthetic Clients / Client Members / Tracked Users / Posts rows were removed after the T2 acceptance run. The Staff row was kept - it is the operator's cross-client grant, not test scaffolding."
+  },
+  "actors": {
+    "9900000001": "chat A - client member of tenancy-test-a, NOT staff",
+    "9900000002": "chat B - client member of tenancy-test-b, NOT staff",
+    "8677383067": "staging operator - Client Members row of house AND a Staff row, so it acts across every client",
+    "9900000009": "unknown chat - in neither Client Members nor Staff"
+  },
+  "fixtures": [
+    {
+      "id": "cross-tenant-hide",
+      "file": "cross-tenant-hide.pinData.json",
+      "input": "callback_query.data=hide_replies:9990000000000000101 from chat B against client A's post",
+      "expected": {
+        "refusalReason": "cross_tenant_post",
+        "reaches": ["If Hide Authorized", "Build Access Refusal", "Answer Access Refusal Callback", "Send Access Refusal"],
+        "doesNotReach": ["Get X Auth Account", "Get Replies For Post", "Enqueue Hide Requests"],
+        "asserts": [
+          "the callback is answered with 'Post not found.', never with anything that admits the post exists",
+          "no reply is queued for hiding"
+        ]
+      }
+    },
+    {
+      "id": "cross-tenant-ignore",
+      "file": "cross-tenant-ignore.pinData.json",
+      "input": "message.text=/ignore 9990000000000000101 from chat B",
+      "expected": {
+        "refusalReason": "cross_tenant_post",
+        "reaches": ["If Status Change Authorized", "Build Access Refusal", "Send Access Refusal"],
+        "doesNotReach": ["Prepare Post Status Change", "Update Post Status"]
+      }
+    },
+    {
+      "id": "cross-tenant-snooze",
+      "file": "cross-tenant-snooze.pinData.json",
+      "input": "message.text=/snooze 9990000000000000101 4h from chat B",
+      "expected": {
+        "refusalReason": "cross_tenant_post",
+        "doesNotReach": ["Prepare Post Status Change", "Update Post Status"]
+      }
+    },
+    {
+      "id": "cross-tenant-resume",
+      "file": "cross-tenant-resume.pinData.json",
+      "input": "message.text=/resume 9990000000000000101 from chat B",
+      "expected": {
+        "refusalReason": "cross_tenant_post",
+        "doesNotReach": ["Prepare Post Status Change", "Update Post Status"]
+      }
+    },
+    {
+      "id": "cross-tenant-order-likes",
+      "file": "cross-tenant-order-likes.pinData.json",
+      "input": "message.text=/order_likes 9990000000000000101 25 from chat B",
+      "expected": {
+        "refusalReason": "cross_tenant_post",
+        "reaches": ["If Likes Order Authorized", "Build Access Refusal"],
+        "doesNotReach": ["Get Likes Post Tracked User", "Place Likes Order", "Create Likes Order Info"],
+        "asserts": ["the refusal happens before any SMMWiz call - SMMWiz has no cancel, so money must be decided first"]
+      }
+    },
+    {
+      "id": "cross-tenant-order-comments",
+      "file": "cross-tenant-order-comments.pinData.json",
+      "input": "message.text=/order_comments 9990000000000000101 from chat B, form comment_amount=10",
+      "expected": {
+        "refusalReason": "cross_tenant_post",
+        "reaches": ["If Comment Order Authorized", "Build Access Refusal"],
+        "doesNotReach": ["Get Comment Post Tracked User", "Generate Supportive Comments", "Place Comment Order", "Create Comment Order Info"],
+        "asserts": ["the refusal precedes both the OpenAI generation and the SMMWiz call"]
+      }
+    },
+    {
+      "id": "missing-post-refusal",
+      "file": "missing-post-refusal.pinData.json",
+      "input": "message.text=/ignore 9990000000000000999 from chat B - a post id that exists nowhere",
+      "expected": {
+        "refusalReason": "post_not_found",
+        "asserts": [
+          "THE ORACLE TEST: normalising the post id out, this message must be byte-identical to cross-tenant-ignore's. If they ever diverge, the bot has become a probe for other clients' post ids."
+        ]
+      }
+    },
+    {
+      "id": "unknown-chat-refusal",
+      "file": "unknown-chat-refusal.pinData.json",
+      "input": "message.text=/ignore 9990000000000000101 from chat 9900000009, which is in neither Client Members nor Staff",
+      "expected": {
+        "refusalReason": "unknown_chat",
+        "reaches": ["If Caller Known", "Build Access Refusal", "Send Access Refusal", "Build Developer Alert - Access Denied", "Send Developer Alert - Access Denied"],
+        "doesNotReach": ["Route Telegram Intent output branches", "Get Post For Status Change"],
+        "asserts": [
+          "an unknown chat is refused BEFORE the route switch, so it can reach no action at all",
+          "the developer alert always fires for an unknown chat and carries chat id, name and type so it can be assigned (decision #7)"
+        ]
+      }
+    },
+    {
+      "id": "client-track-refusal",
+      "file": "client-track-refusal.pinData.json",
+      "input": "message.text=/track @lynnharfoush from chat B, a client member but not staff",
+      "expected": {
+        "refusalReason": "staff_only_command",
+        "doesNotReach": ["Parse Users To Track", "Deactivate Tracked Users For Chat", "Upsert Tracked X User"],
+        "asserts": [
+          "/track is staff-only per decision #3",
+          "the message is a plain 'not available' - unlike the post refusals it reveals nothing, because no post id is involved"
+        ]
+      }
+    },
+    {
+      "id": "same-tenant-hide-authorized",
+      "file": "same-tenant-hide-authorized.pinData.json",
+      "input": "callback_query.data=hide_replies:9990000000000000101 from chat A, the post's own client",
+      "expected": {
+        "reaches": ["If Hide Authorized", "Get X Auth Account"],
+        "doesNotReach": ["Build Access Refusal"],
+        "asserts": ["the authorized path is unchanged - the gate is transparent when the caller owns the post"]
+      }
+    },
+    {
+      "id": "same-tenant-ignore-authorized",
+      "file": "same-tenant-ignore-authorized.pinData.json",
+      "input": "message.text=/ignore 9990000000000000101 from chat A",
+      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+    },
+    {
+      "id": "same-tenant-snooze-authorized",
+      "file": "same-tenant-snooze-authorized.pinData.json",
+      "input": "message.text=/snooze 9990000000000000101 4h from chat A",
+      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+    },
+    {
+      "id": "same-tenant-resume-authorized",
+      "file": "same-tenant-resume-authorized.pinData.json",
+      "input": "message.text=/resume 9990000000000000101 from chat A",
+      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+    },
+    {
+      "id": "same-tenant-order-likes-authorized",
+      "file": "same-tenant-order-likes-authorized.pinData.json",
+      "input": "message.text=/order_likes 9990000000000000101 25 from chat A",
+      "expected": {
+        "reaches": ["Get Likes Post Tracked User"],
+        "doesNotReach": ["Build Access Refusal"],
+        "asserts": ["Place Likes Order is pinned to a provider rejection, so the gate is proved open without creating or charging an order"]
+      }
+    },
+    {
+      "id": "same-tenant-order-comments-authorized",
+      "file": "same-tenant-order-comments-authorized.pinData.json",
+      "input": "message.text=/order_comments 9990000000000000101 from chat A, form comment_amount=10, confirmation='Do nothing'",
+      "expected": {
+        "reaches": ["Get Comment Post Tracked User"],
+        "doesNotReach": ["Build Access Refusal", "Place Comment Order"],
+        "asserts": ["the confirmation is pinned to cancel, so the gate is proved open without placing an order"]
+      }
+    },
+    {
+      "id": "staff-cross-tenant-hide-authorized",
+      "file": "staff-cross-tenant-hide-authorized.pinData.json",
+      "input": "callback_query.data=hide_replies:9990000000000000202 from the operator chat against client B's post",
+      "expected": {
+        "reaches": ["If Hide Authorized", "Get X Auth Account"],
+        "doesNotReach": ["Build Access Refusal"],
+        "asserts": ["a Staff chat acts across every client without holding a Client Members row for that client - this is what stops the operator breaking the moment client #2 exists"]
+      }
+    },
+    {
+      "id": "staff-cross-tenant-ignore-authorized",
+      "file": "staff-cross-tenant-ignore-authorized.pinData.json",
+      "input": "message.text=/ignore 9990000000000000101 from the operator chat against client A's post",
+      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+    },
+    {
+      "id": "staff-track-authorized",
+      "file": "staff-track-authorized.pinData.json",
+      "input": "message.text=/track @lynnharfoush from the operator chat",
+      "expected": {
+        "reaches": ["If Track Caller Is Staff", "Parse Users To Track"],
+        "doesNotReach": ["Build Access Refusal"],
+        "asserts": ["a staff /track still assigns to the caller's own client, exactly as before - choosing a client is T5"]
+      }
+    }
+  ],
+  "note": "Every fixture in tests/n8n/telegram-router-risky-pins/ must also still pass unchanged after T2. They all run as chat 8677383067, which is a Staff row, so is_staff short-circuits the owner check and their pinned post rows - authored before T1 and carrying no client_id - are never consulted. If one of them ever starts failing, the resolver is rejecting something it should allow."
+}

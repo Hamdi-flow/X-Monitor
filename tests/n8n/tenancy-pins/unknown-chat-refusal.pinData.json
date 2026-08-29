@@ -1,0 +1,70 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 950008,
+        "message": {
+          "message_id": 508,
+          "from": {
+            "id": 9900000009,
+            "is_bot": false,
+            "first_name": "Tenancy",
+            "last_name": "Test",
+            "username": "tenancy_test",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 9900000009,
+            "first_name": "Tenancy",
+            "type": "private"
+          },
+          "date": 1756450000,
+          "text": "/ignore 9990000000000000101",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 7,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Answer Access Refusal Callback": [
+    {
+      "json": {
+        "ok": true,
+        "result": true
+      }
+    }
+  ],
+  "Send Access Refusal": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9001
+        }
+      }
+    }
+  ],
+  "Send Developer Alert - Access Denied": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9002
+        }
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": false
+      }
+    }
+  ]
+}

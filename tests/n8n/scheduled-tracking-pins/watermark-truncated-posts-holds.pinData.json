@@ -1,0 +1,63 @@
+{
+    "Schedule Trigger":  [
+                             {
+                                 "json":  {
+
+                                          }
+                             }
+                         ],
+    "Get Run State":  [
+                          {
+                              "json":  {
+                                           "key":  "scheduled_post_tracking",
+                                           "last_successful_run_at":  null,
+                                           "run_started_at":  "2026-08-25T09:20:00.000Z"
+                                       }
+                          }
+                      ],
+    "Advance Post Suppression State":  [
+                                           {
+                                               "json":  {
+                                                            "blocked_post_ids":  [
+
+                                                                                 ]
+                                                        }
+                                           }
+                                       ],
+    "Get Tracked Users":  [{"json":{"user_id":"951803761","username":"RebelHam_","display_name":"Rebel Ham","is_active":true,"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_slug":"house","client_name":"House Account","client_min_replies":10,"client_negative_threshold":0.5,"client_lookback_days":7}}],
+    "Get posts of tracked users":  [
+                                       {
+                                           "json":  {
+                                                        "data":  [
+                                                                     {
+                                                                         "id":  "2060604129798496702",
+                                                                         "conversation_id":  "2060604129798496702",
+                                                                         "author_id":  "951803761",
+                                                                         "text":  "truncated run post A",
+                                                                         "public_metrics":  {
+                                                                                                "reply_count":  2
+                                                                                            }
+                                                                     }
+                                                                 ],
+                                                        "meta":  {
+                                                                     "result_count":  1,
+                                                                     "next_token":  "PAGE_CAP_REACHED_TOKEN"
+                                                                 }
+                                                    }
+                                       }
+                                   ],
+    "Send Scheduler Developer Alert":  [
+                                           {
+                                               "json":  {
+                                                            "ok":  true
+                                                        }
+                                           }
+                                       ],
+    "Send Negative Alert Notification":  [
+                                             {
+                                                 "json":  {
+                                                              "ok":  true
+                                                          }
+                                             }
+                                         ]
+}

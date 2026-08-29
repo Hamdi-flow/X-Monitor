@@ -1,6 +1,13 @@
 {
   "workflowId": "ceX1EiVN3bFWARMu",
   "workflowName": "XMonitor - Order Status Polling Staging",
+  "seedRow": {
+    "note": "The three charge-preservation fixtures below leave 'Update Order Info Status' UNPINNED on purpose, so the UPDATE statement really executes. They need this row to exist in staging public.\"Order Info\" first, and it must be deleted afterwards.",
+    "insert": "insert into public.\"Order Info\" (provider, provider_order_id, order_type, post_id, telegram_chat_id, x_username, link, service_id, quantity, provider_status, normalized_status, charge, currency, start_count, remains, next_check_at) values ('smmwiz','coalesce-regression-1','likes','2060604129798496702','8677383067','RebelHam_','https://x.com/RebelHam_/status/2060604129798496702','12104',25,'In progress','in_progress',0.42,'USD',5,3, now() - interval '1 hour');",
+    "resetBetweenFixtures": "update public.\"Order Info\" set provider_status='In progress', normalized_status='in_progress', charge=0.42, currency='USD', start_count=5, remains=3, poll_attempts=0, last_error=null, completed_at=null, notified_at=null, next_check_at = now() - interval '1 hour' where provider_order_id='coalesce-regression-1';",
+    "cleanup": "delete from public.\"Order Info\" where provider_order_id = 'coalesce-regression-1';",
+    "rowId": "5f86889f-1fb7-4048-b528-32ed9c246f3c"
+  },
   "fixtures": [
     {
       "id": "order-status-completed",
@@ -53,6 +60,115 @@
           "SMM status",
           "Telegram sendMessage"
         ]
+      }
+    },
+    {
+      "id": "order-status-error-no-charge",
+      "file": "order-status-error-no-charge.pinData.json",
+      "input": "schedule trigger",
+      "proves": "The primary data-loss bug: an error poll that lands on the transition to a final status must not blank an already-recorded charge. Before the coalesce fix this wrote NULL over charge/currency/start_count/remains, and because the due filter is normalized_status IN ('pending','in_progress') the row stopped being polled and stayed NULL forever.",
+      "riskPinned": [
+        "Fetch Due Order Info Rows",
+        "Check Provider Order Status",
+        "Update Post Order Status",
+        "Send Final Order Notification",
+        "Mark Order Notification Sent"
+      ],
+      "deliberatelyNotPinned": [
+        "Update Order Info Status"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Provider Status",
+          "Update Order Info Status",
+          "Send Final Order Notification"
+        ],
+        "doesNotCallLive": [
+          "SMM status",
+          "Telegram sendMessage",
+          "Posts.status update"
+        ],
+        "rowAfter": {
+          "provider_status": "Error",
+          "normalized_status": "failed",
+          "last_error": "Incorrect order ID",
+          "charge": "0.42",
+          "currency": "USD",
+          "start_count": 5,
+          "remains": 3,
+          "poll_attempts": 1
+        }
+      }
+    },
+    {
+      "id": "order-status-completed-no-charge",
+      "file": "order-status-completed-no-charge.pinData.json",
+      "input": "schedule trigger",
+      "proves": "A successful 'Completed' response that simply omits charge must also preserve the stored figure. Also proves coalesce did NOT freeze remains: the response carries remains 0, and 0 must be written over the stored 3, because coalesce(0, remains) is 0.",
+      "riskPinned": [
+        "Fetch Due Order Info Rows",
+        "Check Provider Order Status",
+        "Update Post Order Status",
+        "Send Final Order Notification",
+        "Mark Order Notification Sent"
+      ],
+      "deliberatelyNotPinned": [
+        "Update Order Info Status"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Provider Status",
+          "Update Order Info Status",
+          "Send Final Order Notification"
+        ],
+        "doesNotCallLive": [
+          "SMM status",
+          "Telegram sendMessage",
+          "Posts.status update"
+        ],
+        "rowAfter": {
+          "provider_status": "Completed",
+          "normalized_status": "completed",
+          "charge": "0.42",
+          "currency": "USD",
+          "start_count": 5,
+          "remains": 0,
+          "last_error": null
+        }
+      }
+    },
+    {
+      "id": "order-status-charge-overwrite",
+      "file": "order-status-charge-overwrite.pinData.json",
+      "input": "schedule trigger",
+      "proves": "The happy path still overwrites. A response carrying real values must replace the stored ones, so the coalesce guard cannot silently pin a row to a stale figure.",
+      "riskPinned": [
+        "Fetch Due Order Info Rows",
+        "Check Provider Order Status",
+        "Update Post Order Status",
+        "Send Final Order Notification",
+        "Mark Order Notification Sent"
+      ],
+      "deliberatelyNotPinned": [
+        "Update Order Info Status"
+      ],
+      "expected": {
+        "reaches": [
+          "Normalize Provider Status",
+          "Update Order Info Status",
+          "Send Final Order Notification"
+        ],
+        "doesNotCallLive": [
+          "SMM status",
+          "Telegram sendMessage",
+          "Posts.status update"
+        ],
+        "rowAfter": {
+          "charge": "0.98765",
+          "currency": "EUR",
+          "start_count": 77,
+          "remains": 0
+        }
       }
     }
   ]

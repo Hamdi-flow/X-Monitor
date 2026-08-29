@@ -1,0 +1,135 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 950013,
+        "message": {
+          "message_id": 513,
+          "from": {
+            "id": 9900000001,
+            "is_bot": false,
+            "first_name": "Tenancy",
+            "last_name": "Test",
+            "username": "tenancy_test",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 9900000001,
+            "first_name": "Tenancy",
+            "type": "private"
+          },
+          "date": 1756450000,
+          "text": "/resume 9990000000000000101",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 7,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Send Auth Required": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9101
+        }
+      }
+    }
+  ],
+  "Send Developer Alert - Auth Required": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9102
+        }
+      }
+    }
+  ],
+  "Get X Auth Account": [],
+  "Answer Status Callback": [
+    {
+      "json": {
+        "ok": true,
+        "result": true
+      }
+    }
+  ],
+  "Send Status Confirmation With Resume": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9103
+        }
+      }
+    }
+  ],
+  "Send Status Confirmation": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9104
+        }
+      }
+    }
+  ],
+  "Edit Status Alert With Resume": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9105
+        }
+      }
+    }
+  ],
+  "Edit Status Alert": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9106
+        }
+      }
+    }
+  ],
+  "Update Post Status": [
+    {
+      "json": {
+        "post_id": "9990000000000000101",
+        "status": "Ignored"
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [
+          "cdd29e49-98e9-460c-a114-1b761f4da142"
+        ],
+        "is_staff": false
+      }
+    }
+  ],
+  "Get Post For Status Change": [
+    {
+      "json": {
+        "post_id": "9990000000000000101",
+        "user_id": "TENANCY_TEST_A_USER",
+        "client_id": "cdd29e49-98e9-460c-a114-1b761f4da142",
+        "status": "New",
+        "comment_count": 12,
+        "negative_count": 5,
+        "analyzed_count": 12,
+        "snooze_runs_remaining": 0
+      }
+    }
+  ]
+}

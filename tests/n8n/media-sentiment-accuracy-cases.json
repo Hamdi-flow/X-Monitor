@@ -1,0 +1,249 @@
+[
+  {
+    "id": "media-text-negative-plain-photo",
+    "reply_id": "2090293770390491491",
+    "post_id": "2089952031398125613",
+    "postText": "كل شي بهالبرنامج مقرف.",
+    "replyText": "@lynnharfoush القرف في صورة https://t.co/hhKoHAyHod",
+    "phenomenon": "HARM - insulting text, harmless photo; media must not downgrade",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "Text calls the author 'the disgust, in a picture'. Negative on text alone. The plain portrait carries no counter-signal, so media must leave the label untouched. This case caught a real regression where a description saying the photo looked harmless downgraded it to Neutral.",
+    "media": [
+      {
+        "media_key": "3_2090293763574759424",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQI3GmYWgAAisHc.jpg",
+        "frozenDescription": "A color photograph shows a woman seated indoors against a light background, wearing an olive blazer, white shirt, and jeans. No visible text."
+      }
+    ]
+  },
+  {
+    "id": "media-text-negative-accusation-photo",
+    "reply_id": "2090205346916933806",
+    "post_id": "2089952031398125613",
+    "postText": "كل شي بهالبرنامج مقرف.",
+    "replyText": "@lynnharfoush قد ما كان مقرف مش رح يكون اقرف من الكاس اللي شربتيه مع الصهيوني حسين عبد الحسين اللي عم يطبل لحرب ابادة ضد بلدك https://t.co/sigIQJR6Dh",
+    "phenomenon": "HARM - negative text, corroborating photo",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "Accuses the author of drinking with a Zionist who cheers a war of extermination against her country. Negative on text alone; the photo is supporting evidence.",
+    "media": [
+      {
+        "media_key": "3_2090205329439223808",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQHmrDjacAAPMgS.jpg",
+        "frozenDescription": "A photograph shows two people—a woman and a man—posing closely together indoors in a warmly lit restaurant or café, with tables, chairs, and hanging lights in the background. No visible text."
+      }
+    ]
+  },
+  {
+    "id": "media-text-negative-mockery-closeup",
+    "reply_id": "2090070958061040086",
+    "post_id": "2089952031398125613",
+    "postText": "كل شي بهالبرنامج مقرف.",
+    "replyText": "@lynnharfoush اقرف من هيك ما في عنجد 🤣🤣🤣 https://t.co/dvoOoq5fEV",
+    "phenomenon": "HARM - negative text, neutral image",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "There is genuinely nothing more disgusting than this, aimed at the author. Negative on text alone.",
+    "media": [
+      {
+        "media_key": "3_2090070942240190465",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQFscsOXsAE5hT5.jpg",
+        "frozenDescription": "A close-up photograph of a woman’s face and hair against a plain beige background. No visible text."
+      }
+    ]
+  },
+  {
+    "id": "media-screenshot-attacks-author-family",
+    "reply_id": "2091385093516361754",
+    "post_id": "2090769976005128233",
+    "postText": "في الوقت الذي يطرح فيه جبران باسيل استراتيجية دفاعية ويقدّم المواعظ للحكومة، من المفيد تذكيره بأداء حزبه على مدى عقدين.",
+    "replyText": "@michelhelou_lb صرما ية #جبران_باسيل بتشر فك ترباية عنجر من مخلفات الوصاية السورية ما في غير وليد جنبلاط عرف ير بي جدك واللي خلفوك https://t.co/QaUvnPT4Tn",
+    "phenomenon": "HARM - negative text plus screenshot attacking the author family",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "Tells the author that Bassil's shoe honours him and calls him a leftover of the Syrian tutelage. Negative on text alone; the screenshot piles on against the author's grandfather.",
+    "media": [
+      {
+        "media_key": "3_2091385084892905472",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQYXp3GXgAALxWE.jpg",
+        "frozenDescription": "This is a screenshot of an Arabic social-media post with a small profile photo at top left and Arabic text on a white background. Visible text: \"مالك ابي نادر\" / \"16h\" / \"ميشال الحلو جدو بي امو قال اذا سوريا بتنسحب بدي نام ادام الدبابات وامنعمهم يفلو ا\" / \"وجدو بي بي ويو وصفو جنبلاط بالصهيامية العتيقة\" / \"رجع بيبو هنري ترشح معه ثلاث دورات\" / \"وبكل وقاحة عن بيعطى مواعظ\""
+      }
+    ]
+  },
+  {
+    "id": "media-third-party-meme-pro-bassil",
+    "reply_id": "2091230438429765923",
+    "post_id": "2090769976005128233",
+    "postText": "في الوقت الذي يطرح فيه جبران باسيل استراتيجية دفاعية ويقدّم المواعظ للحكومة، من المفيد تذكيره بأداء حزبه على مدى عقدين.",
+    "replyText": "@michelhelou_lb Kelmtayn ya helo ma fi 8ayron !! https://t.co/o2wOpoi29Z",
+    "phenomenon": "HARM - pro-Bassil meme dismissing the author; sarcastic text already reads Negative",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "ADJUDICATED 2026-08-24 by viewing the image. The meme is a FLATTERING portrait of Gebran Bassil - his name and party across the top, and 'على سرمايتك ما حدا بغبّر' (nobody can raise dust on your shoe) along the bottom. So 'ma fi 8ayron' means BASSIL is the best, posted at someone who had just criticised him: dismissive of the author. An earlier reading that the meme mocked Bassil was wrong. expectedBaselineLabel is Negative because the sarcastic text alone already reads Negative - this is a harm case, not a lift case.",
+    "media": [
+      {
+        "media_key": "3_2091230430674448384",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQWK_zPWcAAPFek.jpg",
+        "frozenDescription": "This is a screenshot of a poster-like photo showing a man in a suit and tie in front of a blurred Lebanese flag. Visible text: \"حيران باسيل\" and \"التيار الوطني الحر\" at upper left, and the large Arabic line at the bottom: \"علي سرمايتك ما حدا يعبر\"."
+      }
+    ]
+  },
+  {
+    "id": "media-only-ambiguous-thumbsup-meme",
+    "reply_id": "2091229660768096706",
+    "post_id": "2090769976005128233",
+    "postText": "في الوقت الذي يطرح فيه جبران باسيل استراتيجية دفاعية ويقدّم المواعظ للحكومة، من المفيد تذكيره بأداء حزبه على مدى عقدين.",
+    "replyText": "@michelhelou_lb https://t.co/qKoscv6zFw",
+    "phenomenon": "LIFT - image-only pro-Bassil meme aimed at the critic",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Neutral",
+    "labelConfidence": "high",
+    "rationale": "ADJUDICATED 2026-08-24 by viewing the image. The smiling man giving a thumbs-up IS Gebran Bassil. The caption 'ما بيحكي بالسوء عنك الا يلي رح يموت قهر منك' (only the one who will die of spite speaks ill of you) is therefore aimed at Bassil's critic - the author of the post. An earlier reading calling it a supportive meme was wrong; the face was not recognised. LIFT case: text alone is Neutral, media should make it Negative. The live pass frequently returns Positive here, which is the sharpest known failure.",
+    "media": [
+      {
+        "media_key": "3_2091229654837264384",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQWKSpBWgAAVn6B.jpg",
+        "frozenDescription": "A meme-style photo shows a smiling man in a suit and tie giving a thumbs-up indoors, with a dark background. Visible text: \"ما بيحكي بالسوء عنك\" and \"الا يلي رح يموت قهر منك\""
+      }
+    ]
+  },
+  {
+    "id": "media-text-negative-arabizi-insult",
+    "reply_id": "2091228697755889763",
+    "post_id": "2090769976005128233",
+    "postText": "في الوقت الذي يطرح فيه جبران باسيل استراتيجية دفاعية ويقدّم المواعظ للحكومة، من المفيد تذكيره بأداء حزبه على مدى عقدين.",
+    "replyText": "@michelhelou_lb Min enta ya zmek hatta tehké 3al Tayyar w 3ala Gebran Bassil , rouh n2eber l3ab had baytkon el siyessé cha8lé ma btefham fia !! https://t.co/rPNSzWaCws",
+    "phenomenon": "HARM - Arabizi insult plus corroborating insult meme",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "Who are you, you nobody, to speak about the Tayyar and Gebran Bassil - a direct insult to the author. Negative on text alone.",
+    "media": [
+      {
+        "media_key": "3_2091228691242065920",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQWJajWWoAAcfH7.jpg",
+        "frozenDescription": "A meme image showing a smiling man with gray hair, a thick mustache, and a red jacket against a blurry indoor background. Visible text: \"وراء الخريبنك\" and \"ايش هبيلة\"."
+      }
+    ]
+  },
+  {
+    "id": "media-only-insult-deir-el-saleeb",
+    "reply_id": "2091108649414340893",
+    "post_id": "2090769976005128233",
+    "postText": "في الوقت الذي يطرح فيه جبران باسيل استراتيجية دفاعية ويقدّم المواعظ للحكومة، من المفيد تذكيره بأداء حزبه على مدى عقدين.",
+    "replyText": "@michelhelou_lb https://t.co/5d3vsM2VyJ",
+    "phenomenon": "FLAGSHIP LIFT - image-only insult, invisible to text-only analysis",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Neutral",
+    "labelConfidence": "high",
+    "rationale": "The reply is a bare mention plus two images. The first advertises the phone number of دير الصليب, the Lebanese psychiatric hospital - a standard way of calling someone insane. The second is a crude cartoon reading 'رأيك وطيزنا سوا' (your opinion and our backside are the same). Text-only MUST return Neutral and media MUST return Negative. This is the clearest case for the whole feature: if it fails, the feature has no value.",
+    "media": [
+      {
+        "media_key": "3_2091108548189024257",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQUcJTmW8AEHy3A.png",
+        "frozenDescription": "This is a screenshot of a simple graphic on a white background with a blue circular phone icon and Arabic text beneath it. Visible text: \"يا الله يبقى حد يسأل عن الرقم.. صااااار يسعبل الجميع!!!\" at the top, \"دير الصليب\" in the middle, \"04 710 224\" below it, and \"هيدي كمال بعدين\" at the bottom."
+      },
+      {
+        "media_key": "3_2091108606749929472",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HQUcMtwXcAAEeQE.png",
+        "frozenDescription": "This is a simple black-and-white cartoon drawing of a person standing sideways with a hand reaching behind them. Visible text: \"رأيك\" at the top, and \"وطيرنا\" and \"سوا\" on the left."
+      }
+    ]
+  },
+  {
+    "id": "media-screenshot-political-argument",
+    "reply_id": "2087607563437388040",
+    "post_id": "2087549941837189410",
+    "postText": "البلد كلو سعادتك بيعرف مين أكتر زعيم انغشّت الناس فيه وبالتيار تبعُه. ما تفتح بواب مسكّرة.",
+    "replyText": "@GeorgesLebbos @camille_mourani ما في خط رجعة مع المتأسلمين. بتوقف بصف قضيتهم بس إياك تفكر انه بيقفوا بصف قضيتك شي نهار، خرجن بكل الأحوال. https://t.co/gA9CAAqSRc",
+    "phenomenon": "HARM - already Negative from text; screenshot insults third parties only",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "ADJUDICATED 2026-08-24. Already Negative on its text alone, and the screenshot's insult 'كم حمار' is aimed at unnamed third parties rather than the author. Media must therefore change nothing.",
+    "media": [
+      {
+        "media_key": "3_2087607555644387328",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HPisAuCa8AAc234.jpg",
+        "frozenDescription": "This is a screenshot of an X.com post showing a Lebanese user’s reply with an embedded MTV Lebanon News post below it. Visible text: “X.com”, “ريبيع”, “@rabiih”, “Show translation”, “عملاء جيش لحد.. القوات ما كانت تقبل بقانون العفو عن الإسلاميين إلا بند عفو عن عملاء لحد المسيحيين في إسرائيل.. هيك القصة، فيه كم حمار مصدق أنه القوات عملت قانون العفو عن السنة كرمال عيونهم.”, “MTV Lebanon News”, “@MTVLebanon...”, “10h”, “النائب غادة أيوب لـMTV: أدخلنا مادة تعطي اللبنانيين الذين لجأوا إلى إسرائيل عام 2000 الحقّ في العودة إلى لبنان مع إقرار قانون العفو العام”."
+      }
+    ]
+  },
+  {
+    "id": "media-text-negative-crude-meme",
+    "reply_id": "2081751030476185897",
+    "post_id": "2081726478257930402",
+    "postText": "من كان لعقودٍ الشريك والغطاء السياسي والدبلوماسي لحزب الله، لا يمكن أن يكون عنوانًا لتصحيح المسار.",
+    "replyText": "@lynnharfoush مدام حرفوش اذا ضل في قابلية فيكي تاكلي واحد الضهر كمان ما بأثر وبالهنا انشالله... https://t.co/050jXEn0E4",
+    "phenomenon": "HARM - crude sexual mockery in both text and image",
+    "expectedLabel": "Negative",
+    "expectedBaselineLabel": "Negative",
+    "labelConfidence": "high",
+    "rationale": "Sexual innuendo aimed at the author, reinforced by a crude visual joke. Negative on text alone.",
+    "media": [
+      {
+        "media_key": "3_2081751022909755392",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HOPdhpdXkAAprQh.jpg",
+        "frozenDescription": "The image is a screenshot or meme showing a large cylindrical object being lifted out of the sea by a crane from a boat, with water around it. Visible text: \"واحد صباحا واحد مساء\" and \"بتنزاح\"."
+      }
+    ]
+  },
+  {
+    "id": "media-only-counterargument-screenshot",
+    "reply_id": "2084888350855467309",
+    "post_id": "2084580476883292402",
+    "postText": "٤ آب قضيّة كل واحد فينا.",
+    "replyText": "@lynnharfoush https://t.co/bmjIPJENUA",
+    "phenomenon": "HARM - screenshot targets Joseph Aoun, not the author; must stay Neutral",
+    "expectedLabel": "Neutral",
+    "expectedBaselineLabel": "Neutral",
+    "labelConfidence": "high",
+    "rationale": "ADJUDICATED 2026-08-24 by viewing the image. The screenshot is journalist Mariam El Bassam addressing Joseph Aoun and holding the army command responsible for the port nitrates. The target is Aoun, NOT the post author - a political counter-argument to 'Aug 4 is everyone's cause', neither insult nor praise. This is the one case the classifier still gets wrong: the frozen pass drifts to Negative and is unstable across repeats.",
+    "media": [
+      {
+        "media_key": "3_2084888344165531648",
+        "type": "photo",
+        "imageUrl": "https://pbs.twimg.com/media/HO8C5x5WwAAbvGg.jpg",
+        "frozenDescription": "A screenshot of an Arabic social-media post shows a portrait photo of a man in military uniform and maroon beret standing in front of flags. The visible text is: \"الإعلامية مريم البسام عن انفجار مرفأ بيروت: فخامتكم، كقائد للجيش في ذاك التاريخ، تم تبليغكم بوجود النترات، ولم تهرعوا إلى تدارك الخطر بموجب قانون الأسلحة والنخائر الذي يجعل المسؤولية حصراً عند الجيش. ومعرفتكم بالأخطار مُثبتة بالدليل في تحقيقات فرع المعلومات، على زمن العميد خالد حمود.\""
+      }
+    ]
+  },
+  {
+    "id": "media-video-thumbnail-insufficient",
+    "reply_id": "2084753920728162788",
+    "post_id": "2084580476883292402",
+    "postText": "٤ آب قضيّة كل واحد فينا.",
+    "replyText": "@lynnharfoush https://t.co/Z5HGgpFiCD",
+    "phenomenon": "VIDEO LIMIT - only a thumbnail is available",
+    "expectedLabel": "Neutral",
+    "expectedBaselineLabel": "Neutral",
+    "labelConfidence": "high",
+    "rationale": "A bare mention plus a video. Only the thumbnail is available - a man in a room, no text - so there is no evidence either way. The correct behaviour is Neutral. This case exists to prove the pipeline does NOT invent a label from a thumbnail it cannot read; any Negative here is a false positive.",
+    "media": [
+      {
+        "media_key": "13_2084753901350252544",
+        "type": "video",
+        "isThumbnailOnly": true,
+        "imageUrl": "https://pbs.twimg.com/amplify_video_thumb/2084753901350252544/img/9tu5A1GKRhCy-tzh.jpg",
+        "frozenDescription": "A vertical smartphone photo/video still of a young bearded man in a black shirt indoors, with a tiled wall and ceiling behind him. No visible text."
+      }
+    ]
+  }
+]

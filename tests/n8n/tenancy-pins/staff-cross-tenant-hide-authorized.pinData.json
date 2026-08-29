@@ -1,0 +1,133 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 950016,
+        "callback_query": {
+          "id": "tenancy-hide-replies-9990000000000000202-8677383067",
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Tenancy",
+            "last_name": "Test",
+            "username": "tenancy_test",
+            "language_code": "en"
+          },
+          "message": {
+            "message_id": 616,
+            "chat": {
+              "id": 8677383067,
+              "first_name": "Tenancy",
+              "type": "private"
+            },
+            "date": 1756450000,
+            "text": "Post controls"
+          },
+          "chat_instance": "-1",
+          "data": "hide_replies:9990000000000000202"
+        }
+      }
+    }
+  ],
+  "Send Auth Required": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9101
+        }
+      }
+    }
+  ],
+  "Send Developer Alert - Auth Required": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9102
+        }
+      }
+    }
+  ],
+  "Get X Auth Account": [],
+  "Answer Status Callback": [
+    {
+      "json": {
+        "ok": true,
+        "result": true
+      }
+    }
+  ],
+  "Send Status Confirmation With Resume": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9103
+        }
+      }
+    }
+  ],
+  "Send Status Confirmation": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9104
+        }
+      }
+    }
+  ],
+  "Edit Status Alert With Resume": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9105
+        }
+      }
+    }
+  ],
+  "Edit Status Alert": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9106
+        }
+      }
+    }
+  ],
+  "Update Post Status": [
+    {
+      "json": {
+        "post_id": "9990000000000000101",
+        "status": "Ignored"
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [
+          "f7317adc-eea5-49db-81bf-8b2393a93c89"
+        ],
+        "is_staff": true
+      }
+    }
+  ],
+  "Get Post For Hide": [
+    {
+      "json": {
+        "post_id": "9990000000000000202",
+        "user_id": "TENANCY_TEST_B_USER",
+        "client_id": "cee74240-5942-4435-803e-5a7144ccd44e",
+        "status": "New",
+        "comment_count": 12,
+        "negative_count": 5,
+        "analyzed_count": 12,
+        "snooze_runs_remaining": 0
+      }
+    }
+  ]
+}

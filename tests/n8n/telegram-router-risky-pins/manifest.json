@@ -1,55 +1,104 @@
 {
   "workflowId": "oLwwjO05IcRjtF8E",
   "workflowName": "XMonitor - Telegram Router Staging",
+  "nodeSettingsAssertions": {
+    "why": "SMMWiz add is not idempotent and has no cancel endpoint. An HTTP timeout does not mean the request failed to arrive - if it reached SMMWiz the order exists and is already charged, so a retry places and charges a SECOND real order. retryOnFail must stay false, and it is pinned explicitly rather than left to the n8n default so that a node typeVersion bump or a well-meaning edit fails this assertion instead of a client balance.",
+    "setOn": "2026-08-25",
+    "enforcedBy": "tests/n8n/telegram-router-retry-guard.test.mjs",
+    "workflows": [
+      {
+        "id": "oLwwjO05IcRjtF8E",
+        "name": "XMonitor - Telegram Router Staging"
+      },
+      {
+        "id": "cWczsttyDbTBbRAC",
+        "name": "XMonitor - Telegram Router"
+      }
+    ],
+    "nodes": [
+      {
+        "name": "Place Comment Order",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "retryOnFail": false
+      },
+      {
+        "name": "Place Likes Order",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "retryOnFail": false
+      }
+    ],
+    "stickyNotes": [
+      "Why Place Comment Order Must Not Retry",
+      "Why Place Likes Order Must Not Retry"
+    ]
+  },
   "fixtures": [
     {
-      "id": "hide-replies-success",
-      "file": "hide-replies-success.pinData.json",
-      "input": "callback_query.data=hide_replies:2060604129798496702",
+      "id": "hide-replies-enqueue",
+      "file": "hide-replies-enqueue.pinData.json",
+      "input": "callback_query.data=hide_replies:9990000000000000007, four stored replies with status New, null, hidden, hide_failed",
       "riskPinned": [
         "Get Post For Hide",
         "Get X Auth Account",
         "Get Replies For Post",
-        "Hide Reply On X",
-        "Update Reply Status",
-        "Send Hide Summary"
+        "Enqueue Hide Requests",
+        "Send Hide Queued Summary",
+        "Store Queue Message Id"
       ],
       "expected": {
         "reaches": [
-          "Build Hide Summary",
-          "Send Hide Summary"
+          "Build Hide Queue Items",
+          "Enqueue Hide Requests",
+          "Build Hide Queued Summary",
+          "Send Hide Queued Summary",
+          "Store Queue Message Id"
+        ],
+        "doesNotReach": [
+          "Send No Replies"
+        ],
+        "asserts": [
+          "Build Hide Queue Items excludes the status=hidden reply and keeps New, null and hide_failed -> submitted=3, locally_already_hidden=1",
+          "Build Hide Queue Items emits ONE item carrying queued_rows_json plus a freshly minted batch_id",
+          "Build Hide Queued Summary reports the queued count honestly (Queued to hide: 3, 0 of 3 hidden)",
+          "Store Queue Message Id receives the sent message_id so the drain can edit that message"
         ],
         "doesNotCallLive": [
           "X API hide endpoint",
-          "Supabase reply status update",
+          "Supabase Moderation Queue insert",
           "Telegram sendMessage"
         ]
       }
     },
     {
-      "id": "hide-replies-provider-error",
-      "file": "hide-replies-provider-error.pinData.json",
-      "input": "callback_query.data=hide_replies:2060604129798496702, partial X hide failures=missing moderation permission and reply not found",
+      "id": "hide-replies-all-hidden",
+      "file": "hide-replies-all-hidden.pinData.json",
+      "input": "callback_query.data=hide_replies:2060604129798496702, all stored replies already status=hidden",
       "riskPinned": [
         "Get Post For Hide",
         "Get X Auth Account",
         "Get Replies For Post",
-        "Hide Reply On X",
-        "Update Reply Status",
-        "Send Hide Summary",
-        "Send Developer Alert - Hide Failures"
+        "Send No Replies"
       ],
       "expected": {
         "reaches": [
-          "Prepare Hide Result",
-          "Build Hide Summary",
-          "Send Hide Summary",
-          "Build Developer Alert - Hide Failures",
-          "Send Developer Alert - Hide Failures"
+          "Build Hide Queue Items",
+          "Send No Replies",
+          "Build Developer Alert - No Replies"
+        ],
+        "doesNotReach": [
+          "Enqueue Hide Requests",
+          "Send Hide Queued Summary",
+          "Send Developer Alert - No Replies"
+        ],
+        "asserts": [
+          "Build Hide Queue Items returns skip_reason=all_replies_already_hidden_locally",
+          "Build Developer Alert - No Replies returns no items"
         ],
         "doesNotCallLive": [
           "X API hide endpoint",
-          "Supabase reply status update",
+          "Supabase Moderation Queue insert",
           "Telegram sendMessage"
         ]
       }
@@ -84,14 +133,12 @@
     {
       "id": "order-comments-confirm-success",
       "file": "order-comments-confirm-success.pinData.json",
-      "input": "message.text=/order_comments 2060604129798496702",
+      "input": "message.text=/order_comments 2060604129798496702, form comment_amount=12",
       "riskPinned": [
         "Get Post For Comment Order",
         "Get Comment Post Tracked User",
-        "Get Replies For Comment Order",
-        "Generate Counter Replies",
-        "Save Counter Reply",
-        "Get Fresh Counter Replies",
+        "Prompt For Comment Amount",
+        "Generate Supportive Comments",
         "Send Suggested Comments",
         "Ask Comment Order Confirmation",
         "Place Comment Order",
@@ -117,16 +164,41 @@
       }
     },
     {
+      "id": "order-comments-invalid-amount",
+      "file": "order-comments-invalid-amount.pinData.json",
+      "input": "message.text=/order_comments 2060604129798496702, form comment_amount=9",
+      "riskPinned": [
+        "Prompt For Comment Amount",
+        "Send Comment Order Input Error"
+      ],
+      "expected": {
+        "reaches": [
+          "Validate Comment Order Input",
+          "If Comment Order Input Valid",
+          "Send Comment Order Input Error"
+        ],
+        "doesNotReach": [
+          "Get Post For Comment Order",
+          "Generate Supportive Comments",
+          "Place Comment Order"
+        ],
+        "doesNotCallLive": [
+          "Telegram sendAndWait/sendMessage",
+          "OpenAI/agent generation",
+          "Supabase reads/writes",
+          "SMM add order"
+        ]
+      }
+    },
+    {
       "id": "order-comments-cancel",
       "file": "order-comments-cancel.pinData.json",
-      "input": "message.text=/order_comments 2060604129798496702, confirmation=Do nothing",
+      "input": "message.text=/order_comments 2060604129798496702, form comment_amount=10, confirmation=Do nothing",
       "riskPinned": [
         "Get Post For Comment Order",
         "Get Comment Post Tracked User",
-        "Get Replies For Comment Order",
-        "Generate Counter Replies",
-        "Save Counter Reply",
-        "Get Fresh Counter Replies",
+        "Prompt For Comment Amount",
+        "Generate Supportive Comments",
         "Send Suggested Comments",
         "Ask Comment Order Confirmation",
         "Send Comment Order Canceled"
@@ -152,14 +224,12 @@
     {
       "id": "order-comments-provider-error",
       "file": "order-comments-provider-error.pinData.json",
-      "input": "message.text=/order_comments 2060604129798496702, provider error=Not enough funds on balance",
+      "input": "message.text=/order_comments 2060604129798496702, form comment_amount=10, provider error=Not enough funds on balance",
       "riskPinned": [
         "Get Post For Comment Order",
         "Get Comment Post Tracked User",
-        "Get Replies For Comment Order",
-        "Generate Counter Replies",
-        "Save Counter Reply",
-        "Get Fresh Counter Replies",
+        "Prompt For Comment Amount",
+        "Generate Supportive Comments",
         "Send Suggested Comments",
         "Ask Comment Order Confirmation",
         "Place Comment Order",
@@ -211,6 +281,80 @@
           "Telegram sendMessage"
         ]
       }
+    },
+    {
+      "id": "track-users-soft-delete",
+      "file": "track-users-soft-delete.pinData.json",
+      "input": "message.text=/track @lynnharfoush",
+      "riskPinned": [
+        "Clear Telegram User Links",
+        "Deactivate Tracked Users For Chat",
+        "Lookup X User By Username",
+        "Upsert Tracked X User",
+        "Link Telegram User To X User",
+        "Send Tracking Success"
+      ],
+      "expected": {
+        "reaches": [
+          "Parse Users To Track",
+          "If Track Users Input Valid",
+          "Deactivate Tracked Users For Chat",
+          "Restore Track User List",
+          "Split Users To Track",
+          "Upsert Tracked X User",
+          "Send Tracking Success"
+        ],
+        "asserts": [
+          "Parse Users To Track runs before either destructive node",
+          "Deactivate Tracked Users For Chat is a chat-scoped is_active update, not a delete",
+          "Restore Track User List re-emits usersToTrack so Split Users To Track is not starved"
+        ],
+        "doesNotCallLive": [
+          "X user lookup",
+          "Supabase reads/writes",
+          "Postgres upsert",
+          "Telegram sendMessage"
+        ]
+      }
+    },
+    {
+      "id": "track-users-invalid-input",
+      "file": "track-users-invalid-input.pinData.json",
+      "input": "message.text=/track ?????",
+      "riskPinned": [
+        "Clear Telegram User Links",
+        "Deactivate Tracked Users For Chat",
+        "Lookup X User By Username",
+        "Upsert Tracked X User",
+        "Link Telegram User To X User",
+        "Send Tracking Success",
+        "Send Track Users Input Error",
+        "Send Developer Alert - Track Input"
+      ],
+      "expected": {
+        "reaches": [
+          "Parse Users To Track",
+          "If Track Users Input Valid",
+          "Send Track Users Input Error"
+        ],
+        "doesNotReach": [
+          "Clear Telegram User Links",
+          "Deactivate Tracked Users For Chat",
+          "Split Users To Track",
+          "Upsert Tracked X User"
+        ],
+        "asserts": [
+          "Parse Users To Track returns users_valid=false",
+          "An invalid /track changes no rows at all"
+        ],
+        "doesNotCallLive": [
+          "X user lookup",
+          "Supabase reads/writes",
+          "Postgres upsert",
+          "Telegram sendMessage"
+        ]
+      }
     }
-  ]
+  ],
+  "note": "The router no longer calls the X hide endpoint. X-facing hide scenarios live in tests/n8n/moderation-queue-drain.test.mjs (workflow xt8fLOmRvDvTdZT9)."
 }

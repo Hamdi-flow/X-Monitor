@@ -1,0 +1,211 @@
+{
+  "Drain Webhook": [
+    {
+      "json": {
+        "headers": {
+          "content-type": "application/json",
+          "x-drain-secret": "PINNED_FAKE_DRAIN_SECRET"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "due_count": 3,
+          "stale_reclaimed": 0,
+          "fired_at": "2026-08-27T06:00:00.000Z"
+        },
+        "webhookUrl": "https://example.invalid/webhook/moderation-queue-drain-staging",
+        "executionMode": "test"
+      }
+    }
+  ],
+  "Verify Drain Secret": [
+    {
+      "json": {
+        "authorized": true
+      }
+    }
+  ],
+  "Find Drainable Tokens": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_ATTEMPTS",
+        "due_count": 3,
+        "earliest_due": "2026-08-26T05:50:00.000Z",
+        "allowance": 50,
+        "known_remaining": null,
+        "reset_at": null,
+        "observed_at": null,
+        "x_username": "DrainAttempts",
+        "account_chat_id": "8677383067",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "has_account": true
+      }
+    }
+  ],
+  "Claim Due Hide Rows": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000501",
+        "reply_id": "9990000000000000901",
+        "post_id": "9990000000000000006",
+        "x_user_id": "TEST_DRAIN_ATTEMPTS",
+        "batch_id": "00000000-0000-4000-8000-0000000000b4",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4401,
+        "attempts": 5
+      }
+    },
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000502",
+        "reply_id": "9990000000000000902",
+        "post_id": "9990000000000000006",
+        "x_user_id": "TEST_DRAIN_ATTEMPTS",
+        "batch_id": "00000000-0000-4000-8000-0000000000b4",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4401,
+        "attempts": 4
+      }
+    },
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000503",
+        "reply_id": "9990000000000000903",
+        "post_id": "9990000000000000006",
+        "x_user_id": "TEST_DRAIN_ATTEMPTS",
+        "batch_id": "00000000-0000-4000-8000-0000000000b4",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4401,
+        "attempts": 1
+      }
+    }
+  ],
+  "Hide Reply On X": [
+    {
+      "json": {
+        "statusCode": 503,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "40",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Service Unavailable",
+          "detail": "X is temporarily unavailable."
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 503,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "39",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Service Unavailable",
+          "detail": "X is temporarily unavailable."
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 503,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "38",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Service Unavailable",
+          "detail": "X is temporarily unavailable."
+        }
+      }
+    }
+  ],
+  "Refresh Drain X Token": [
+    {
+      "json": {
+        "statusCode": 200,
+        "body": {
+          "access_token": "UNUSED_IN_THIS_FIXTURE"
+        }
+      }
+    }
+  ],
+  "Upsert Refreshed Drain Account": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_ATTEMPTS",
+        "allowance": 50
+      }
+    }
+  ],
+  "Persist Queue Outcomes": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000501",
+        "status": "abandoned",
+        "attempts": 5
+      }
+    }
+  ],
+  "Persist Reply Statuses": [
+    {
+      "json": {
+        "reply_id": "9990000000000000901",
+        "status": "hide_failed"
+      }
+    }
+  ],
+  "Persist X Rate Limits": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_ATTEMPTS",
+        "remaining": 38
+      }
+    }
+  ],
+  "Defer Rate Limited Tokens": [],
+  "Read Batch Progress": [
+    {
+      "json": {
+        "batch_id": "00000000-0000-4000-8000-0000000000b4",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4401,
+        "post_id": "9990000000000000006",
+        "total": 3,
+        "done": 0,
+        "failed": 1,
+        "pending": 2,
+        "next_attempt_at": "2026-08-26T06:16:00.000Z"
+      }
+    }
+  ],
+  "Defer Token Rows": [],
+  "Fail Token Rows": [],
+  "Edit Telegram Progress": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Drain Failures": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Drain Blocked": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ]
+}

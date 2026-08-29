@@ -7,3 +7,7 @@ keys.env
 .vscode/
 .sfdx/
 
+
+# Transient snapshot written by tests/n8n/reply-sentiment-live-staging.test.mjs.
+# Present only while a live run is mid-flight; --restore-only replays it.
+tests/n8n/.live-staging-snapshot.json

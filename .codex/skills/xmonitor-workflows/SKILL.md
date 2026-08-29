@@ -5,234 +5,74 @@ description: "Use when changing, creating, validating, testing, committing, or p
 
 # XMonitor Workflows
 
-Use this skill for XMonitor workflow changes and validation. Keep the process simple: modify staging workflows directly through the n8n MCP when possible, test safe behavior from Codex, and use staging Supabase state plus pinned data to avoid fragile hand-made fixtures.
+Use this skill for XMonitor n8n workflow work. Keep this file as the compact operating guide: use `docs/workflows/` for workflow facts, local exports for exact graph state, and `references/workflow-operations.md` for detailed MCP, testing, risk, and commit procedure.
 
-## Working Principles
+## First Move
 
-- Treat staging as the default target. Do not modify production workflows unless the user explicitly asks.
-- Prefer n8n MCP tools for workflow work:
-  - Discover with `search_workflows`.
-  - Inspect with `get_workflow_details`.
-  - Modify with `update_workflow`.
-  - Execute/test with `test_workflow`, `execute_workflow`, and `get_execution`.
-- Use bearer-token authentication for the project n8n MCP. Do not use interactive OAuth as the normal path; n8n's MCP access token is already stored as `N8N_MCP_ACCESS_TOKEN` in the ignored `keys.env` file.
-- If n8n MCP returns an authentication-required error, follow **Stable n8n MCP Authentication** before asking the user to take manual action. Do not silently fall back to REST for MCP auth failures.
-- If a workflow is not MCP-enabled after MCP auth is valid, use the n8n REST API from `keys.env` only when needed, and report that MCP could not access it.
-- Prefer the Supabase MCP for any direct staging database inspection, cleanup, schema work, or SQL verification. The project Supabase MCP server is `supabase` at `https://mcp.supabase.com/mcp?project_ref=npytqidroqxgikaqofmq`.
-- Use bearer-token authentication for Supabase MCP. The personal access token is stored as `SUPABASE_ACCESS_TOKEN` in ignored `keys.env`; never use interactive OAuth as the normal path.
-- If Supabase tools are missing or `codex mcp list` reports `Not logged in`, follow **Stable Supabase MCP Authentication** before falling back to n8n-mediated database access or asking the user to act.
-- Use existing staging credentials:
-  - Supabase API: `Supabase Staging API`
-  - Postgres: `Supabase Staging Postgres`
-  - Telegram: `Testing Telegram API`
-  - X bearer: `Bearer Auth account`
-  - OpenAI: `OpenAi account 2`
-- Keep local exports in sync after live workflow edits when the repo has a matching file under `workflows/staging/`.
-- Never print secrets, access tokens, refresh tokens, API keys, or full credential bodies. Summarize as present/missing.
+- Treat staging as the default target. Do not modify production unless the user explicitly asks for production, promotion, or live behavior.
+- Read the relevant `docs/workflows/*.md` file before editing a workflow; docs explain what the workflow does and where side effects are.
+- Inspect the live workflow before editing when MCP or REST access is available; local exports can drift.
+- If docs, exports, and live n8n disagree, treat live n8n as current behavior and update docs/exports after the change.
+- An edit is not live until it is published. `update_workflow` writes the draft; triggers run the separately published active version and `test_workflow` runs the draft, so pinned tests can pass against code no live execution will ever run. After every workflow edit, re-read `get_workflow_details` and compare `versionId` against `activeVersionId`; if they differ, call `publish_workflow` and re-read to confirm they match. `active: true` is not evidence — an active workflow with a stale `activeVersionId` is running the old code.
+- Scheduled Post Tracking Staging (`l4eKZucUZXzfz0H8`) is intentionally inactive and manually executed; do not publish it to close a draft/active gap. Every other main workflow is expected to be active and published.
+- Keep the matching local export and workflow docs in sync after live workflow edits.
+- Keep the project paper trail current as part of every completed workflow task: update `TASK_TODOLIST.md`, `docs/workflows/*.md`, `docs/workflows/README.md`, relevant fixtures/scripts, and any local exports whose behavior changed before reporting done.
+- Never print secrets, access tokens, refresh tokens, API keys, or full credential bodies. Summarize as present or missing.
 
-## Stable n8n MCP Authentication
+## Intent And Scope
 
-Register `xmonitor-staging` with Codex's `--bearer-token-env-var` option so normal sessions do not require browser authorization:
+- If the user asks to analyze, triage, or add a task, update `TASK_TODOLIST.md` with assumptions, open questions, risk boundaries, and validation ideas; do not implement unless they ask to proceed.
+- If the user asks to implement, continue, fix, validate, promote, commit, or push, carry the work through edit, verification, local sync, and concise evidence instead of stopping at a plan.
+- Ask clarifying questions only when a product decision cannot be inferred safely or when a test/change would create external side effects. Otherwise, inspect docs/live state and make a conservative staging-first assumption.
+- When a user reports that something "didn't work" after a successful API response, verify from the user's surface too: bot identity, Telegram command scopes, message output, DB rows, active version, or live execution data as applicable.
 
-1. Run `scripts/configure-n8n-mcp.ps1` from the repository root. It reads `N8N_MCP_URL` and `N8N_MCP_ACCESS_TOKEN` from ignored `keys.env`, stores the token in the current Windows user's environment without printing it, and registers the MCP server to read that variable.
-2. Restart Codex or the IDE after the first setup so the new user environment variable reaches the Codex process.
-3. Check `codex mcp get xmonitor-staging`. Require `bearer_token_env_var: N8N_MCP_ACCESS_TOKEN`; an OAuth `Not logged in` status from an old registration is not the desired configuration.
-4. Verify access with an MCP discovery or read operation. Never place the token itself in `config.toml`, a command argument, logs, or committed files.
+## Required References
 
-For authentication failures:
+- For any non-trivial workflow edit, test, promotion, commit, push, MCP auth issue, Supabase inspection, or risky path validation, read `references/workflow-operations.md`.
+- For workflow identity and behavior, start from `docs/workflows/README.md`, then read the specific workflow doc.
+- For Telegram router risky path tests, use `tests/n8n/telegram-router-risky-pins/README.md` and the relevant pin fixture.
+- For order status polling tests, use `tests/n8n/order-status-polling-pins/` when applicable.
 
-1. Check whether `N8N_MCP_ACCESS_TOKEN` is present in the Codex process environment; report only present/missing.
-2. Compare the configured MCP URL with `N8N_MCP_URL` from `keys.env` without printing credentials.
-3. Re-run `scripts/configure-n8n-mcp.ps1` and restart Codex if the registration or environment is stale.
-4. Ask the user to generate a new n8n MCP access token only when the configured bearer token is present but n8n rejects it with HTTP 401. Update ignored `keys.env`, rerun the script, and restart Codex after rotation.
+## Product Conventions
 
-## Stable Supabase MCP Authentication
+- Use `TASK_TODOLIST.md` for task intake when the user asks to analyze or add a task. Preserve resolved decisions there and remove stale open questions once answered.
+- After implementing or promoting a task, move finished todo items to `Completed Tasks`, add validation evidence and commit IDs when available, and remove stale open questions instead of leaving obsolete task state behind.
+- Scheduled post reply metrics must state the denominator clearly. In current alerts, hidden/non-hidden counts refer to stored analyzed negative replies: `Replies.status = 'hidden'` vs stored negative replies whose status is absent or not `hidden`.
+- Snooze uses hourly scheduler runs through `Posts.snooze_runs_remaining`. Current fixed duration options are `1h`, `4h`, `12h`, and `24h`.
+- Snooze must support both button and command flows: `snooze:<POST_ID>` opens the menu, `snooze_duration:<POST_ID>:<DURATION>` applies a choice, `/snooze POST_ID DURATION` applies directly, and `/snooze POST_ID` opens the menu.
+- When Telegram router syntax or behavior changes, update parser logic, buttons, help/default-help text, Telegram command menu setup, docs, exports, and tests together.
+- For Telegram bot command menus, set and verify both default scope and `all_private_chats`; private-chat scope can override the visible menu.
+- Prefer `STAGING_TELEGRAM_BOT_TOKEN` for staging Telegram command-menu setup and verify with Telegram `getMe` plus `getMyCommands` without printing tokens.
+- Keep staging and production on the same AI model. When you change the sentiment model in one environment, change it in the other as part of the same work; a model gap makes staging validation meaningless as evidence for production behaviour. Both currently run `gpt-5.4-mini`. This applies to probe/helper calls too — keep the request body (including `max_completion_tokens` vs `max_tokens`) matched to the model it targets.
+- Use Node rather than PowerShell for complex n8n workflow JSON rewrites where nested `connections` arrays must be preserved.
 
-Register `supabase` with Codex's `--bearer-token-env-var` option so database work does not require browser authorization:
+## Change Surface Checklist
 
-1. Run `scripts/configure-supabase-mcp.ps1` from the repository root. It reads `SUPABASE_ACCESS_TOKEN` from ignored `keys.env`, stores it in the current Windows user's environment without printing it, and registers the project-scoped server.
-2. Restart Codex or the IDE after the first setup so the process inherits the persisted user environment variable.
-3. Check `codex mcp get supabase`. Require `bearer_token_env_var: SUPABASE_ACCESS_TOKEN`; `Not logged in` is not the desired configuration.
-4. Verify access with a Supabase MCP read operation. Never place the token itself in `config.toml`, a command argument, logs, or committed files.
+- Telegram router changes usually span parser logic, route switch outputs, action nodes, inline buttons, help/default-help text, command-menu setup, docs, exports, and pinned tests.
+- Scheduled tracking changes usually span X API fields/includes, reply attachment, sentiment shape, DB upserts, suppression/snooze handling, alert formatting, docs, exports, and pinned scheduler tests.
+- Order lifecycle changes usually span Telegram router order creation, `Order Info` schema, order status poller, provider status mapping, `Posts.status`, final notification dedupe, docs, exports, and SMM/Telegram pins.
+- Promotion from staging to production must preserve production credentials, activation state, webhook paths, and environment-specific token variables; validate with pinned production tests before reporting success.
+- Workflow utility scripts are part of the product surface when users rely on them, especially Telegram command setup and MCP configuration scripts.
+- For direct X API MCP access, use the project server name `x-api`. Configure it with `scripts/configure-x-api-mcp.ps1`, using ignored `keys.env` values `X_API_MCP_URL` and `X_API_MCP_ACCESS_TOKEN`, then restart Codex or the IDE and verify with `codex mcp get x-api`. Both values are currently missing from `keys.env`, so the script throws until they are restored, and `x-api` is Codex-only — it is not reachable from Claude Code.
+- `configure-*.ps1` and `codex mcp` are Codex-only. On Claude Code, n8n and Supabase are deferred UUID-named connectors that must be loaded with `ToolSearch` before use; missing tool names there are not an auth failure. See `references/workflow-operations.md`.
 
-For authentication failures:
+## Safety Defaults
 
-1. Check whether `SUPABASE_ACCESS_TOKEN` is present in the Codex process environment; report only present/missing.
-2. Re-run `scripts/configure-supabase-mcp.ps1` and restart Codex if the registration or inherited environment is stale.
-3. Ask the user to generate a new Supabase personal access token only when the configured token is present but Supabase rejects it with HTTP 401. Update ignored `keys.env`, rerun the script, and restart Codex after rotation.
+- Prefer pinned workflow tests before live tests.
+- Safe staging checks include `/help`, invalid command validation, pinned `/auth_x` generation, snooze/resume row transitions with snapshots, schedule manual execution, Supabase-backed reads, and pinned Telegram tests.
+- Change staging workflow behavior without asking first: node logic, parameters, and wiring edits pushed to the staging workflow in n8n are ordinary work, with the local export and workflow doc updated in the same change.
+- Publishing is not activation. Pushing a draft live on a workflow that is already active is finishing your own edit — do it without asking on staging. Flipping a workflow between states (publishing an inactive one, `unpublish_workflow` on an active one) still needs approval. On production, publishing rides on the same approval as the production change itself; if you choose not to publish, say so rather than leaving production half-published with a stale `activeVersionId`.
+- Require explicit user intent before X write operations, broad staging *data* mutations, flipping a workflow between active and inactive, production executions with side effects, or any live SMM order path.
+- Never run `/order_comments`, valid `/order_likes`, or SMM API request nodes live unless the user explicitly approves order placement.
 
-## Known Staging Workflows
+## Report Back
 
-- Telegram router staging: `XMonitor - Telegram Router Staging`, ID `oLwwjO05IcRjtF8E`, local file `workflows/staging/xmonitor-codex-staging.json`.
-- Schedule staging: `XMonitor - Scheduled Post Tracking Staging`, ID `l4eKZucUZXzfz0H8`, local file `workflows/staging/xmonitor-scheduled-post-tracking-staging.json`.
-- X OAuth callback staging: `XMonitor - X OAuth Callback Staging`, ID `gji3bQd2LdodwEJR`, webhook path `x-oauth-callback-staging`.
+These four headings are the preferred default shape for closing a substantial piece of work. This is a preference, not a rule: use a different structure whenever it genuinely serves the answer better, and drop the scaffolding entirely on small or conversational replies. What matters is that these four things stay easy to find, not that the headings appear verbatim. When the format is used, skip a heading only when it is genuinely empty — write "none" rather than dropping it silently.
 
-## Change Workflow
+**What happened** — what was actually done, with concrete evidence: workflow name and ID, publish state after the edit (`active`, and `activeVersionId` matching `versionId`), execution IDs, the input payload or command tested, important nodes reached or skipped, rows changed and their cleanup/restoration status, local files updated, commit/push status. State failures and skipped steps plainly.
 
-1. Inspect the live staging workflow before editing.
-2. Identify the minimum node or connection change.
-3. Use `validate_node_config` before adding or replacing non-trivial nodes.
-4. Apply a small `update_workflow` operation batch when MCP can access the workflow.
-5. If using REST because MCP is unavailable, send only accepted public workflow fields: `name`, `nodes`, `connections`, and minimal `settings` such as `executionOrder`.
-6. Re-read the workflow and verify the changed node values.
-7. Update the matching local export with the same change.
+**Actions you need to take** — things only the user can do: approvals for risky paths (X writes, activation/deactivation, production executions with side effects, live SMM orders), manual n8n UI steps, credentials or tokens to restore.
 
-## Commit And Push Workflow
+**Decisions you need to make** — open product or design choices deliberately left to the user, each with the options and a recommendation. Genuinely undecided items only.
 
-Use judgment to commit and push when changes are coherent, validated, and useful to preserve remotely. Prefer this after completing a meaningful workflow change, fixture update, skill update, or repo-maintenance task. Do not wait for the user to explicitly ask when the work is complete and the risk is low.
-
-Before committing:
-
-1. Run `git status --short` and identify files changed by the current task.
-2. Review `git diff` for touched files and avoid staging unrelated user changes.
-3. Run the most relevant validation that is practical for the change:
-   - Workflow edits: re-read live workflow and run pinned or safe staging tests when applicable.
-   - Pin fixtures: run the relevant pinned test when practical, or validate JSON shape at minimum.
-   - Skill or docs-only edits: inspect the diff; run skill validation only when the validator is available and the change is structural.
-4. If validation cannot be run, commit only when the change is still low-risk and clearly explain the skipped validation.
-
-Commit rules:
-
-- Stage only the files that belong to the completed task.
-- Use a concise present-tense message, for example `Add risky Telegram router pin fixtures`.
-- Do not include secrets, credential bodies, tokens, or live API payloads in commits.
-- Do not commit WIP, experimental probes, generated noise, or broad formatting churn unless the user asked for it.
-- Do not commit or push if unrelated user changes are mixed into the same files and cannot be separated safely.
-- Ask before committing anything that ran or enables live X writes, SMM orders, mass staging mutations, workflow activation/deactivation, or other risky external effects.
-
-Push rules:
-
-- After a clean commit, push the current branch when the commit represents completed useful work.
-- If push fails because the remote has new commits, fetch and inspect before deciding whether to rebase/merge or ask the user.
-- If push requires credentials or network approval, request approval through the shell escalation flow.
-- Report the commit hash, branch, pushed status, and validation evidence in the final response.
-
-## Testing Workflow
-
-Prefer this order:
-
-1. **Pinned logic test**: use `test_workflow` with pinned `Telegram Trigger` input and pin credentialed output nodes only when avoiding side effects.
-2. **Safe live staging test**: allow staging Supabase reads/writes and testing Telegram sends for non-risky branches.
-3. **Controlled external test**: only call X write endpoints after the user explicitly requests it and the target is staging data.
-4. **Do not run SMM order paths** unless the user explicitly asks to place an order.
-
-For Telegram router tests, pin payloads like:
-
-```json
-{
-  "Telegram Trigger": [
-    {
-      "json": {
-        "update_id": 900001,
-        "message": {
-          "message_id": 101,
-          "from": {
-            "id": 8677383067,
-            "is_bot": false,
-            "first_name": "Test",
-            "last_name": "User",
-            "language_code": "en"
-          },
-          "chat": {
-            "id": 8677383067,
-            "first_name": "Test",
-            "last_name": "User",
-            "type": "private"
-          },
-          "date": 1781631500,
-          "text": "/help",
-          "entities": [
-            {
-              "offset": 0,
-              "length": 5,
-              "type": "bot_command"
-            }
-          ]
-        }
-      }
-    }
-  ]
-}
-```
-
-For callback button paths, pin `callback_query` instead of `message`, with data such as `snooze:<POST_ID>`, `resume:<POST_ID>`, `hide_replies:<POST_ID>`, or `order_likes:<POST_ID>`.
-
-### Risky Path Pin Fixtures
-
-Use the reusable pin fixtures in `tests/n8n/telegram-router-risky-pins/` when a test needs to reach a risky branch without live side effects:
-
-- `hide-replies-success.pinData.json`: exercises `hide_replies:<POST_ID>` while pinning X hide, reply status update, Supabase reads, and Telegram summary output.
-- `order-likes-success.pinData.json`: exercises `/order_likes POST_ID AMOUNT` while pinning Supabase reads and both SMM add/status HTTP calls.
-- `order-comments-confirm-success.pinData.json`: exercises `/order_comments POST_ID`, generated counter replies, confirmation, SMM add/status calls, Supabase writes, and Telegram outputs through pinned data.
-
-When to use these fixtures:
-
-- Use them after any Telegram router change that can affect intent parsing, branch routing, risky path validation, result formatting, or downstream node wiring.
-- Use them before promoting staging changes that touch `HIDE_REPLIES`, `ORDER_LIKES`, or `ORDER_COMMENTS`.
-- Use them when the user asks whether risky paths still work but has not explicitly approved live X writes or SMM orders.
-- Use them as regression coverage in addition to safe live staging tests; they prove routing and transformation logic, not external provider behavior.
-
-How to run:
-
-1. Read live staging with `get_workflow_details` for `oLwwjO05IcRjtF8E` before testing.
-2. Load the relevant `*.pinData.json` fixture.
-3. Run `test_workflow` with `workflowId: "oLwwjO05IcRjtF8E"`, `triggerNodeName: "Telegram Trigger"`, and the fixture as `pinData`.
-4. If MCP reports unknown pin node names, compare against live node names and update the fixture before retrying. Do not remove pins from credentialed or HTTP nodes just to make the test run.
-5. Record the execution ID and status in the final report.
-
-Fixture safety rules:
-
-- Keep every credentialed or side-effecting node on the risky path pinned: X HTTP requests, SMM HTTP requests, Supabase writes, Telegram sends/sendAndWait, and AI generation.
-- If the workflow adds a new external node to a risky path, add a pinned response for that node before running the fixture.
-- Do not treat a pinned risky-path pass as permission to run the live external action. Live X writes and SMM orders still require explicit user approval.
-- Prefer fake tokens, fake order IDs, and deterministic sample rows in fixtures. Never put real secrets or credential bodies in pin data.
-- If validating provider behavior itself, run a separate controlled external test only after the user explicitly asks for it.
-
-## Supabase Test Data
-
-- Use current staging Supabase rows instead of invented IDs when testing workflow behavior.
-- Good existing examples may include:
-  - X user `951803761` / `RebelHam_`
-  - Post `2060604129798496702`
-  - Post `2058879475094266262`
-- Before mutating staging rows, snapshot the selected row fields that matter, such as `status`, `snooze_runs_remaining`, `reply_id`, and `post_id`.
-- For `/auth_x`, verify callback/session behavior through staging callback execution and confirm an `X Auth Accounts` row exists for the expected X user.
-- For hide-replies, require an authenticated owner account with `tweet.moderate.write`, then verify:
-  - `Hide Reply On X` returns `data.hidden = true`.
-  - `Replies.status` becomes `hidden`.
-  - The testing Telegram summary reports hidden/failed counts.
-
-## Risk Boundaries
-
-Safe to run directly from Codex on staging:
-
-- `/help`
-- `/auth_x` pinned generation tests
-- invalid command validation
-- snooze/resume status transitions with row snapshot
-- schedule staging manual execution
-- Supabase-backed read checks
-- pinned Telegram tests
-
-Ask or require explicit user intent before:
-
-- X write operations such as hiding replies.
-- Any test that updates many existing staging rows.
-- Any workflow activation/deactivation.
-
-Do not run without explicit order-placement approval:
-
-- `/order_comments`
-- valid `/order_likes`
-- any SMM API request node (`Place Comment Order`, `Check Comment Order Status`, `Place Likes Order`, `Check Likes Order Status`)
-
-## Reporting
-
-End with concise evidence:
-
-- Workflow name and ID.
-- Execution IDs.
-- Input payload or command tested.
-- Nodes reached or skipped.
-- Rows changed and cleanup/restoration status.
-- Any skipped risky branch and why.
+**What's left** — remaining scope, risky branches deliberately skipped and why, and follow-ups that belong in `TASK_TODOLIST.md`.

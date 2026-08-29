@@ -1,0 +1,55 @@
+{
+  "Every 30 Minutes": [
+    {
+      "json": {}
+    }
+  ],
+  "Fetch Due Order Info Rows": [
+    {
+      "json": {
+        "id": "5f86889f-1fb7-4048-b528-32ed9c246f3c",
+        "provider": "smmwiz",
+        "provider_order_id": "coalesce-regression-1",
+        "order_type": "likes",
+        "post_id": "2060604129798496702",
+        "telegram_chat_id": "8677383067",
+        "normalized_status": "in_progress",
+        "notified_at": null
+      }
+    }
+  ],
+  "Check Provider Order Status": [
+    {
+      "json": {
+        "status": "Completed",
+        "remains": "0"
+      }
+    }
+  ],
+  "Update Post Order Status": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "status": "Done"
+      }
+    }
+  ],
+  "Send Final Order Notification": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9002
+        }
+      }
+    }
+  ],
+  "Mark Order Notification Sent": [
+    {
+      "json": {
+        "id": "5f86889f-1fb7-4048-b528-32ed9c246f3c",
+        "notified_at": "2026-08-25T00:00:00.000Z"
+      }
+    }
+  ]
+}

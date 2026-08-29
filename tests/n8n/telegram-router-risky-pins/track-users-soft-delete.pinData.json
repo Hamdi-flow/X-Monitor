@@ -1,0 +1,114 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 900000001,
+        "message": {
+          "message_id": 4242,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "StagingTester",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "StagingTester",
+            "type": "private"
+          },
+          "date": 1787570000,
+          "text": "/track @lynnharfoush"
+        }
+      }
+    }
+  ],
+  "Clear Telegram User Links": [
+    {
+      "json": {
+        "chat_id": "8677383067"
+      }
+    }
+  ],
+  "Deactivate Tracked Users For Chat": [
+    {
+      "json": {
+        "user_id": "1062472974",
+        "username": "lynnharfoush",
+        "telegram_chat_id": "8677383067",
+        "is_active": false
+      }
+    }
+  ],
+  "Lookup X User By Username": [
+    {
+      "json": {
+        "data": {
+          "id": "1062472974",
+          "username": "lynnharfoush",
+          "name": "Lynn Harfoush"
+        }
+      }
+    }
+  ],
+  "Upsert Tracked X User": [
+    {
+      "json": {
+        "user_id": "1062472974",
+        "username": "lynnharfoush",
+        "telegram_chat_id": "8677383067",
+        "is_active": true
+      }
+    }
+  ],
+  "Link Telegram User To X User": [
+    {
+      "json": {
+        "id": 3,
+        "chat_id": "8677383067"
+      }
+    }
+  ],
+  "Send Tracking Success": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 4243,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Successfully tracking the following users:\n- lynnharfoush."
+        }
+      }
+    }
+  ],
+  "Send Track Users Input Error": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Track Input": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Track User Lookup Error": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Track Lookup": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ]
+}

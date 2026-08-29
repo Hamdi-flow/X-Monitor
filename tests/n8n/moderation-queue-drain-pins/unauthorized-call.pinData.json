@@ -1,0 +1,61 @@
+{
+  "Drain Webhook": [
+    {
+      "json": {
+        "headers": {
+          "content-type": "application/json",
+          "x-drain-secret": "WRONG_SECRET"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "due_count": 7,
+          "stale_reclaimed": 0,
+          "fired_at": "2026-08-27T06:00:00.000Z"
+        },
+        "webhookUrl": "https://example.invalid/webhook/moderation-queue-drain-staging",
+        "executionMode": "test"
+      }
+    }
+  ],
+  "Find Drainable Tokens": [
+    {
+      "json": {
+        "x_user_id": "TEST_MUST_NEVER_BE_REACHED",
+        "due_count": 7,
+        "allowance": 50,
+        "has_account": true,
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "x_username": "MustNeverBeReached",
+        "account_chat_id": "8677383067",
+        "reset_at": null,
+        "known_remaining": null,
+        "observed_at": null,
+        "earliest_due": "2026-08-27T05:50:00.000Z"
+      }
+    }
+  ],
+  "Claim Due Hide Rows": [],
+  "Hide Reply On X": [],
+  "Refresh Drain X Token": [],
+  "Upsert Refreshed Drain Account": [],
+  "Persist Queue Outcomes": [],
+  "Persist Reply Statuses": [],
+  "Persist X Rate Limits": [],
+  "Defer Rate Limited Tokens": [],
+  "Read Batch Progress": [],
+  "Defer Token Rows": [],
+  "Fail Token Rows": [],
+  "Edit Telegram Progress": [],
+  "Send Developer Alert - Drain Failures": [],
+  "Send Developer Alert - Drain Blocked": [],
+  "Verify Drain Secret": [
+    {
+      "json": {
+        "authorized": false
+      }
+    }
+  ]
+}

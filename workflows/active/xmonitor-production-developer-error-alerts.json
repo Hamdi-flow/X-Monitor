@@ -1,0 +1,128 @@
+{
+  "updatedAt": "2026-07-07T17:15:56.388Z",
+  "createdAt": "2026-07-07T17:12:07.033Z",
+  "id": "UmKr9JkZ3ec3GDH5",
+  "name": "XMonitor - Production Developer Error Alerts",
+  "description": "Production error workflow that receives n8n error events and sends compact Telegram alerts to the developer chat.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "4701a3e7-6e07-452e-947a-4163e9af57f2",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "b4a7c8b2-58b2-42b1-83bf-ff323540d98c",
+      "name": "Build Production Error Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const DEVELOPER_CHAT_ID = '8677383067';\nconst input = $input.first()?.json || $json || {};\nconst execution = input.execution || {};\nconst trigger = input.trigger || {};\nconst workflow = input.workflow || {};\nconst error = execution.error || trigger.error || input.error || {};\nconst cause = error.cause || {};\nconst errorNode = error.node || trigger.node || {};\nconst lastNode = execution.lastNodeExecuted || errorNode.name || (typeof error.node === 'string' ? error.node : '') || 'unknown';\nconst errorMessage = error.message || error.description || cause.message || error.stack || 'Unknown workflow error';\nconst executionId = execution.id || input.executionId || 'not saved';\nconst executionUrl = execution.url || '';\nconst workflowName = workflow.name || workflow.id || 'unknown workflow';\nconst workflowId = workflow.id || 'unknown';\nconst mode = execution.mode || trigger.mode || input.mode || 'unknown';\nconst startedAt = execution.startedAt || execution.started_at || trigger.startedAt || '';\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\\\"/g, '&quot;');\n}\n\nconst lines = [\n  '<b>XMonitor production workflow error</b>',\n  `Workflow: ${escapeHtml(workflowName)}`,\n  `Workflow ID: ${escapeHtml(workflowId)}`,\n  `Execution: ${escapeHtml(executionId)}`,\n  executionUrl ? `Execution URL: ${escapeHtml(executionUrl)}` : '',\n  `Mode: ${escapeHtml(mode)}`,\n  `Last node: ${escapeHtml(lastNode)}`,\n  startedAt ? `Started: ${escapeHtml(startedAt)}` : '',\n  `Error: ${escapeHtml(errorMessage).slice(0, 1500)}`,\n];\n\nreturn [{\n  json: {\n    developer_chat_id: DEVELOPER_CHAT_ID,\n    message: lines.filter(Boolean).join('\\n').slice(0, 3900),\n  },\n}];"
+      }
+    },
+    {
+      "id": "9ebf0e45-42fb-4d9c-a20c-08b949b83772",
+      "name": "Send Production Error Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.developer_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "93Zba0R65BeREluv",
+          "name": "TrackedUsersManager"
+        }
+      },
+      "webhookId": "ff9b3216-1bba-43c2-8c00-3801e6029798"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Production Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Production Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Production Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "UmKr9JkZ3ec3GDH5",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "7f675e4e-2d78-420d-af56-70eee3d8961a",
+  "activeVersionId": null,
+  "versionCounter": 3,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "shared": [
+    {
+      "updatedAt": "2026-07-07T17:12:07.035Z",
+      "createdAt": "2026-07-07T17:12:07.035Z",
+      "role": "workflow:owner",
+      "workflowId": "UmKr9JkZ3ec3GDH5",
+      "projectId": "HqQCDls654d5OYVX",
+      "project": {
+        "updatedAt": "2026-04-10T14:35:09.715Z",
+        "createdAt": "2026-04-10T14:33:58.687Z",
+        "id": "HqQCDls654d5OYVX",
+        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

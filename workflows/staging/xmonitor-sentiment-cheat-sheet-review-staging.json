@@ -1,0 +1,305 @@
+{
+  "updatedAt": "2026-08-29T10:27:27.683Z",
+  "createdAt": "2026-08-29T10:25:59.880Z",
+  "id": "sidiEHY92PD5jwYG",
+  "name": "XMonitor - Sentiment Cheat Sheet Review Staging",
+  "description": "Weekly staging job that turns hand-labelled replies into a draft per-client sentiment cheat sheet and sends it to Telegram for human activation. Drafts never affect labelling until activated.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "d0e42753-246d-4340-8fe2-7d721ac49a09",
+      "name": "Weekly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b0c7d359-aa38-4fbe-bef0-b7e57f385794",
+      "name": "Collect Labelled Replies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- One row per active client that has enough hand-labelled replies to learn from.\n-- Returning 0 rows is the correct \"nothing to review this week\" signal: every\n-- downstream node simply does not run. No alwaysOutputData here on purpose.\nWITH active_sheet AS (\n  -- MUST filter on status. Selecting the highest version regardless of status\n  -- would build each week's draft on top of last week's unapproved draft,\n  -- compounding changes a human deliberately rejected. Only what is actually\n  -- live is a valid starting point.\n  SELECT client_id, version, rules_text\n  FROM public.\"Sentiment Cheat Sheets\"\n  WHERE status = 'active'\n),\n-- Most recent 200 labels PER CLIENT, so a busy client cannot starve a quiet one.\nrecent AS (\n  SELECT * FROM (\n    SELECT r.client_id, r.text, r.sentiment, r.manual_sentiment,\n           r.manual_sentiment_note, r.manual_labeled_at,\n           row_number() OVER (PARTITION BY r.client_id\n                              ORDER BY r.manual_labeled_at DESC) AS rn\n    FROM public.\"Replies\" r\n    WHERE r.manual_sentiment IS NOT NULL\n  ) ranked WHERE rn <= 200\n),\nlabels AS (\n  SELECT\n    client_id,\n    count(*)::int AS label_count,\n    count(*) FILTER (WHERE sentiment IS DISTINCT FROM manual_sentiment)::int\n      AS disagreement_count,\n    min(manual_labeled_at) AS labels_from,\n    max(manual_labeled_at) AS labels_to,\n    jsonb_agg(jsonb_build_object(\n      'text',  left(coalesce(text, ''), 400),\n      'model', sentiment,\n      'human', manual_sentiment,\n      'note',  left(coalesce(manual_sentiment_note, ''), 300)\n    ) ORDER BY manual_labeled_at DESC) AS examples\n  FROM recent\n  GROUP BY client_id\n),\nrecipients AS (\n  SELECT client_id, array_agg(DISTINCT telegram_chat_id) AS chat_ids\n  FROM public.\"Tracked Users\"\n  WHERE is_active AND telegram_chat_id IS NOT NULL\n  GROUP BY client_id\n)\nSELECT\n  c.id::text                     AS client_id,\n  c.name                         AS client_name,\n  COALESCE(a.version, 0)         AS current_version,\n  COALESCE(a.rules_text, '')     AS current_rules,\n  l.label_count,\n  l.disagreement_count,\n  l.labels_from,\n  l.labels_to,\n  l.examples,\n  COALESCE(rc.chat_ids, ARRAY[]::text[]) AS chat_ids\nFROM public.\"Clients\" c\nJOIN labels l ON l.client_id = c.id\nLEFT JOIN active_sheet a ON a.client_id = c.id\nLEFT JOIN recipients rc ON rc.client_id = c.id\nWHERE c.is_active\n  -- Below this, a \"pattern\" is noise. Skipped clients simply wait a week.\n  AND l.label_count >= 15;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "52fe7919-a43b-4f89-bcd5-546abde9657a",
+      "name": "Build Generator Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Disagreements are listed first and separately: agreements confirm the model is\n// already fine and teach nothing, so burying the disagreements among them wastes\n// the context window on examples that cannot change any rule.\nconst MAX_AGREEMENTS_SHOWN = 20;\n\nreturn $input.all().map(item => {\n  const row = item.json || {};\n  const examples = Array.isArray(row.examples) ? row.examples : [];\n\n  const disagreements = examples.filter(e => e.model !== e.human);\n  const agreements = examples.filter(e => e.model === e.human).slice(0, MAX_AGREEMENTS_SHOWN);\n\n  const fmt = e => {\n    const note = e.note ? ` | reviewer said: ${e.note}` : '';\n    return `- \"${e.text}\" | model said ${e.model} | correct label ${e.human}${note}`;\n  };\n\n  const promptParts = [\n    `Client: ${row.client_name}`,\n    `Current cheat sheet (version ${row.current_version}):`,\n    row.current_rules ? row.current_rules : '(none yet)',\n    '',\n    `The model got these ${disagreements.length} replies WRONG. These are what you must fix:`,\n    disagreements.length ? disagreements.map(fmt).join('\\n') : '(none)',\n    '',\n    `For contrast, these it got right (sample of ${agreements.length}). Do not break them:`,\n    agreements.length ? agreements.map(fmt).join('\\n') : '(none)',\n  ];\n\n  return {\n    json: {\n      client_id: row.client_id,\n      client_name: row.client_name,\n      current_version: row.current_version,\n      label_count: row.label_count,\n      disagreement_count: row.disagreement_count,\n      labels_from: row.labels_from,\n      labels_to: row.labels_to,\n      chat_ids: Array.isArray(row.chat_ids) ? row.chat_ids : [],\n      text: promptParts.join('\\n'),\n    },\n  };\n});"
+      }
+    },
+    {
+      "id": "e00bb551-a0e0-4b8c-8b23-91640b180525",
+      "name": "Generate Cheat Sheet Draft",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4-mini",
+          "cachedResultName": "GPT-5.4-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You write labelling cheat sheets for a Lebanese Arabic sentiment classifier.\n\nYou receive the current cheat sheet plus replies a human reviewer relabelled,\nsplit into ones the model got WRONG and ones it got right.\n\nProduce an updated cheat sheet that would have fixed the wrong ones without\nbreaking the right ones.\n\nHard rules:\n- Only write a rule you can trace to at least two of the wrong examples. One\n  example is an anecdote, not a pattern. Never invent rules.\n- Prefer flat, mechanical rules: \"praise for X => Negative\". Avoid nuance the\n  model has to reason about.\n- Keep the whole sheet under 200 words. It is sent on every analyzer call, for\n  every post. Drop the weakest rule rather than growing.\n- Keep rules from the current sheet that the examples still support. Silently\n  dropping a working rule is a regression.\n- Write rules in English even though the replies are not.\n\nReturn valid JSON only, in exactly this shape:\n{\"rules_text\": \"...\", \"changes\": \"one line on what you changed and why\"}"
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "id": "e4136f97-a006-4501-ba93-b147d5a9110f",
+      "name": "Parse Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// The OpenAI node replaces the item, so client context is zipped back on by index.\nconst prompts = $('Build Generator Prompt').all();\nconst outputs = $('Generate Cheat Sheet Draft').all();\n\nfunction parseModelJson(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try { value = JSON.parse(value); } catch { continue; }\n    }\n    if (value && typeof value.rules_text === 'string') return value;\n  }\n  throw new Error('Cheat sheet generator returned no rules_text.');\n}\n\nreturn outputs.map((out, index) => {\n  const context = prompts[index]?.json || {};\n  const parsed = parseModelJson(out);\n  const rulesText = parsed.rules_text.trim();\n\n  // Storing an empty sheet would quietly blank the client's rules on activation.\n  if (!rulesText) {\n    throw new Error(`Empty rules_text generated for client ${context.client_id}.`);\n  }\n\n  return {\n    json: {\n      ...context,\n      rules_text: rulesText,\n      changes: String(parsed.changes || '').trim(),\n    },\n  };\n});"
+      }
+    },
+    {
+      "id": "cf795e14-f06e-4a87-b78e-f87a295497bb",
+      "name": "Store Draft Cheat Sheet",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Stored as a DRAFT. It has no effect on labelling until a human activates it:\n-- Get Active Cheat Sheets in the scheduler filters on status = 'active'.\n-- The version is computed inside the INSERT so two runs cannot collide on\n-- sentiment_cheat_sheets_client_version_key.\nINSERT INTO public.\"Sentiment Cheat Sheets\"\n  (client_id, version, status, rules_text, source_label_count,\n   generated_from, generated_to)\nSELECT\n  $1::uuid,\n  COALESCE(MAX(version), 0) + 1,\n  'draft',\n  $2,\n  $3::int,\n  $4::timestamptz,\n  $5::timestamptz\nFROM public.\"Sentiment Cheat Sheets\"\nWHERE client_id = $1::uuid\nRETURNING id::text AS draft_id, version;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$json.client_id, $json.rules_text, $json.label_count, $json.labels_from, $json.labels_to] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "dafa371a-f2d8-4fda-97eb-3f66e3791624",
+      "name": "Build Review Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// One Telegram message per (client, recipient). The Activate button is the human\n// gate: an auto-generated prompt must never reach live labelling unread.\nconst drafts = $('Store Draft Cheat Sheet').all();\nconst contexts = $('Parse Draft').all();\n\nfunction escapeHtml(value) {\n  return String(value == null ? '' : value)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nconst messages = [];\n\ndrafts.forEach((draftItem, index) => {\n  const draft = draftItem.json || {};\n  const context = contexts[index]?.json || {};\n  const chatIds = Array.isArray(context.chat_ids) ? context.chat_ids : [];\n\n  const message = [\n    '<b>Sentiment Cheat Sheet - draft for review</b>',\n    '',\n    `Client: ${escapeHtml(context.client_name)}`,\n    `Draft version: ${draft.version} (current active: v${context.current_version})`,\n    `Built from ${context.label_count} labelled replies, ${context.disagreement_count} of which the model got wrong.`,\n    '',\n    '<b>What changed</b>',\n    escapeHtml(context.changes) || '(the generator did not say)',\n    '',\n    '<b>Proposed rules</b>',\n    `<pre>${escapeHtml(context.rules_text)}</pre>`,\n    '',\n    'This draft is NOT live. Nothing changes until you activate it.',\n  ].join('\\n');\n\n  for (const chatId of chatIds) {\n    messages.push({\n      json: {\n        chat_id: chatId,\n        message,\n        draft_id: draft.draft_id,\n        activate_button_text: `Activate v${draft.version}`,\n        activate_callback_data: `cheatsheet_activate:${draft.draft_id}`,\n        discard_button_text: 'Discard',\n        discard_callback_data: `cheatsheet_discard:${draft.draft_id}`,\n      },\n    });\n  }\n});\n\nreturn messages;"
+      }
+    },
+    {
+      "id": "d6bd0437-bd91-4564-b642-fe20f469fe52",
+      "name": "Send Cheat Sheet For Review",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.activate_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.activate_callback_data }}"
+                    }
+                  },
+                  {
+                    "text": "={{ $json.discard_button_text }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.discard_callback_data }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "webhookId": "354da83f-fa93-4f1c-bb43-9f5fc2100e37",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Trigger": {
+      "main": [
+        [
+          {
+            "node": "Collect Labelled Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Labelled Replies": {
+      "main": [
+        [
+          {
+            "node": "Build Generator Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Generator Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Cheat Sheet Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Cheat Sheet Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Draft": {
+      "main": [
+        [
+          {
+            "node": "Store Draft Cheat Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Draft Cheat Sheet": {
+      "main": [
+        [
+          {
+            "node": "Build Review Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Cheat Sheet For Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "errorWorkflow": "CCzwnMyoy7UequuI"
+  },
+  "staticData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "742f265c-4e61-4c51-9291-e22f0d009163",
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "tags": []
+}

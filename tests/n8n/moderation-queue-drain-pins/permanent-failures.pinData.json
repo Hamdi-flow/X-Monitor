@@ -1,0 +1,242 @@
+{
+  "Drain Webhook": [
+    {
+      "json": {
+        "headers": {
+          "content-type": "application/json",
+          "x-drain-secret": "PINNED_FAKE_DRAIN_SECRET"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "due_count": 4,
+          "stale_reclaimed": 0,
+          "fired_at": "2026-08-27T06:00:00.000Z"
+        },
+        "webhookUrl": "https://example.invalid/webhook/moderation-queue-drain-staging",
+        "executionMode": "test"
+      }
+    }
+  ],
+  "Verify Drain Secret": [
+    {
+      "json": {
+        "authorized": true
+      }
+    }
+  ],
+  "Find Drainable Tokens": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "due_count": 4,
+        "earliest_due": "2026-08-26T05:50:00.000Z",
+        "allowance": 50,
+        "known_remaining": null,
+        "reset_at": null,
+        "observed_at": null,
+        "x_username": "DrainPermanent",
+        "account_chat_id": "8677383067",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "has_account": true
+      }
+    }
+  ],
+  "Claim Due Hide Rows": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000401",
+        "reply_id": "9990000000000000801",
+        "post_id": "9990000000000000005",
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "batch_id": "00000000-0000-4000-8000-0000000000b3",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4301,
+        "attempts": 1
+      }
+    },
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000402",
+        "reply_id": "9990000000000000802",
+        "post_id": "9990000000000000005",
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "batch_id": "00000000-0000-4000-8000-0000000000b3",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4301,
+        "attempts": 1
+      }
+    },
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000403",
+        "reply_id": "9990000000000000803",
+        "post_id": "9990000000000000005",
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "batch_id": "00000000-0000-4000-8000-0000000000b3",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4301,
+        "attempts": 1
+      }
+    },
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000404",
+        "reply_id": "9990000000000000804",
+        "post_id": "9990000000000000005",
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "batch_id": "00000000-0000-4000-8000-0000000000b3",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4301,
+        "attempts": 1
+      }
+    }
+  ],
+  "Hide Reply On X": [
+    {
+      "json": {
+        "statusCode": 400,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "46",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Invalid Request",
+          "detail": "One or more parameters to your request was invalid.",
+          "errors": [],
+          "type": "https://api.x.com/2/problems/invalid-request"
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 401,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "45",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Unauthorized",
+          "detail": "The access token was revoked by the user.",
+          "type": "about:blank"
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 403,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "44",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Forbidden",
+          "detail": "Forbidden",
+          "type": "about:blank"
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 403,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "43",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Client Forbidden",
+          "detail": "Your client app is not configured with the requested scope tweet.moderate.write.",
+          "type": "https://api.twitter.com/2/problems/client-forbidden"
+        }
+      }
+    }
+  ],
+  "Refresh Drain X Token": [
+    {
+      "json": {
+        "statusCode": 200,
+        "body": {
+          "access_token": "UNUSED_IN_THIS_FIXTURE"
+        }
+      }
+    }
+  ],
+  "Upsert Refreshed Drain Account": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "allowance": 50
+      }
+    }
+  ],
+  "Persist Queue Outcomes": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000401",
+        "status": "failed",
+        "attempts": 1
+      }
+    }
+  ],
+  "Persist Reply Statuses": [
+    {
+      "json": {
+        "reply_id": "9990000000000000801",
+        "status": "hide_failed"
+      }
+    }
+  ],
+  "Persist X Rate Limits": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_PERMANENT",
+        "remaining": 43
+      }
+    }
+  ],
+  "Defer Rate Limited Tokens": [],
+  "Read Batch Progress": [
+    {
+      "json": {
+        "batch_id": "00000000-0000-4000-8000-0000000000b3",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4301,
+        "post_id": "9990000000000000005",
+        "total": 4,
+        "done": 0,
+        "failed": 4,
+        "pending": 0,
+        "next_attempt_at": null
+      }
+    }
+  ],
+  "Defer Token Rows": [],
+  "Fail Token Rows": [],
+  "Edit Telegram Progress": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Drain Failures": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Drain Blocked": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ]
+}

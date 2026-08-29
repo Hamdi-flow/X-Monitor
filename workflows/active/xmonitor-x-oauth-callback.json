@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-18T19:00:44.363Z",
+  "updatedAt": "2026-07-07T17:16:21.845Z",
   "createdAt": "2026-05-25T10:45:41.851Z",
   "id": "JQ9KM3l1kRJQhWxb",
   "name": "XMonitor - X OAuth Callback",
@@ -703,7 +703,8 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "availableInMCP": true
+    "availableInMCP": true,
+    "errorWorkflow": "UmKr9JkZ3ec3GDH5"
   },
   "staticData": null,
   "meta": null,

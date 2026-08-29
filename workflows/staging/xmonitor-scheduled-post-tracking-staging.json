@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-06-28T11:50:54.611Z",
-  "createdAt": "2026-06-16T13:09:20.86Z",
+  "updatedAt": "2026-08-29T10:08:02.382Z",
+  "createdAt": "2026-06-16T13:09:20.860Z",
   "id": "l4eKZucUZXzfz0H8",
   "name": "XMonitor - Scheduled Post Tracking Staging",
   "description": "Inactive staging copy of the scheduled post tracking workflow using staging Supabase/Postgres/Telegram credentials and shared X/OpenAI credentials.",
@@ -23,7 +23,7 @@
       "typeVersion": 1.3,
       "position": [
         -2000,
-        448
+        576
       ]
     },
     {
@@ -38,7 +38,7 @@
       "typeVersion": 2.6,
       "position": [
         -1776,
-        448
+        576
       ],
       "credentials": {
         "postgres": {
@@ -49,29 +49,32 @@
     },
     {
       "parameters": {
-        "operation": "getAll",
-        "tableId": "Tracked Users",
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "-- T3: tracked users carry their client's alert thresholds, so every downstream\n-- decision is made per client instead of against a constant.\n--\n-- \"Clients\" is JOINed but NOT filtered on c.is_active: deactivating a client must\n-- not silently stop collecting its posts. An inactive client is dropped at delivery\n-- instead -- see Get Alert Recipients -- so the data keeps flowing and only the\n-- Telegram fan-out stops.\n--\n-- Both Supabase projects are shared with the sibling FB Monitor project, so every\n-- table is named explicitly.\nSELECT\n  tu.user_id,\n  tu.username,\n  tu.display_name,\n  tu.telegram_chat_id,\n  tu.is_active,\n  tu.client_id::text            AS client_id,\n  c.slug                        AS client_slug,\n  c.name                        AS client_name,\n  c.min_replies::int            AS client_min_replies,\n  -- numeric would arrive as the string '0.50' and break a strict-typed compare.\n  c.negative_threshold::float8  AS client_negative_threshold,\n  c.lookback_days::int          AS client_lookback_days\nFROM public.\"Tracked Users\" tu\nJOIN public.\"Clients\" c ON c.id = tu.client_id\nWHERE tu.is_active\nORDER BY tu.user_id;",
+        "options": {
+          "queryBatching": "single"
+        }
       },
       "id": "88048edd-0325-4fee-8ed0-1210eacedaf0",
       "name": "Get Tracked Users",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        -1552,
-        448
+        -1328,
+        736
       ],
       "alwaysOutputData": true,
       "credentials": {
-        "supabaseApi": {
-          "id": "6hDGofcoxdcQctBK",
-          "name": "Supabase Staging API"
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
         }
-      }
+      },
+      "notes": "T3: joins \"Clients\" so each tracked user carries its client thresholds."
     },
     {
       "parameters": {
-        "jsCode": "const DAYS_AGO = 60;\nconst usernames = [...new Set($input.all().map(item => String(item.json.username || '').trim()).filter(Boolean))];\nif (usernames.length === 0) { return [{ json: { should_continue: false, scheduler_alert_type: 'NO_TRACKED_USERS', message: 'Scheduled tracking ran with no tracked users configured.' } }]; }\nconst startDate = new Date();\nstartDate.setUTCDate(startDate.getUTCDate() - DAYS_AGO);\nreturn [{ json: { should_continue: true, query: usernames.map(username => `from:${username}`).join(' OR '), start_time: startDate.toISOString(), usernames, user_count: usernames.length } }];"
+        "jsCode": "const DAYS_AGO = 7;\nconst usernames = [...new Set($input.all().map(item => String(item.json.username || '').trim()).filter(Boolean))];\nif (usernames.length === 0) { return [{ json: { should_continue: false, scheduler_alert_type: 'NO_TRACKED_USERS', message: 'Scheduled tracking ran with no tracked users configured.' } }]; }\nconst startDate = new Date();\nstartDate.setUTCDate(startDate.getUTCDate() - DAYS_AGO);\nreturn [{ json: { should_continue: true, query: usernames.map(username => `from:${username}`).join(' OR '), start_time: startDate.toISOString(), usernames, user_count: usernames.length } }];"
       },
       "id": "2d478419-af19-428d-9b04-71d3407dffa7",
       "name": "Build X API Query",
@@ -79,7 +82,7 @@
       "typeVersion": 2,
       "position": [
         -1328,
-        448
+        576
       ]
     },
     {
@@ -92,34 +95,34 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -880,
-        448
+        -656,
+        496
       ]
     },
     {
       "parameters": {
-        "jsCode": "const state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\nconst postSearch = $('Get posts of tracked users').first()?.json || {};\nconst usersById = new Map(\n  (postSearch.includes?.users || []).map(user => [String(user.id), user])\n);\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all()\n  .filter(item => !blocked.has(String(item.json.id || '')))\n  .map(item => {\n    const author = usersById.get(String(item.json.author_id)) || {};\n    const username = String(author.username || '').trim();\n    const name = String(author.name || '').trim();\n\n    return {\n      json: {\n        ...item.json,\n        author_username: username,\n        author_name: name,\n        post_author: username ? `@${username}` : (name || String(item.json.author_id || 'unknown')),\n      },\n    };\n  });"
+        "jsCode": "// T3 fallbacks. These are the pre-T3 constants: if a post's client cannot be\n// resolved the post behaves exactly as it did before T3 rather than alerting on\n// everything. It is then reported by Build Negative Alert Notification.\nconst DEFAULT_MIN_REPLIES = 10;\nconst DEFAULT_NEGATIVE_THRESHOLD = 0.5;\n\nconst state = $('Advance Post Suppression State').first()?.json || {};\nconst rawBlocked = state.blocked_post_ids || [];\n\n// Author identity now comes from Tracked Users, so the posts query no longer\n// pays for expansions=author_id / includes.users on every run.\nconst trackedByUserId = new Map(\n  $('Get Tracked Users').all().map(item => [String(item.json.user_id || ''), item.json || {}])\n);\n\nlet blockedIds = [];\nif (Array.isArray(rawBlocked)) {\n  blockedIds = rawBlocked;\n} else if (typeof rawBlocked === 'string') {\n  blockedIds = rawBlocked\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\n\nconst blocked = new Set(blockedIds.map(String));\nreturn $input.all()\n  .filter(item => !blocked.has(String(item.json.id || '')))\n  .map(item => {\n    const tracked = trackedByUserId.get(String(item.json.author_id)) || {};\n    const username = String(tracked.username || '').trim();\n    const name = String(tracked.display_name || '').trim();\n\n    return {\n      json: {\n        ...item.json,\n        author_username: username,\n        author_name: name,\n        post_author: username ? `@${username}` : (name || String(item.json.author_id || 'unknown')),\n        // T3: the owning client rides along with the post from here on, so the\n        // reply-count gate, the sentiment gate and the alert fan-out can each be\n        // decided per client instead of against a global constant.\n        client_id: String(tracked.client_id || ''),\n        client_slug: String(tracked.client_slug || ''),\n        client_name: String(tracked.client_name || ''),\n        client_min_replies: Number.isFinite(Number(tracked.client_min_replies))\n          ? Number(tracked.client_min_replies)\n          : DEFAULT_MIN_REPLIES,\n        client_negative_threshold: Number.isFinite(Number(tracked.client_negative_threshold))\n          ? Number(tracked.client_negative_threshold)\n          : DEFAULT_NEGATIVE_THRESHOLD,\n      },\n    };\n  });"
       },
       "id": "58c22c13-36de-4ace-b921-faca8fcf356a",
       "name": "Filter Suppressed Posts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -656,
-        448
+        -432,
+        496
       ]
     },
     {
       "parameters": {
-        "jsCode": "const conversationIds = [...new Set(\n  $input.all()\n    .map(item => String(item.json.conversation_id || '').trim())\n    .filter(Boolean)\n)];\n\nif (conversationIds.length === 0) {\n  return [];\n}\n\nreturn [{\n  json: {\n    query: conversationIds\n      .map(id => `(conversation_id:${id} is:reply)`)\n      .join(' OR '),\n    conversation_ids: conversationIds,\n    conversation_count: conversationIds.length,\n  },\n}];"
+        "jsCode": "const LOOKBACK_DAYS = 7;\nconst MAX_QUERY_CHARS = 1000;              // X caps search/all queries at 1024\nconst MAX_CONVERSATIONS_PER_CHUNK = 15;    // limits-and-capacity.md 7.1\nconst OVERLAP_MINUTES = 10;                // tolerate X indexing lag; reply_id dedupes\n\nconst conversationIds = [...new Set(\n  $input.all()\n    .map(item => String(item.json.conversation_id || '').trim())\n    .filter(Boolean)\n)];\n\nif (conversationIds.length === 0) {\n  return [];\n}\n\nconst runState = $('Get Run State').first()?.json || {};\nconst runStartedAt = runState.run_started_at ? new Date(runState.run_started_at) : new Date();\nconst lastRun = runState.last_successful_run_at ? new Date(runState.last_successful_run_at) : null;\n\nlet startTime;\nlet isBackfill = false;\nif (lastRun && !Number.isNaN(lastRun.getTime())) {\n  startTime = new Date(lastRun.getTime() - OVERLAP_MINUTES * 60000);\n} else {\n  // First run after deploy: one full-window pass backfills the stored counts.\n  isBackfill = true;\n  startTime = new Date(runStartedAt.getTime() - LOOKBACK_DAYS * 86400000);\n}\n\n// X rejects a start_time that is too close to now.\nconst newestAllowed = new Date(Date.now() - 30000);\nif (startTime.getTime() > newestAllowed.getTime()) {\n  startTime = newestAllowed;\n}\n\nconst clause = id => `(conversation_id:${id} is:reply)`;\n\n// Chunk by measuring the assembled string, not by counting items.\nconst chunks = [];\nlet current = [];\nfor (const id of conversationIds) {\n  const candidate = [...current, id];\n  const assembled = candidate.map(clause).join(' OR ');\n  const tooLong = assembled.length > MAX_QUERY_CHARS;\n  const tooMany = candidate.length > MAX_CONVERSATIONS_PER_CHUNK;\n  if (current.length > 0 && (tooLong || tooMany)) {\n    chunks.push(current);\n    current = [id];\n  } else {\n    current = candidate;\n  }\n}\nif (current.length > 0) {\n  chunks.push(current);\n}\n\nreturn chunks.map((ids, index) => ({\n  json: {\n    query: ids.map(clause).join(' OR '),\n    start_time: startTime.toISOString(),\n    run_started_at: runStartedAt.toISOString(),\n    is_backfill: isBackfill,\n    conversation_ids: ids,\n    conversation_count: ids.length,\n    chunk_index: index,\n    chunk_count: chunks.length,\n  },\n}));"
       },
       "id": "3602a7d8-1c89-438a-80f1-41e9238efeb5",
       "name": "Build Replies Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -208,
-        448
+        16,
+        496
       ]
     },
     {
@@ -129,22 +132,22 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        16,
-        448
+        240,
+        496
       ],
       "webhookId": "d3e844f0-dc66-4af6-8b53-eda3f74d4720"
     },
     {
       "parameters": {
-        "jsCode": "const postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      postAuthor: item.json.post_author || (item.json.author_username ? `@${item.json.author_username}` : String(item.json.author_id || 'unknown')),\n      authorUsername: item.json.author_username || '',\n      authorName: item.json.author_name || '',\n      totalReplyCount: Number(item.json.public_metrics?.reply_count ?? 0),\n      replies: [],\n    },\n  ])\n);\n\nfor (const group of $('Get Replies').all()) {\n  for (const reply of group.json.data || []) {\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    post.replies.push({\n      id: reply.id,\n      text: String(reply.text || '').replace(/\\s+/g, ' ').trim(),\n    });\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results: [...postsByConversation.values()] }),\n  },\n}];"
+        "jsCode": "const MAX_IMAGES_PER_REPLY = 4;\n\nconst analyzedRow = $('Get Analyzed Reply Ids').first()?.json || {};\nlet analyzedIds = analyzedRow.analyzed_reply_ids || [];\nif (typeof analyzedIds === 'string') {\n  // Postgres text[] can arrive as a literal '{a,b,c}'.\n  analyzedIds = analyzedIds\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\nconst alreadyAnalyzed = new Set((Array.isArray(analyzedIds) ? analyzedIds : []).map(String));\n\nconst postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      postAuthor: item.json.post_author || (item.json.author_username ? `@${item.json.author_username}` : String(item.json.author_id || 'unknown')),\n      authorUsername: item.json.author_username || '',\n      authorName: item.json.author_name || '',\n      totalReplyCount: Number(item.json.public_metrics?.reply_count ?? 0),\n      replies: [],\n    },\n  ])\n);\n\nconst replyPages = $('Get Replies').all();\n\nconst seen = new Set();\nlet newReplyCount = 0;\nlet fetchedReplyCount = 0;\n\n// Replies carrying images or a video thumbnail. Relabelled downstream by a per-reply\n// multimodal call, because text-only analysis cannot see an image-only insult.\nconst mediaReplies = [];\nlet unresolvedMediaKeys = 0;\n\nfor (const group of replyPages) {\n  // media_keys resolve against this page's includes.media block.\n  const includes = group.json.includes || {};\n  const mediaByKey = new Map();\n  for (const m of (includes.media || [])) {\n    mediaByKey.set(String(m.media_key), m);\n  }\n\n  for (const reply of group.json.data || []) {\n    fetchedReplyCount += 1;\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    const replyId = String(reply.id);\n    // Skip replies scored in an earlier pass, and duplicates across chunks/overlap/pages.\n    if (alreadyAnalyzed.has(replyId) || seen.has(replyId)) continue;\n    seen.add(replyId);\n\n    const text = String(reply.text || '').replace(/\\s+/g, ' ').trim();\n    post.replies.push({\n      id: replyId,\n      text,\n    });\n    newReplyCount += 1;\n\n    const declaredKeys = (reply.attachments && reply.attachments.media_keys) ? reply.attachments.media_keys : [];\n    const imageUrls = [];\n    for (const key of declaredKeys) {\n      const m = mediaByKey.get(String(key));\n      if (!m) { unresolvedMediaKeys += 1; continue; }\n      // Photos expose url. Video and animated_gif expose only a thumbnail.\n      const url = m.url || m.preview_image_url || '';\n      if (url) imageUrls.push(url);\n    }\n\n    if (imageUrls.length > 0) {\n      mediaReplies.push({\n        reply_id: replyId,\n        post_id: String(post.postId || ''),\n        postText: String(post.postText || ''),\n        replyText: text,\n        imageUrls: imageUrls.slice(0, MAX_IMAGES_PER_REPLY),\n      });\n    }\n  }\n}\n\n// Page-cap detection. Pagination stops either because a page carried no next_token\n// (complete) or because maxRequests was reached (truncated). Group pages back to the\n// chunk that produced them and check whether that chunk's LAST page still had a token.\n// A silent cap here would look identical to \"there was nothing more\", and under\n// incremental fetching the missed replies are never requested again.\nfunction lastPageStillHasToken(pages) {\n  const byChunk = new Map();\n  pages.forEach((page, index) => {\n    let key = 'unknown';\n    const paired = page.pairedItem;\n    if (typeof paired === 'number') key = String(paired);\n    else if (paired && typeof paired === 'object' && paired.item !== undefined) key = String(paired.item);\n    if (!byChunk.has(key)) byChunk.set(key, []);\n    byChunk.get(key).push(page);\n  });\n  for (const group of byChunk.values()) {\n    const last = group[group.length - 1];\n    if (last?.json?.meta?.next_token) return true;\n  }\n  return false;\n}\n\nconst repliesTruncated = lastPageStillHasToken(replyPages);\n\nlet postsTruncated = false;\nlet postPageCount = 0;\ntry {\n  const postPages = $('Get posts of tracked users').all();\n  postPageCount = postPages.length;\n  postsTruncated = lastPageStillHasToken(postPages);\n} catch (e) {\n  // posts node output unavailable; leave defaults\n}\n\n// T3: which client owns each post, and its thresholds. Built as a separate map\n// and deliberately kept OUT of `results`/`text`, because `text` is the OpenAI\n// prompt payload -- tenancy ids have no business in it, and adding them would\n// change the prompt, its cost, and the model's input for no gain.\nconst post_client_map = {};\nfor (const item of $('Keep Posts With 10+ Replies').all()) {\n  const row = item.json || {};\n  const postId = String(row.id || '');\n  if (!postId) continue;\n  post_client_map[postId] = {\n    client_id: String(row.client_id || ''),\n    client_slug: String(row.client_slug || ''),\n    client_name: String(row.client_name || ''),\n    min_replies: Number(row.client_min_replies ?? 10),\n    negative_threshold: Number(row.client_negative_threshold ?? 0.5),\n  };\n}\n\nconst allPosts = [...postsByConversation.values()];\n// Only posts with something new go to OpenAI.\nconst results = allPosts.filter(post => post.replies.length > 0);\n\nreturn [{\n  json: {\n    has_new_replies: newReplyCount > 0,\n    new_reply_count: newReplyCount,\n    fetched_reply_count: fetchedReplyCount,\n    reply_page_count: replyPages.length,\n    post_page_count: postPageCount,\n    replies_truncated: repliesTruncated,\n    posts_truncated: postsTruncated,\n    fetch_truncated: repliesTruncated || postsTruncated,\n    media_reply_count: mediaReplies.length,\n    unresolved_media_keys: unresolvedMediaKeys,\n    media_replies: mediaReplies,\n    post_client_map,\n    candidate_post_ids: allPosts.map(post => String(post.postId || '')).filter(Boolean),\n    text: JSON.stringify({ results }),\n  },\n}];"
       },
       "id": "6709d845-b024-42d2-a045-184a0dda4440",
       "name": "Attach replies to posts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        464,
-        448
+        688,
+        496
       ]
     },
     {
@@ -152,13 +155,18 @@
         "modelId": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4o-mini"
+          "value": "gpt-5.4-mini",
+          "cachedResultName": "GPT-5.4-MINI"
         },
         "responses": {
           "values": [
             {
               "role": "system",
               "content": "You are a lebanese arabic sentiment labeling engine.\n\nYou will receive a list of posts. for each post, you will be provided the postId, the post Text and a list of replies to that post in the following format:\n{ \"results\": [ {\"postId\" : postId, \"postText\": postText, \"userId\": userId, \"replies\":[ {\"id\": id, \"text\":text}, {\"id\": id, \"text\":text} ] ] }\n\n\nFor each reply, output exactly one label:\nPositive, Negative, or Neutral.\n\nReturn valid JSON only in this exact format:\n{\n  \"results\": [\n{\"postId\" : postId,\n\"postText\": postText,\n\"userId\": userId, \n \"replies\":[\n    {\"id\": id, \"sentiment\": \"Positive\", \"text\":text},\n    {\"id\": id, \"sentiment\": \"Neutral\", \"text\":text}\n ]\n  ]\n}\n\nRules:\n- Keep the same numbering as the input.\n- Make sure the postId and postText stays exactly the same as provided\n- Do not skip any comment.\n- Only use Positive, Negative, or Neutral.\n- Do not include explanations.\n- Output JSON only."
+            },
+            {
+              "role": "system",
+              "content": "={{ $json.cheat_sheet_block }}"
             },
             {
               "content": "={{ $json.text }}"
@@ -179,9 +187,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        688,
-        448
+        912,
+        496
       ],
+      "onError": "continueErrorOutput",
       "credentials": {
         "openAiApi": {
           "id": "Valu7LAYDqkPgcyU",
@@ -191,15 +200,15 @@
     },
     {
       "parameters": {
-        "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nfunction parseInputPosts() {\n  const raw = $('Attach replies to posts').first()?.json?.text;\n  if (!raw) return [];\n  try {\n    const parsed = JSON.parse(raw);\n    return Array.isArray(parsed.results) ? parsed.results : [];\n  } catch {\n    return [];\n  }\n}\n\nconst inputPostsById = new Map(\n  parseInputPosts().map(post => [String(post.postId || ''), post])\n);\n\nreturn items.map(item => {\n  const posts = parseResults(item).map(post => {\n    const metadata = inputPostsById.get(String(post.postId || '')) || {};\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n    const counts = { positive: 0, neutral: 0, negative: 0 };\n\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(counts, sentiment)) {\n        counts[sentiment] += 1;\n      }\n    }\n\n    const comments_count = replies.length;\n    const total_reply_count = Number(metadata.totalReplyCount ?? comments_count);\n    const negative_ratio = comments_count > 0\n      ? counts.negative / comments_count\n      : 0;\n\n    let overall_tag = 'Neutral';\n    if (counts.positive > counts.neutral && counts.positive > counts.negative) {\n      overall_tag = 'Positive';\n    } else if (counts.negative > counts.neutral && counts.negative > counts.positive) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId || metadata.userId,\n      postAuthor: metadata.postAuthor || post.postAuthor || String(post.userId || metadata.userId || 'unknown'),\n      authorUsername: metadata.authorUsername || post.authorUsername || '',\n      authorName: metadata.authorName || post.authorName || '',\n      replies,\n      comments_count,\n      total_reply_count,\n      positive_count: counts.positive,\n      neutral_count: counts.neutral,\n      negative_count: counts.negative,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n    };\n  });\n\n  return {\n    json: {\n      posts: posts.filter(post => post.negative_ratio >= 0.5),\n    },\n  };\n});"
+        "jsCode": "// T3: the alert threshold is per client now. This constant survives only as the\n// fallback for a post whose client did not resolve, and equals the pre-T3 value.\nconst DEFAULT_ALERT_THRESHOLD = 0.5;\n\nfunction parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nfunction parseInputPosts() {\n  const raw = $('Attach replies to posts').first()?.json?.text;\n  if (!raw) return [];\n  try {\n    const parsed = JSON.parse(raw);\n    return Array.isArray(parsed.results) ? parsed.results : [];\n  } catch {\n    return [];\n  }\n}\n\nconst inputPostsById = new Map(\n  parseInputPosts().map(post => [String(post.postId || ''), post])\n);\n\n// T3: per-post client thresholds, carried alongside the post rather than inside\n// the model payload. See Attach replies to posts.\nconst clientByPostId = $('Attach replies to posts').first()?.json?.post_client_map || {};\n\n// Counts from replies scored in earlier passes.\nconst storedByPostId = new Map(\n  $('Get Stored Post Counts').all().map(item => {\n    const row = item.json || {};\n    return [String(row.post_id || ''), {\n      analyzed: Number(row.stored_analyzed || 0),\n      negative: Number(row.stored_negative || 0),\n      positive: Number(row.stored_positive || 0),\n      neutral: Number(row.stored_neutral || 0),\n    }];\n  })\n);\n\n// Read the media-corrected labels, not the raw batched output: replies carrying an\n// image are relabelled by a per-reply multimodal call in Apply Media Sentiment.\nconst posts = $('Apply Media Sentiment').all().flatMap(item =>\n  parseResults(item).map(post => {\n    const postId = String(post.postId || '');\n    const metadata = inputPostsById.get(postId) || {};\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n\n    const fresh = { positive: 0, neutral: 0, negative: 0 };\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(fresh, sentiment)) {\n        fresh[sentiment] += 1;\n      }\n    }\n\n    const stored = storedByPostId.get(postId) || { analyzed: 0, negative: 0, positive: 0, neutral: 0 };\n    const client = clientByPostId[postId] || {};\n    const clientThreshold = Number(client.negative_threshold);\n    const alert_threshold = Number.isFinite(clientThreshold) ? clientThreshold : DEFAULT_ALERT_THRESHOLD;\n\n    // The ratio is (stored + new) / (stored + new), never this run's slice alone.\n    const new_analyzed_count = replies.length;\n    const analyzed_count = stored.analyzed + new_analyzed_count;\n    const negative_count = stored.negative + fresh.negative;\n    const positive_count = stored.positive + fresh.positive;\n    const neutral_count = stored.neutral + fresh.neutral;\n    const negative_ratio = analyzed_count > 0 ? negative_count / analyzed_count : 0;\n\n    const total_reply_count = Number(metadata.totalReplyCount ?? analyzed_count);\n\n    let overall_tag = 'Neutral';\n    if (positive_count > neutral_count && positive_count > negative_count) {\n      overall_tag = 'Positive';\n    } else if (negative_count > neutral_count && negative_count > positive_count) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId || metadata.userId,\n      postAuthor: metadata.postAuthor || post.postAuthor || String(post.userId || metadata.userId || 'unknown'),\n      authorUsername: metadata.authorUsername || post.authorUsername || '',\n      authorName: metadata.authorName || post.authorName || '',\n      replies,\n      new_analyzed_count,\n      new_negative_count: fresh.negative,\n      stored_analyzed_count: stored.analyzed,\n      stored_negative_count: stored.negative,\n      comments_count: analyzed_count,\n      analyzed_count,\n      total_reply_count,\n      positive_count,\n      neutral_count,\n      negative_count,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n      // T3: the owning client travels with the post so the alert fan-out can route\n      // on it without re-querying, and so execution data shows who a post was for.\n      client_id: String(client.client_id || ''),\n      client_slug: String(client.client_slug || ''),\n      client_name: String(client.client_name || ''),\n      alert_threshold,\n      // Storage is no longer gated on the threshold - only alerting is.\n      alert_now: negative_ratio >= alert_threshold,\n    };\n  })\n);\n\nreturn [{ json: { posts } }];"
       },
       "id": "588619c4-fb92-4402-bdb2-fe65d6ceb218",
       "name": "Calculate/Filter Sentiment Counts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
-        448
+        1264,
+        496
       ]
     },
     {
@@ -212,8 +221,8 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        1264,
-        448
+        1488,
+        496
       ]
     },
     {
@@ -255,6 +264,18 @@
               "name": "user_id",
               "value": "={{ $json.userId }}",
               "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "analyzed_count",
+              "value": "={{ $json.analyzed_count }}",
+              "type": "number"
+            },
+            {
+              "id": "8",
+              "name": "negative_ratio",
+              "value": "={{ $json.negative_ratio }}",
+              "type": "number"
             }
           ]
         },
@@ -265,17 +286,17 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1488,
-        448
+        1712,
+        496
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO public.\"Posts\" (\n  post_id,\n  post_text,\n  comment_count,\n  negative_count,\n  status,\n  user_id,\n  created_at,\n  snooze_runs_remaining\n)\nVALUES ($1, $2, $3, $4, 'New', $5, now(), 0)\nON CONFLICT (post_id) DO UPDATE\nSET\n  post_text = EXCLUDED.post_text,\n  comment_count = EXCLUDED.comment_count,\n  negative_count = EXCLUDED.negative_count,\n  user_id = EXCLUDED.user_id,\n  created_at = now()\nRETURNING post_id, post_text, comment_count, negative_count, status, user_id, created_at, snooze_runs_remaining;",
+        "query": "-- Every candidate post (10+ replies) is stored now, not only threshold crossers,\n-- so a running denominator exists for posts that have not crossed yet.\n-- Alerting is gated downstream on alert_now.\nINSERT INTO public.\"Posts\" (\n  post_id,\n  post_text,\n  comment_count,\n  negative_count,\n  status,\n  user_id,\n  created_at,\n  snooze_runs_remaining,\n  analyzed_count,\n  negative_ratio\n)\nVALUES ($1, $2, $3, $4, 'New', $5, now(), 0, $6, $7)\nON CONFLICT (post_id) DO UPDATE\nSET\n  post_text      = EXCLUDED.post_text,\n  comment_count  = EXCLUDED.comment_count,\n  negative_count = EXCLUDED.negative_count,\n  user_id        = EXCLUDED.user_id,\n  analyzed_count = EXCLUDED.analyzed_count,\n  negative_ratio = EXCLUDED.negative_ratio\n-- created_at is deliberately not reset: candidate posts are refreshed every pass\n-- and resetting it would make every stored post look newly discovered.\n-- status is deliberately not touched, so Ignored/Snoozed survive a refresh.\nRETURNING post_id, post_text, comment_count, negative_count, status, user_id, created_at, snooze_runs_remaining, analyzed_count, negative_ratio;",
         "options": {
           "queryBatching": "independently",
-          "queryReplacement": "={{ [$json.post_id, $json.post_text, $json.comment_count, $json.negative_count, $json.user_id] }}"
+          "queryReplacement": "={{ [$json.post_id, $json.post_text, $json.comment_count, $json.negative_count, $json.user_id, $json.analyzed_count, $json.negative_ratio] }}"
         }
       },
       "id": "645ce1d5-9277-4a1f-b9c8-3164b1bfc814",
@@ -283,8 +304,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1712,
-        448
+        1936,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -302,41 +323,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1936,
-        448
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "aefb6dea-0b7c-4773-b143-24d263298b38",
-              "leftValue": "={{ $json.sentiment }}",
-              "rightValue": "Negative",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "a4f113ae-6b34-4a96-ab3f-83c0125bd01a",
-      "name": "Filter Negative Replies",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.3,
-      "position": [
         2160,
-        448
+        496
       ]
     },
     {
@@ -360,6 +348,18 @@
               "name": "post_id",
               "value": "={{ $json.postId }}",
               "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "sentiment",
+              "value": "={{ $json.sentiment }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "analyzed_at",
+              "value": "={{ $now }}",
+              "type": "string"
             }
           ]
         },
@@ -370,8 +370,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2384,
-        448
+        2608,
+        496
       ]
     },
     {
@@ -394,6 +394,8 @@
             "reply_id": "={{ $json.reply_id }}",
             "text": "={{ $json.text }}",
             "post_id": "={{ $json.post_id }}",
+            "sentiment": "={{ $json.sentiment }}",
+            "analyzed_at": "={{ $json.analyzed_at }}",
             "created_at": "={{ $now }}"
           },
           "matchingColumns": [
@@ -436,6 +438,24 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": false
+            },
+            {
+              "id": "sentiment",
+              "displayName": "sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "analyzed_at",
+              "displayName": "analyzed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -448,8 +468,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2608,
-        448
+        2832,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -460,40 +480,44 @@
     },
     {
       "parameters": {
-        "operation": "getAll",
-        "tableId": "Telegram Users",
-        "returnAll": true,
-        "filterType": "none"
+        "operation": "executeQuery",
+        "query": "-- T3: recipients resolved per post owner. This replaces the unfiltered read of\n-- \"Telegram Users\", which handed every recipient every client's post text and\n-- reply counts the moment a second chat existed.\n--\n-- A chat receives a post only when it is an active, alert-receiving member of the\n-- client that owns that post.\n--\n-- LEFT JOIN, not INNER, on purpose: a client that has alerting posts but no\n-- eligible member must still produce a row, so Build Negative Alert Notification\n-- can raise a developer alert naming it rather than dropping the alert in silence.\n-- c.is_active is applied here, so a deactivated client stops receiving Telegram\n-- alerts while its posts continue to be collected and stored.\n--\n-- \"Telegram Users\" is deliberately no longer read. The Telegram router still\n-- writes it, so the table stays in place; retiring it is a later cleanup.\nWITH requested AS (\n  SELECT DISTINCT unnest($1::uuid[]) AS client_id\n)\nSELECT\n  requested.client_id::text AS client_id,\n  c.name                    AS client_name,\n  c.slug                    AS client_slug,\n  cm.chat_id,\n  cm.label,\n  cm.role\nFROM requested\nLEFT JOIN public.\"Clients\" c\n  ON c.id = requested.client_id\n AND c.is_active\nLEFT JOIN public.\"Client Members\" cm\n  ON cm.client_id = c.id\n AND cm.is_active\n AND cm.receives_alerts\nORDER BY requested.client_id, cm.chat_id;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [[...new Set($('Split Out Reply Analysis').all().filter(item => item.json.alert_now).map(item => String(item.json.client_id || \"\")).filter(value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)))]] }}"
+        }
       },
       "id": "5a504821-0f54-4bea-bedb-27ed688d5d09",
-      "name": "Get Telegram Users",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
+      "name": "Get Alert Recipients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        2832,
-        448
+        5968,
+        336
       ],
       "alwaysOutputData": true,
       "credentials": {
-        "supabaseApi": {
-          "id": "6hDGofcoxdcQctBK",
-          "name": "Supabase Staging API"
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
         }
-      }
+      },
+      "executeOnce": true,
+      "notes": "T3: replaces the unfiltered \"Telegram Users\" read. The router still writes that table; it is simply no longer a routing source."
     },
     {
       "parameters": {
-        "jsCode": "const posts = $('Split Out Reply Analysis').all().map(item => item.json || {});\nconst replyCountsByPostId = new Map(\n  $('Get Reply Status Counts').all().map(item => {\n    const row = item.json || {};\n    return [String(row.post_id || ''), {\n      hiddenNegative: Number(row.hidden_negative_replies_count || 0),\n      nonHiddenNegative: Number(row.non_hidden_negative_replies_count || 0),\n    }];\n  })\n);\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nif (posts.length === 0) { return []; }\nconst telegramUsers = $input.all().map(item => item.json || {}).filter(user => user.chat_id);\nif (telegramUsers.length === 0) { return [{ json: { notify_ready: false, scheduler_alert_type: 'NO_TELEGRAM_RECIPIENTS', post_count: posts.length, post_ids: posts.map(post => String(post.postId || '')).filter(Boolean), message: `Scheduled tracking generated ${posts.length} negative alert post(s), but no Telegram recipients are configured.` } }]; }\nreturn telegramUsers.flatMap(user => posts.map((post, index) => {\n  const postId = String(post.postId || '');\n  const counts = replyCountsByPostId.get(postId) || {};\n  const text = escapeHtml(post.postText || '');\n  const author = escapeHtml(post.postAuthor || post.authorUsername || post.userId || 'unknown');\n  const totalReplies = Number(post.total_reply_count ?? post.comments_count ?? 0);\n  const analyzedReplies = Number(post.comments_count ?? 0);\n  const negativeCount = Number(post.negative_count ?? 0);\n  const hiddenNegativeReplies = Number(counts.hiddenNegative ?? 0);\n  const nonHiddenNegativeReplies = Number(counts.nonHiddenNegative ?? Math.max(negativeCount - hiddenNegativeReplies, 0));\n  const negativePercentage = post.negative_percentage ?? 0;\n  const overall = escapeHtml(post.overall_tag || 'Negative');\n  const tweetUrl = `https://x.com/i/web/status/${postId}`;\n  const message = [\n    '<b>XMonitor Scheduled Post Alert</b>',\n    '',\n    `<b>Post ${index + 1}</b>`,\n    `Author: ${author}`,\n    `Post ID: <code>${postId}</code>`,\n    `Link: ${tweetUrl}`,\n    '',\n    '<b>Key Metrics</b>',\n    `Total replies: ${totalReplies}`,\n    `Analyzed replies: ${analyzedReplies}`,\n    `Negative replies: ${negativeCount}`,\n    `Hidden negative replies: ${hiddenNegativeReplies}`,\n    `Visible negative replies: ${nonHiddenNegativeReplies}`,\n    `Negative sentiment: ${negativePercentage}%`,\n    `Overall sentiment: ${overall}`,\n    '',\n    '<b>Post Text</b>',\n    text || '(empty)',\n  ].join('\\n');\n  return { json: { notify_ready: true, chat_id: user.chat_id, post_id: postId, message, snooze_button_text: 'Snooze', snooze_callback_data: `snooze:${postId}`, ignore_button_text: 'Ignore', ignore_callback_data: `ignore:${postId}`, hide_button_text: `Hide replies for Post #${index + 1}`, hide_callback_data: `hide_replies:${postId}` } };\n}));"
+        "jsCode": "// Storage is no longer gated on the threshold, so the alert gate lives here.\n//\n// T3: alerts are routed per client. A post reaches exactly the chats that are\n// active, alert-receiving members of the client that owns it, and never the whole\n// recipient table. Input is Get Alert Recipients, not the retired Telegram Users.\nconst posts = $('Split Out Reply Analysis').all()\n  .map(item => item.json || {})\n  .filter(post => post.alert_now);\n\nconst replyCountsByPostId = new Map(\n  $('Get Reply Status Counts').all().map(item => {\n    const row = item.json || {};\n    return [String(row.post_id || ''), {\n      hiddenNegative: Number(row.hidden_negative_replies_count || 0),\n      nonHiddenNegative: Number(row.non_hidden_negative_replies_count || 0),\n    }];\n  })\n);\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nif (posts.length === 0) { return []; }\n\n// Recipients grouped by client. Get Alert Recipients LEFT JOINs, so a client with\n// no eligible member arrives as a row with a null chat_id -- that is how a\n// misconfigured client is detected instead of silently skipped.\n//\n// Dedupe by (client, chat) defensively. The query runs executeOnce, but a repeated\n// pair must never become a repeated alert.\nconst recipientsByClient = new Map();\nconst clientNameById = new Map();\nconst seenRecipients = new Set();\nfor (const item of $input.all()) {\n  const row = item.json || {};\n  const clientId = String(row.client_id || '');\n  if (!clientId) { continue; }\n  if (!recipientsByClient.has(clientId)) { recipientsByClient.set(clientId, []); }\n  if (row.client_name) { clientNameById.set(clientId, String(row.client_name)); }\n\n  const chatId = String(row.chat_id || '');\n  if (!chatId) { continue; }\n  const key = clientId + '|' + chatId;\n  if (seenRecipients.has(key)) { continue; }\n  seenRecipients.add(key);\n  recipientsByClient.get(clientId).push({\n    chat_id: chatId,\n    label: String(row.label || ''),\n    role: String(row.role || ''),\n  });\n}\n\n// Posts grouped by owner. An empty client_id means the owner did not resolve\n// upstream; such a post is reported to the developer chat, never broadcast.\nconst postsByClient = new Map();\nfor (const post of posts) {\n  const clientId = String(post.client_id || '');\n  if (!postsByClient.has(clientId)) { postsByClient.set(clientId, []); }\n  postsByClient.get(clientId).push(post);\n}\n\nfunction describeClient(clientId) {\n  if (!clientId) { return 'an unresolved client (the post owner did not resolve)'; }\n  const name = clientNameById.get(clientId);\n  return name ? name + ' (' + clientId + ')' : clientId;\n}\n\nfunction buildAlert(clientId, recipient, post, index) {\n  const postId = String(post.postId || '');\n  const counts = replyCountsByPostId.get(postId) || {};\n  const text = escapeHtml(post.postText || '');\n  const author = escapeHtml(post.postAuthor || post.authorUsername || post.userId || 'unknown');\n  const totalReplies = Number(post.total_reply_count ?? post.comments_count ?? 0);\n  const analyzedReplies = Number(post.analyzed_count ?? post.comments_count ?? 0);\n  const negativeCount = Number(post.negative_count ?? 0);\n  const hiddenNegativeReplies = Number(counts.hiddenNegative ?? 0);\n  const nonHiddenNegativeReplies = Number(counts.nonHiddenNegative ?? Math.max(negativeCount - hiddenNegativeReplies, 0));\n  const negativePercentage = post.negative_percentage ?? 0;\n  const overall = escapeHtml(post.overall_tag || 'Negative');\n  const tweetUrl = 'https://x.com/i/web/status/' + postId;\n  const message = [\n    '<b>XMonitor Scheduled Post Alert</b>',\n    '',\n    '<b>Post ' + (index + 1) + '</b>',\n    'Author: ' + author,\n    'Post ID: <code>' + postId + '</code>',\n    'Link: ' + tweetUrl,\n    '',\n    '<b>Key Metrics</b>',\n    'Total replies: ' + totalReplies,\n    'Analyzed replies: ' + analyzedReplies,\n    'Negative replies: ' + negativeCount,\n    'Hidden negative replies: ' + hiddenNegativeReplies,\n    'Visible negative replies: ' + nonHiddenNegativeReplies,\n    'Negative sentiment: ' + negativePercentage + '%',\n    'Overall sentiment: ' + overall,\n    '',\n    '<b>Post Text</b>',\n    text || '(empty)',\n  ].join('\\n');\n  return { json: {\n    notify_ready: true,\n    chat_id: recipient.chat_id,\n    client_id: clientId,\n    post_id: postId,\n    message,\n    snooze_button_text: 'Snooze',\n    snooze_callback_data: 'snooze:' + postId,\n    ignore_button_text: 'Ignore',\n    ignore_callback_data: 'ignore:' + postId,\n    hide_button_text: 'Hide replies for Post #' + (index + 1),\n    hide_callback_data: 'hide_replies:' + postId,\n  } };\n}\n\nconst out = [];\nfor (const [clientId, clientPosts] of postsByClient) {\n  const recipients = recipientsByClient.get(clientId) || [];\n\n  if (recipients.length === 0) {\n    // Per client, not global. This is pushed alongside the other clients' alerts\n    // rather than returned early, so one client's misconfiguration cannot suppress\n    // another client's alerts. If Notifications Ready routes it to the developer\n    // chat on the false branch while the true branch still sends.\n    out.push({ json: {\n      notify_ready: false,\n      scheduler_alert_type: 'NO_TELEGRAM_RECIPIENTS',\n      client_id: clientId,\n      client_name: clientNameById.get(clientId) || '',\n      post_count: clientPosts.length,\n      post_ids: clientPosts.map(post => String(post.postId || '')).filter(Boolean),\n      message: 'Scheduled tracking generated ' + clientPosts.length +\n        ' negative alert post(s) for ' + describeClient(clientId) +\n        ', but that client has no active \"Client Members\" row with receives_alerts.' +\n        ' Those alerts were not sent. Other clients were unaffected.',\n    } });\n    continue;\n  }\n\n  for (const recipient of recipients) {\n    clientPosts.forEach((post, index) => {\n      out.push(buildAlert(clientId, recipient, post, index));\n    });\n  }\n}\n\nreturn out;"
       },
       "id": "70b98b2f-e854-414e-a9ef-56dd5aff4d42",
       "name": "Build Negative Alert Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3056,
-        448
+        3504,
+        496
       ],
-      "executeOnce": true
+      "notes": "T3: one alert per recipient per post, grouped by the post owner. Per-client NO_TELEGRAM_RECIPIENTS."
     },
     {
       "parameters": {
@@ -563,10 +587,11 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3280,
+        3952,
         448
       ],
       "webhookId": "8536005c-1f5b-403d-9c0d-257531cb5000",
+      "disabled": false,
       "credentials": {
         "telegramApi": {
           "id": "1PkKyBUkopLzyBuI",
@@ -587,7 +612,7 @@
             {
               "id": "a5a9f6cf-61ca-4352-8f32-3aa762ea2e2f",
               "leftValue": "={{ $json.public_metrics.reply_count }}",
-              "rightValue": 10,
+              "rightValue": "={{ $json.client_min_replies }}",
               "operator": {
                 "type": "number",
                 "operation": "gte"
@@ -603,9 +628,11 @@
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.3,
       "position": [
-        -432,
-        448
-      ]
+        -208,
+        496
+      ],
+      "alwaysOutputData": true,
+      "notes": "T3: the threshold is the post's own client min_replies, not a constant. Name kept for the $() references and pinned fixtures."
     },
     {
       "parameters": {
@@ -624,32 +651,44 @@
               "value": "created_at,author_id,text,public_metrics,conversation_id"
             },
             {
-              "name": "expansions",
-              "value": "author_id"
-            },
-            {
-              "name": "user.fields",
-              "value": "id,name,username"
-            },
-            {
               "name": "start_time",
               "value": "={{ $json.start_time }}"
             },
             {
               "name": "max_results",
-              "value": "50"
+              "value": "100"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "next_token",
+                    "value": "={{ $response.body.meta.next_token }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.meta.next_token }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10,
+              "requestInterval": 1100
+            }
+          }
+        }
       },
       "id": "399b536c-ac26-44bd-951f-fc50b4ca3b9b",
       "name": "Get posts of tracked users",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1104,
-        448
+        -880,
+        496
       ],
       "credentials": {
         "httpBearerAuth": {
@@ -671,24 +710,62 @@
               "value": "={{ $json.query }}"
             },
             {
+              "name": "start_time",
+              "value": "={{ $json.start_time }}"
+            },
+            {
               "name": "max_results",
-              "value": "200"
+              "value": "500"
             },
             {
               "name": "tweet.fields",
-              "value": "created_at,conversation_id"
+              "value": "created_at,conversation_id,attachments"
+            },
+            {
+              "name": "expansions",
+              "value": "attachments.media_keys"
+            },
+            {
+              "name": "media.fields",
+              "value": "type,url,preview_image_url,alt_text"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1100
+            }
+          },
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "next_token",
+                    "value": "={{ $response.body.meta.next_token }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.meta.next_token }}",
+              "limitPagesFetched": true,
+              "maxRequests": 20,
+              "requestInterval": 1100
+            }
+          }
+        }
       },
       "id": "8127ba58-c603-4e5d-bd2f-f07777518d4f",
       "name": "Get Replies",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        240,
-        448
+        464,
+        496
       ],
       "credentials": {
         "httpBearerAuth": {
@@ -725,8 +802,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1216,
-        448
+        -1104,
+        576
       ],
       "id": "0e25a139-c0ed-4f24-841e-71dc53328309",
       "name": "If Scheduler Should Continue"
@@ -759,21 +836,21 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        3168,
-        448
+        3728,
+        496
       ],
       "id": "3e2525e6-4535-49d5-92f9-c0c9ab4c5071",
       "name": "If Notifications Ready"
     },
     {
       "parameters": {
-        "jsCode": "const data = $json || {};\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Scheduled Post Tracking Staging',`Path: ${data.scheduler_alert_type || 'scheduler validation'}`,`Reason: ${data.message || 'Scheduler stopped before sending alerts.'}`,data.post_count !== undefined ? `Post count: ${data.post_count}` : '',Array.isArray(data.post_ids) && data.post_ids.length ? `Posts: ${data.post_ids.slice(0, 20).join(', ')}` : ''].filter(Boolean).join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
+        "jsCode": "const data = $json || {};\n// T3: NO_TELEGRAM_RECIPIENTS is raised per client now, so the alert has to say\n// which client is misconfigured -- a bare count is unactionable past one client.\nconst clientLine = (data.client_id || data.client_name)\n  ? 'Client: ' + [data.client_name, data.client_id].filter(Boolean).join(' ')\n  : '';\nconst message = ['<b>XMonitor staging handled error</b>','Workflow: Scheduled Post Tracking Staging',`Path: ${data.scheduler_alert_type || 'scheduler validation'}`,clientLine,`Reason: ${data.message || 'Scheduler stopped before sending alerts.'}`,data.post_count !== undefined ? `Post count: ${data.post_count}` : '',Array.isArray(data.post_ids) && data.post_ids.length ? `Posts: ${data.post_ids.slice(0, 20).join(', ')}` : ''].filter(Boolean).join('\\n');\nreturn [{ json: { developer_chat_id: '8677383067', message } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3168,
-        704
+        3952,
+        672
       ],
       "id": "a2f6d4d3-65f0-4efc-8be6-5623cfd76882",
       "name": "Build Scheduler Developer Alert"
@@ -790,12 +867,13 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3344,
-        704
+        4176,
+        672
       ],
       "id": "4127306d-f2f4-4832-8dfb-29e468b1542a",
       "name": "Send Scheduler Developer Alert",
       "webhookId": "66f0271e-57da-438b-9808-59ca3c75e600",
+      "disabled": false,
       "credentials": {
         "telegramApi": {
           "id": "1PkKyBUkopLzyBuI",
@@ -804,42 +882,548 @@
       }
     },
     {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Hidden vs visible counts over ALL stored negative replies for the post,\n-- not just the ones fetched this run. Matches the denominator convention in\n-- CLAUDE.md: stored analyzed negative replies.\nWITH requested AS (\n  SELECT unnest($1::text[]) AS post_id\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE r.reply_id IS NOT NULL AND lower(COALESCE(r.status, 'New')) =  'hidden')::int AS hidden_negative_replies_count,\n  COUNT(*) FILTER (WHERE r.reply_id IS NOT NULL AND lower(COALESCE(r.status, 'New')) <> 'hidden')::int AS non_hidden_negative_replies_count\nFROM requested\nLEFT JOIN public.\"Replies\" r\n  ON r.post_id = requested.post_id\n AND r.sentiment = 'Negative'\n AND r.analyzed_at IS NOT NULL\nGROUP BY requested.post_id;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Split Out Reply Analysis').all().filter(item => item.json.alert_now).map(item => String(item.json.postId || ''))] }}"
+        }
+      },
       "id": "5e38c6f3-109d-4105-9bf2-6b62c7247d46",
       "name": "Get Reply Status Counts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2832,
-        448
+        3056,
+        496
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "b7c1f2a4-3e58-4d61-9a0c-6f2e8d1b4c73",
+      "name": "Probe OpenAI Error Reason",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        704
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"model\":\"gpt-5.4-mini\",\"max_completion_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "notes": "Runs only when the sentiment call failed. One minimal request so the raw OpenAI error code (credits vs rate limit) is visible to the alert builder.",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "id": "e4d9a610-2c77-4b3e-8f15-9a6c0d3e7b28",
+      "name": "Build Sentiment Failure Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        704
+      ],
+      "parameters": {
+        "jsCode": "const probe = $input.first()?.json ?? {};\nconst status = Number(probe.statusCode ?? probe.status ?? 0);\nconst body = (probe.body && typeof probe.body === 'object') ? probe.body : probe;\nconst apiError = (body && typeof body === 'object' && body.error && typeof body.error === 'object') ? body.error : {};\n\nconst code = String(apiError.code || apiError.type || '').toLowerCase();\nconst providerMessage = String(apiError.message || '').trim();\n\nconst CREDIT_CODES = ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached', 'account_deactivated'];\nconst outOfCredits = CREDIT_CODES.includes(code)\n  || /no credits remaining|exceeded your current quota|billing/i.test(providerMessage);\nconst rateLimited = !outOfCredits && (code === 'rate_limit_exceeded' || status === 429);\nconst providerHealthy = status >= 200 && status < 300;\n\nlet post_count = 0;\nlet post_ids = [];\ntry {\n  const parsed = JSON.parse($('Attach replies to posts').first()?.json?.text || '{}');\n  const results = Array.isArray(parsed.results) ? parsed.results : [];\n  post_count = results.length;\n  post_ids = results.map(post => String(post.postId || '')).filter(Boolean);\n} catch (e) {\n  // leave defaults; the alert is still worth sending\n}\n\nconst suffix = 'Sentiment analysis was aborted before any posts or replies were stored, and no negative-sentiment alerts were sent.';\n\nlet scheduler_alert_type;\nlet message;\n\nif (outOfCredits) {\n  scheduler_alert_type = 'SENTIMENT_NO_OPENAI_CREDITS';\n  message = `OpenAI credits exhausted. ${suffix} Add credits at platform.openai.com billing to resume tracking. Provider said: ${providerMessage || code || 'insufficient quota'}`;\n} else if (rateLimited) {\n  scheduler_alert_type = 'SENTIMENT_RATE_LIMITED';\n  message = `OpenAI rate limit hit (HTTP ${status || 429}). ${suffix} This usually clears on the next hourly pass. Provider said: ${providerMessage || code || 'rate limited'}`;\n} else if (providerHealthy) {\n  scheduler_alert_type = 'SENTIMENT_API_FAILED';\n  message = `Sentiment analysis failed even though OpenAI is reachable and funded (probe returned HTTP ${status}). ${suffix} Likely a timeout or a malformed model response - check the execution for details.`;\n} else {\n  scheduler_alert_type = 'SENTIMENT_API_FAILED';\n  message = `Sentiment analysis failed${status ? ` (probe returned HTTP ${status})` : ''}. ${suffix} Provider said: ${providerMessage || code || 'no reason returned'}`;\n}\n\nreturn [{\n  json: {\n    scheduler_alert_type,\n    message,\n    post_count,\n    post_ids,\n  },\n}];"
+      },
+      "notes": "Classifies an OpenAI sentiment failure (credits vs rate limit vs other) and shapes it for the scheduler developer alert."
+    },
+    {
+      "id": "0629dd2b-0240-4d2b-967d-d73b007c8548",
+      "name": "Get Run State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1888,
+        704
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH requested AS (\n  SELECT *\n  FROM unnest($1::text[], $2::text[]) AS item(post_id, reply_id)\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE lower(COALESCE(replies.status, 'New')) = 'hidden')::int AS hidden_negative_replies_count,\n  COUNT(*) FILTER (WHERE lower(COALESCE(replies.status, 'New')) <> 'hidden')::int AS non_hidden_negative_replies_count\nFROM requested\nLEFT JOIN public.\"Replies\" replies ON replies.reply_id = requested.reply_id\nGROUP BY requested.post_id;",
-        "options": {
-          "queryBatching": "single",
-          "queryReplacement": "={{ [$('Filter Negative Replies').all().map(item => String(item.json.postId || '')), $('Filter Negative Replies').all().map(item => String(item.json.id || ''))] }}"
-        }
+        "query": "-- Ensure the marker row exists and return it together with this run's start time.\n-- last_successful_run_at is advanced only at the end of a successful pass.\nINSERT INTO public.\"Run State\" (key, last_successful_run_at)\nVALUES ('scheduled_post_tracking', NULL)\nON CONFLICT (key) DO UPDATE SET key = EXCLUDED.key\nRETURNING key, last_successful_run_at, now() AS run_started_at;",
+        "options": {}
       },
+      "notes": "Reads the last successful pass timestamp that bounds the replies query, and stamps this run's start time.",
       "credentials": {
         "postgres": {
           "id": "CyXakOvvENeDwRue",
           "name": "Supabase Staging Postgres"
         }
       }
+    },
+    {
+      "id": "40957188-f5b0-4d75-ac77-8cff85926886",
+      "name": "Get Analyzed Reply Ids",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        576,
+        336
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(array_agg(reply_id), ARRAY[]::text[]) AS analyzed_reply_ids\nFROM public.\"Replies\"\nWHERE analyzed_at IS NOT NULL\n  AND post_id = ANY($1::text[]);",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Keep Posts With 10+ Replies').all().map(item => String(item.json.id || ''))] }}"
+        }
+      },
+      "notes": "Replies already scored in an earlier pass. These are dropped before the OpenAI call so each reply is analyzed once.",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "4357e46a-e834-40f9-b580-90848b5a7dc1",
+      "name": "If Has New Replies",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        336
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1f0a7d2-4b6e-4a91-8d33-9e2b5c7a1f04",
+              "leftValue": "={{ $json.has_new_replies }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "No new replies means nothing to score. Skip OpenAI entirely and just advance the run state."
+    },
+    {
+      "id": "c2c333e6-f087-4e55-ae55-fa8f45197b91",
+      "name": "Get Stored Post Counts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1088,
+        336
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Running per-post totals from replies scored in earlier passes.\n-- The new replies from this run are added on top in Calculate/Filter Sentiment Counts.\nWITH requested AS (\n  SELECT unnest($1::text[]) AS post_id\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL)::int                                AS stored_analyzed,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Negative')::int    AS stored_negative,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Positive')::int    AS stored_positive,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Neutral')::int     AS stored_neutral\nFROM requested\nLEFT JOIN public.\"Replies\" r ON r.post_id = requested.post_id\nGROUP BY requested.post_id;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Attach replies to posts').first().json.candidate_post_ids] }}"
+        }
+      },
+      "notes": "Supplies the stored half of the negative ratio denominator.",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "8e06ea9b-bfff-449e-b63a-2a2fd7002bdf",
+      "name": "Advance Run State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2944,
+        336
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Reached only once every fetched reply is stored with its sentiment.\n-- The OpenAI failure path never reaches this node, so an aborted pass\n-- leaves the marker untouched and the next run re-reads the same window.\nUPDATE public.\"Run State\"\nSET last_successful_run_at = $1::timestamptz,\n    updated_at             = now()\nWHERE key = 'scheduled_post_tracking'\nRETURNING key, last_successful_run_at;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Get Run State').first().json.run_started_at] }}"
+        }
+      },
+      "notes": "Advances the incremental watermark. Uses the run START time, so replies created mid-run are not skipped.",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "c9cfcd11-cf59-422d-900d-8bc4a2d56908",
+      "name": "Advance Run State (Quiet Pass)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1024,
+        176
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Quiet pass: the replies query returned nothing new, which is a successful\n-- outcome, so the watermark still advances.\nUPDATE public.\"Run State\"\nSET last_successful_run_at = $1::timestamptz,\n    updated_at             = now()\nWHERE key = 'scheduled_post_tracking'\nRETURNING key, last_successful_run_at;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Get Run State').first().json.run_started_at] }}"
+        }
+      },
+      "notes": "Terminal node for the no-new-replies path.",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "6241e8ba-f51c-4c7d-b937-02fff5b12528",
+      "name": "Build Media Classify Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const MAX_MEDIA_REPLIES_PER_PASS = 40;\n\nconst source = $('Attach replies to posts').first()?.json || {};\nconst mediaReplies = Array.isArray(source.media_replies) ? source.media_replies : [];\n\nconst SYSTEM = [\n  'You are a lebanese arabic sentiment labeling engine.',\n  '',\n  'You will be given ONE post and ONE reply to it. The reply has one or more images attached, and those images are provided to you directly.',\n  '',\n  'Label the sentiment of the reply toward the post and its author. Use exactly one of: Positive, Negative, Neutral.',\n  '',\n  'Return valid JSON only, in exactly this shape:',\n  '{\"sentiment\": \"Negative\"}',\n  '',\n  'Rules:',\n  '- Judge the reply on its text AND the attached images together.',\n  '- A reply whose text is empty, very short, or just a mention plus a link can still be Negative when the image mocks, insults, ridicules or demeans the author of the post. This is the main case images exist to catch.',\n  '- Any text inside an image (a screenshot, or a captioned meme) is part of the reply content. Read it.',\n  '- Images must not soften the text. If the reply text alone already justifies Negative, an ordinary or harmless-looking image does not change that.',\n  '- If the only image is a video thumbnail with no legible text and nothing clearly hostile, it is not evidence. Fall back to what the reply text supports.',\n  '',\n  'ATTRIBUTION IS DECISIVE. You are labeling sentiment toward the post and its author only. Before labeling, work out WHO the hostility in the image is aimed at:',\n  '- Hostility counts as Negative ONLY when its target is the author of the post, the author\\'s family, or the position the author is taking.',\n  '- Hostility aimed at any OTHER person or institution - a rival politician, a president, an army, a party, a journalist, an unnamed group - is NOT Negative toward the author, even when the image is angry, accusatory, or insulting in tone. A reply that merely forwards someone else\\'s accusation against a third party, and does not turn it on the author, is Neutral.',\n  '- An image attacking a third party that the post ITSELF criticises means the reply is siding WITH the author: label it Positive, or Neutral if it shows no clear stance toward the author.',\n  '- An image that flatters or DEFENDS a third party the post criticises IS Negative toward the author, because it dismisses the post and its argument.',\n  '- Do not label Negative merely because the image contains angry or insulting language. Identify the target first.',\n  '',\n  '- Do not include explanations. Output JSON only.'\n].join('\\n');\n\nif (mediaReplies.length === 0) {\n  return [{ json: { no_media: true, media_reply_count: 0 } }];\n}\n\nconst selected = mediaReplies.slice(0, MAX_MEDIA_REPLIES_PER_PASS);\nconst skipped = mediaReplies.length - selected.length;\n\nconst out = [];\nfor (const r of selected) {\n  const content = [{\n    type: 'text',\n    text: 'POST by the monitored account:\\n' + String(r.postText || '') + '\\n\\nREPLY to label:\\n' + String(r.replyText || '')\n  }];\n  for (const url of (r.imageUrls || [])) {\n    content.push({ type: 'image_url', image_url: { url: url, detail: 'low' } });\n  }\n\n  out.push({\n    json: {\n      no_media: false,\n      reply_id: String(r.reply_id),\n      post_id: String(r.post_id || ''),\n      image_count: (r.imageUrls || []).length,\n      skipped_over_cap: skipped,\n      body: {\n        model: 'gpt-5.4-mini',\n        temperature: 0,\n        response_format: { type: 'json_object' },\n        messages: [\n          { role: 'system', content: SYSTEM },\n          { role: 'user', content: content }\n        ]\n      }\n    }\n  });\n}\n\nreturn out;"
+      },
+      "notes": "One multimodal request per reply carrying media. Emits a single no_media sentinel when this pass has none, so the chain never stalls on an empty branch."
+    },
+    {
+      "id": "708f1585-d45b-4f7f-8165-bfa129f4eafc",
+      "name": "If Has Media Replies",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1264,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d1a7c904-6b52-4f8e-9c31-2a7b5e0f4d18",
+              "leftValue": "={{ $json.no_media }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "Routes past the multimodal call when this pass found no media replies."
+    },
+    {
+      "id": "03fe4087-ebb1-45cf-9489-ae12928ad8df",
+      "name": "Classify Media Replies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1440,
+        16
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 3,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "notes": "One multimodal call per media reply. Throttled and non-fatal: a failure leaves the reply on its text-only label.",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "id": "ee8e7c3a-53a4-4d92-9c01-f93a53422b40",
+      "name": "Apply Media Sentiment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        176
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nconst results = $('Analyze Sentiment with ChatGPT').all().flatMap(item => parseResults(item));\n\nlet requests = [];\nlet responses = [];\ntry { requests = $('Build Media Classify Requests').all(); } catch (e) { requests = []; }\n// Not executed on a pass with no media replies.\ntry { responses = $('Classify Media Replies').all(); } catch (e) { responses = []; }\n\nconst VALID = new Set(['Positive', 'Negative', 'Neutral']);\nconst overrides = new Map();\nlet applied = 0;\nlet failed = 0;\n\nfor (let i = 0; i < requests.length; i++) {\n  const req = requests[i].json || {};\n  if (req.no_media) continue;\n\n  const res = responses[i] ? responses[i].json : null;\n  let label = '';\n  try {\n    const raw = (res && res.choices && res.choices[0] && res.choices[0].message)\n      ? res.choices[0].message.content\n      : null;\n    if (raw) {\n      const parsed = (typeof raw === 'string') ? JSON.parse(raw) : raw;\n      label = String(parsed.sentiment || '');\n    }\n  } catch (e) {\n    label = '';\n  }\n\n  if (VALID.has(label)) {\n    overrides.set(String(req.reply_id), label);\n    applied += 1;\n  } else {\n    // Degrade to the text-only label rather than dropping the reply.\n    failed += 1;\n  }\n}\n\nlet changed = 0;\nfor (const post of results) {\n  for (const reply of (post.replies || [])) {\n    const override = overrides.get(String(reply.id));\n    if (!override) continue;\n    if (String(reply.sentiment || '') !== override) changed += 1;\n    reply.sentiment = override;\n    reply.media_labeled = true;\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results }),\n    media_labels_applied: applied,\n    media_labels_failed: failed,\n    media_labels_changed_from_text: changed,\n  },\n}];"
+      },
+      "notes": "Overrides the batched text label with the multimodal label, for media replies only. Emits the same shape the sentiment node did, so downstream counting is unchanged."
+    },
+    {
+      "id": "de82be82-9499-471b-8feb-0418d86fb2f4",
+      "name": "If Fetch Truncated",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        16
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b7e2c419-05fa-4d3e-9c62-1a7f8d0e5b33",
+              "leftValue": "={{ $json.fetch_truncated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "True when a search stopped on the page cap rather than on an exhausted next_token."
+    },
+    {
+      "id": "eeaa4e47-8861-4fba-a4b3-e1f03be7b119",
+      "name": "Build Truncation Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        16
+      ],
+      "parameters": {
+        "jsCode": "const data = $json || {};\nconst which = [\n  data.replies_truncated ? 'replies' : null,\n  data.posts_truncated ? 'posts' : null,\n].filter(Boolean).join(' and ');\n\nreturn [{\n  json: {\n    scheduler_alert_type: 'SEARCH_PAGE_CAP_REACHED',\n    message: `X ${which} search stopped on the page cap with a next_token still pending, so this pass did not read everything available. `\n      + `Reply pages fetched: ${data.reply_page_count ?? 0}; post pages fetched: ${data.post_page_count ?? 0}; `\n      + `replies returned: ${data.fetched_reply_count ?? 0}. `\n      + 'Because the replies query is incremental, the unread replies are NOT re-requested on the next pass - the run state has already moved past them. '\n      + 'Raise maxRequests on the affected node and re-run a backfill with a null Run State watermark.',\n    post_count: Array.isArray(data.candidate_post_ids) ? data.candidate_post_ids.length : 0,\n    post_ids: Array.isArray(data.candidate_post_ids) ? data.candidate_post_ids : [],\n  },\n}];"
+      },
+      "notes": "Turns a silent page-cap truncation into a visible developer alert."
+    },
+    {
+      "id": "92d2e232-c3db-405a-955b-6819ce3cac50",
+      "name": "If Any Post Qualified",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        496
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6eb8da20-3c05-47ca-ac30-90b39af52c4e",
+              "leftValue": "={{ $json.conversation_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6560bc9e-8205-4f7a-b29b-316dc69374a8",
+      "name": "Assess Quiet Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        800
+      ],
+      "parameters": {
+        "jsCode": "// Reached when a pass ends early with nothing to analyze. Three ways in:\n//   - no active tracked users            (If Scheduler Should Continue, false branch)\n//   - the posts search returned nothing  (filter sees no items)\n//   - no post cleared the 10-reply filter\n// All three are successful passes that found no work, so the watermark should\n// advance - otherwise a quiet stretch strands it and the next active run pays for\n// the whole 7-day fallback window.\n//\n// The exception is a truncated posts search: a qualifying post may sit on a page we\n// never read, so advancing past it would skip those replies permanently. Cost is\n// recoverable, missed replies are not, so truncation wins.\n\nfunction lastPageStillHasToken(pages) {\n  const byChunk = new Map();\n  pages.forEach((page) => {\n    let key = 'unknown';\n    const paired = page.pairedItem;\n    if (typeof paired === 'number') key = String(paired);\n    else if (paired && typeof paired === 'object' && paired.item !== undefined) key = String(paired.item);\n    if (!byChunk.has(key)) byChunk.set(key, []);\n    byChunk.get(key).push(page);\n  });\n  for (const group of byChunk.values()) {\n    const last = group[group.length - 1];\n    if (last?.json?.meta?.next_token) return true;\n  }\n  return false;\n}\n\nlet reason = 'NO_QUALIFYING_POSTS';\nlet postPageCount = 0;\nlet postsTruncated = false;\n\ntry {\n  const postPages = $('Get posts of tracked users').all();\n  postPageCount = postPages.length;\n  postsTruncated = lastPageStillHasToken(postPages);\n  const returnedAny = postPages.some(page => (page.json?.data || []).length > 0);\n  if (!returnedAny) reason = 'NO_POSTS_RETURNED';\n} catch (e) {\n  // The posts node never ran, so this is the no-tracked-users pass.\n  reason = 'NO_TRACKED_USERS';\n}\n\nreturn [{\n  json: {\n    quiet_reason: reason,\n    post_page_count: postPageCount,\n    posts_truncated: postsTruncated,\n    fetch_truncated: postsTruncated,\n    has_new_replies: false,\n    new_reply_count: 0,\n  },\n}];"
+      }
+    },
+    {
+      "id": "6af86e13-649b-43f5-91dc-a1e58484c2a1",
+      "name": "If Safe To Advance Watermark",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        176
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7d65fe18-7ec5-4d2c-9800-7d8ad1951682",
+              "leftValue": "={{ $json.fetch_truncated }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5b1bc4b8-0bf8-491a-b124-c09fc20b2d91",
+      "name": "If Safe To Advance Watermark (Analyzed)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2888,
+        256
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "eb522f2f-06b1-4345-9842-c8f18936f959",
+              "leftValue": "={{ $('Attach replies to posts').first().json.fetch_truncated }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7a56f52d-3619-4243-b933-67df02b976de",
+      "name": "Get Active Cheat Sheets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        736,
+        656
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Active labelling rules, at most one row per client (enforced by\n-- sentiment_cheat_sheets_one_active_idx). Drafts are excluded: they wait for\n-- human activation before they can influence production labelling.\nSELECT\n  client_id::text AS client_id,\n  version,\n  rules_text\nFROM public.\"Sentiment Cheat Sheets\"\nWHERE status = 'active';",
+        "options": {}
+      },
+      "notes": "One active cheat sheet per client. alwaysOutputData is on: an empty table must not stall the analysis path.",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "58389e6a-0ae2-40ed-aa16-3f49bc28af92",
+      "name": "Build Analyzer Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        656
+      ],
+      "parameters": {
+        "jsCode": "// One OpenAI call per client, so each call carries only that client's rules.\n// Stance rules are client-specific; leaking one client's rules into another\n// client's replies would actively degrade labelling. With a single configured\n// client this emits exactly one batch - identical to the previous single call.\n\nconst payloadRaw = $('Attach replies to posts').first()?.json?.text || '{\"results\":[]}';\nlet allPosts = [];\ntry {\n  const parsed = JSON.parse(payloadRaw);\n  allPosts = Array.isArray(parsed.results) ? parsed.results : [];\n} catch {\n  allPosts = [];\n}\n\n// X author id -> client_id, from the tracked users this run already fetched.\nconst clientByAuthorId = new Map(\n  $('Get Tracked Users').all().map(item => [\n    String(item.json.user_id || ''),\n    String(item.json.client_id || ''),\n  ])\n);\n\n// Get Active Cheat Sheets uses alwaysOutputData, so an empty table still yields\n// one blank item. Drop anything without both a client and rule text.\nconst sheetByClientId = new Map(\n  $('Get Active Cheat Sheets').all()\n    .map(item => item.json || {})\n    .filter(row => row.client_id && row.rules_text)\n    .map(row => [\n      String(row.client_id),\n      { version: Number(row.version || 0), rulesText: String(row.rules_text) },\n    ])\n);\n\nconst batches = new Map();\nfor (const post of allPosts) {\n  const clientId = clientByAuthorId.get(String(post.userId || '')) || 'unknown';\n  if (!batches.has(clientId)) batches.set(clientId, []);\n  batches.get(clientId).push(post);\n}\n\n// Nothing to score. Returning no items stops the analysis branch cleanly rather\n// than paying OpenAI for an empty results array.\nif (batches.size === 0) return [];\n\nreturn [...batches.entries()].map(([clientId, posts]) => {\n  const sheet = sheetByClientId.get(clientId);\n  const block = sheet\n    ? `Client-specific labelling rules (cheat sheet v${sheet.version}). Apply these over your general judgement whenever they match:\\n${sheet.rulesText}`\n    : 'No client-specific labelling rules are configured for this client. Use your general judgement.';\n\n  const replyCount = posts.reduce(\n    (sum, post) => sum + (Array.isArray(post.replies) ? post.replies.length : 0),\n    0\n  );\n\n  return {\n    json: {\n      client_id: clientId,\n      cheat_sheet_version: sheet ? sheet.version : 0,\n      cheat_sheet_block: block,\n      post_count: posts.length,\n      reply_count: replyCount,\n      text: JSON.stringify({ results: posts }),\n    },\n  };\n});"
+      },
+      "notes": "Groups posts by client so each OpenAI call carries only that client's cheat sheet."
     }
   ],
   "connections": {
-    "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Advance Post Suppression State",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Advance Post Suppression State": {
       "main": [
         [
@@ -895,22 +1479,18 @@
         ]
       ]
     },
-    "Attach replies to posts": {
-      "main": [
-        [
-          {
-            "node": "Analyze Sentiment with ChatGPT",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Analyze Sentiment with ChatGPT": {
       "main": [
         [
           {
-            "node": "Calculate/Filter Sentiment Counts",
+            "node": "Get Stored Post Counts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Probe OpenAI Error Reason",
             "type": "main",
             "index": 0
           }
@@ -961,28 +1541,6 @@
         ]
       ]
     },
-    "Flatten All Replies": {
-      "main": [
-        [
-          {
-            "node": "Filter Negative Replies",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Filter Negative Replies": {
-      "main": [
-        [
-          {
-            "node": "Prepare Reply Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Prepare Reply Data": {
       "main": [
         [
@@ -994,44 +1552,11 @@
         ]
       ]
     },
-    "Insert or update replies": {
-      "main": [
-        [
-          {
-            "node": "Get Reply Status Counts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Telegram Users": {
-      "main": [
-        [
-          {
-            "node": "Build Negative Alert Notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Build Negative Alert Notification": {
       "main": [
         [
           {
             "node": "If Notifications Ready",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Keep Posts With 10+ Replies": {
-      "main": [
-        [
-          {
-            "node": "Build Replies Query",
             "type": "main",
             "index": 0
           }
@@ -1071,17 +1596,6 @@
         ]
       ]
     },
-    "Get Replies": {
-      "main": [
-        [
-          {
-            "node": "Attach replies to posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "If Scheduler Should Continue": {
       "main": [
         [
@@ -1094,6 +1608,11 @@
         [
           {
             "node": "Build Scheduler Developer Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Assess Quiet Outcome",
             "type": "main",
             "index": 0
           }
@@ -1133,7 +1652,326 @@
       "main": [
         [
           {
-            "node": "Get Telegram Users",
+            "node": "Get Alert Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probe OpenAI Error Reason": {
+      "main": [
+        [
+          {
+            "node": "Build Sentiment Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Sentiment Failure Alert": {
+      "main": [
+        [
+          {
+            "node": "Build Scheduler Developer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Run State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Run State": {
+      "main": [
+        [
+          {
+            "node": "Advance Post Suppression State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Replies": {
+      "main": [
+        [
+          {
+            "node": "Get Analyzed Reply Ids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Analyzed Reply Ids": {
+      "main": [
+        [
+          {
+            "node": "Attach replies to posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach replies to posts": {
+      "main": [
+        [
+          {
+            "node": "If Has New Replies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If Fetch Truncated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has New Replies": {
+      "main": [
+        [
+          {
+            "node": "Get Active Cheat Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Safe To Advance Watermark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten All Replies": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reply Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advance Run State": {
+      "main": [
+        [
+          {
+            "node": "Get Reply Status Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stored Post Counts": {
+      "main": [
+        [
+          {
+            "node": "Build Media Classify Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Media Classify Requests": {
+      "main": [
+        [
+          {
+            "node": "If Has Media Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Media Replies": {
+      "main": [
+        [
+          {
+            "node": "Classify Media Replies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply Media Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Media Replies": {
+      "main": [
+        [
+          {
+            "node": "Apply Media Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Media Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Calculate/Filter Sentiment Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Fetch Truncated": {
+      "main": [
+        [
+          {
+            "node": "Build Truncation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Truncation Alert": {
+      "main": [
+        [
+          {
+            "node": "Build Scheduler Developer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Posts With 10+ Replies": {
+      "main": [
+        [
+          {
+            "node": "If Any Post Qualified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Any Post Qualified": {
+      "main": [
+        [
+          {
+            "node": "Build Replies Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Assess Quiet Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assess Quiet Outcome": {
+      "main": [
+        [
+          {
+            "node": "If Safe To Advance Watermark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Safe To Advance Watermark": {
+      "main": [
+        [
+          {
+            "node": "Advance Run State (Quiet Pass)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert or update replies": {
+      "main": [
+        [
+          {
+            "node": "If Safe To Advance Watermark (Analyzed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Safe To Advance Watermark (Analyzed)": {
+      "main": [
+        [
+          {
+            "node": "Advance Run State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Reply Status Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Cheat Sheets": {
+      "main": [
+        [
+          {
+            "node": "Build Analyzer Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Analyzer Batches": {
+      "main": [
+        [
+          {
+            "node": "Analyze Sentiment with ChatGPT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Alert Recipients": {
+      "main": [
+        [
+          {
+            "node": "Build Negative Alert Notification",
             "type": "main",
             "index": 0
           }
@@ -1154,7 +1992,7 @@
   },
   "nodeGroups": [],
   "pinData": {},
-  "versionId": "a380d734-27c0-4c14-a721-81af5849b88a",
+  "versionId": "e93037bb-771a-422b-a5e9-44d00a7cfbed",
   "activeVersionId": null,
   "versionCounter": 13,
   "triggerCount": 0,
@@ -1181,8 +2019,6 @@
   ],
   "tags": [
     {
-      "updatedAt": "2026-06-16T17:15:10.769Z",
-      "createdAt": "2026-06-16T17:15:10.769Z",
       "id": "CapkBTEZDHfdjRgZ",
       "name": "Codex"
     }

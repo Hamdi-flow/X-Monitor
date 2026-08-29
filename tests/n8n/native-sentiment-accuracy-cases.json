@@ -1,0 +1,254 @@
+[
+  {
+    "id": "neg-en-direct-insult",
+    "expectedLabel": "Negative",
+    "phenomenon": "direct insult",
+    "postText": "We just launched the new analytics dashboard.",
+    "replyText": "This is trash. Your team clearly has no idea what users need."
+  },
+  {
+    "id": "neg-en-hostile-sarcasm",
+    "expectedLabel": "Negative",
+    "phenomenon": "hostile sarcasm",
+    "postText": "The app is back online after maintenance.",
+    "replyText": "Wow, another outage. Brilliant work breaking the only thing that mattered."
+  },
+  {
+    "id": "neg-en-threat",
+    "expectedLabel": "Negative",
+    "phenomenon": "threatening pressure",
+    "postText": "We are updating subscription limits next month.",
+    "replyText": "Fix this mess today or you deserve to lose every customer."
+  },
+  {
+    "id": "neg-ar-leb-insult",
+    "expectedLabel": "Negative",
+    "phenomenon": "Lebanese Arabic insult",
+    "postText": "أعلنا اليوم عن تحديث جديد للتطبيق.",
+    "replyText": "هيدا أغبى قرار شفته، عنجد فشلتوا."
+  },
+  {
+    "id": "neg-ar-msa",
+    "expectedLabel": "Negative",
+    "phenomenon": "Modern Standard Arabic criticism",
+    "postText": "تم تحسين صفحة الطلبات في لوحة التحكم.",
+    "replyText": "الخدمة سيئة جدا والتحديث جعل التجربة أسوأ."
+  },
+  {
+    "id": "neg-arabizi",
+    "expectedLabel": "Negative",
+    "phenomenon": "Arabizi insult",
+    "postText": "We changed the way alerts are grouped.",
+    "replyText": "shu hal habal, mesh 3arfin teshteghlo"
+  },
+  {
+    "id": "neg-fr",
+    "expectedLabel": "Negative",
+    "phenomenon": "French criticism",
+    "postText": "La nouvelle version est disponible.",
+    "replyText": "C'est nul, vous avez completement rate cette mise a jour."
+  },
+  {
+    "id": "neg-code-switch",
+    "expectedLabel": "Negative",
+    "phenomenon": "code-switched ridicule",
+    "postText": "Our moderation tools are now easier to use.",
+    "replyText": "ya 3ayb el shoum, this feature is useless"
+  },
+  {
+    "id": "neg-dismissive",
+    "expectedLabel": "Negative",
+    "phenomenon": "dismissive ridicule",
+    "postText": "We added a new onboarding flow.",
+    "replyText": "Nobody asked for this. Delete it and apologize."
+  },
+  {
+    "id": "neg-mockery",
+    "expectedLabel": "Negative",
+    "phenomenon": "mockery",
+    "postText": "Performance improvements are rolling out.",
+    "replyText": "Great, now the app crashes faster. Clap clap."
+  },
+  {
+    "id": "neg-cash-grab",
+    "expectedLabel": "Negative",
+    "phenomenon": "hostile accusation",
+    "postText": "We introduced premium automation features.",
+    "replyText": "Looks like another cash grab dressed up as innovation."
+  },
+  {
+    "id": "neg-author-target",
+    "expectedLabel": "Negative",
+    "phenomenon": "author-targeted insult",
+    "postText": "My view: this policy will help small teams move faster.",
+    "replyText": "The author has no clue what they're talking about."
+  },
+  {
+    "id": "pos-en-clear-praise",
+    "expectedLabel": "Positive",
+    "phenomenon": "clear praise",
+    "postText": "We just launched the new analytics dashboard.",
+    "replyText": "Great update, this solves the issue we had last week."
+  },
+  {
+    "id": "pos-ar-msa-thanks",
+    "expectedLabel": "Positive",
+    "phenomenon": "Arabic gratitude",
+    "postText": "تم تحسين صفحة الطلبات في لوحة التحكم.",
+    "replyText": "يعطيكم العافية، الشغل واضح ومرتب."
+  },
+  {
+    "id": "pos-ar-leb",
+    "expectedLabel": "Positive",
+    "phenomenon": "Lebanese Arabic praise",
+    "postText": "أعلنا اليوم عن تحديث جديد للتطبيق.",
+    "replyText": "كتير حلو، هيك صار الاستخدام أسهل."
+  },
+  {
+    "id": "pos-arabizi",
+    "expectedLabel": "Positive",
+    "phenomenon": "Arabizi praise",
+    "postText": "We changed the way alerts are grouped.",
+    "replyText": "mabrouk, hayda shi bye2ta3 el nafas"
+  },
+  {
+    "id": "pos-fr",
+    "expectedLabel": "Positive",
+    "phenomenon": "French praise",
+    "postText": "La nouvelle version est disponible.",
+    "replyText": "Merci, c'est clair et tres utile."
+  },
+  {
+    "id": "pos-en-smart-change",
+    "expectedLabel": "Positive",
+    "phenomenon": "supportive evaluation",
+    "postText": "We simplified the pricing page.",
+    "replyText": "Smart change. The explanation is clear and useful."
+  },
+  {
+    "id": "pos-en-finally",
+    "expectedLabel": "Positive",
+    "phenomenon": "enthusiastic support",
+    "postText": "Saved replies are now available in the dashboard.",
+    "replyText": "Finally! This is exactly what we needed."
+  },
+  {
+    "id": "pos-en-respect",
+    "expectedLabel": "Positive",
+    "phenomenon": "respectful approval",
+    "postText": "We changed the release based on your feedback.",
+    "replyText": "Respect, you handled the feedback well."
+  },
+  {
+    "id": "pos-en-transparency",
+    "expectedLabel": "Positive",
+    "phenomenon": "appreciation",
+    "postText": "Here is why yesterday's incident happened.",
+    "replyText": "Clean rollout, appreciate the transparency."
+  },
+  {
+    "id": "pos-fr-bravo",
+    "expectedLabel": "Positive",
+    "phenomenon": "French approval",
+    "postText": "La nouvelle version est disponible.",
+    "replyText": "Bravo, tres bon travail."
+  },
+  {
+    "id": "pos-ar-leb-policy",
+    "expectedLabel": "Positive",
+    "phenomenon": "Lebanese Arabic support",
+    "postText": "My view: this policy will help small teams move faster.",
+    "replyText": "هالقرار بمحلو وبيفيد الكل."
+  },
+  {
+    "id": "pos-en-love",
+    "expectedLabel": "Positive",
+    "phenomenon": "plain positive",
+    "postText": "We added a new onboarding flow.",
+    "replyText": "Love the update. Keep going."
+  },
+  {
+    "id": "neu-en-question",
+    "expectedLabel": "Neutral",
+    "phenomenon": "information request",
+    "postText": "Saved replies are now available in the dashboard.",
+    "replyText": "What time will this be available?"
+  },
+  {
+    "id": "neu-en-factual-bug",
+    "expectedLabel": "Neutral",
+    "phenomenon": "factual report",
+    "postText": "We just launched the new analytics dashboard.",
+    "replyText": "The link opens on mobile but not desktop for me."
+  },
+  {
+    "id": "neu-en-observation",
+    "expectedLabel": "Neutral",
+    "phenomenon": "plain observation",
+    "postText": "We introduced premium automation features.",
+    "replyText": "I saw this yesterday on the website."
+  },
+  {
+    "id": "neu-en-source",
+    "expectedLabel": "Neutral",
+    "phenomenon": "source request",
+    "postText": "This chart shows moderation requests doubled.",
+    "replyText": "Can you share the source for these numbers?"
+  },
+  {
+    "id": "neu-ar-question",
+    "expectedLabel": "Neutral",
+    "phenomenon": "Arabic clarification",
+    "postText": "أعلنا اليوم عن تحديث جديد للتطبيق.",
+    "replyText": "ما فهمت، هل المقصود الحسابات الجديدة؟"
+  },
+  {
+    "id": "neu-arabizi-uncertain",
+    "expectedLabel": "Neutral",
+    "phenomenon": "Arabizi uncertainty",
+    "postText": "We changed the way alerts are grouped.",
+    "replyText": "ana jarrabto marra wahde bas ma 3ende ra2e ba3d"
+  },
+  {
+    "id": "neu-fr-question",
+    "expectedLabel": "Neutral",
+    "phenomenon": "French availability question",
+    "postText": "La nouvelle version est disponible.",
+    "replyText": "C'est disponible au Liban ou seulement en Europe?"
+  },
+  {
+    "id": "neu-mixed",
+    "expectedLabel": "Neutral",
+    "phenomenon": "mixed sentiment",
+    "postText": "We simplified the pricing page.",
+    "replyText": "Nice design, but the pricing is still confusing."
+  },
+  {
+    "id": "neu-ambiguous",
+    "expectedLabel": "Neutral",
+    "phenomenon": "ambiguous short reply",
+    "postText": "Performance improvements are rolling out.",
+    "replyText": "Okay."
+  },
+  {
+    "id": "neu-comparison",
+    "expectedLabel": "Neutral",
+    "phenomenon": "factual comparison",
+    "postText": "We are updating subscription limits next month.",
+    "replyText": "This reminds me of the previous policy from 2023."
+  },
+  {
+    "id": "neu-following",
+    "expectedLabel": "Neutral",
+    "phenomenon": "follow-up marker",
+    "postText": "Here is why yesterday's incident happened.",
+    "replyText": "Following for updates."
+  },
+  {
+    "id": "neu-conditional",
+    "expectedLabel": "Neutral",
+    "phenomenon": "conditional planning",
+    "postText": "Our moderation tools are now easier to use.",
+    "replyText": "If this includes API access, it could change our plan."
+  }
+]

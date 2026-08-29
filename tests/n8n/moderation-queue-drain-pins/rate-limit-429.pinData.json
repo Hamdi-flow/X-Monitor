@@ -1,0 +1,197 @@
+{
+  "Drain Webhook": [
+    {
+      "json": {
+        "headers": {
+          "content-type": "application/json",
+          "x-drain-secret": "PINNED_FAKE_DRAIN_SECRET"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "due_count": 3,
+          "stale_reclaimed": 0,
+          "fired_at": "2026-08-27T06:00:00.000Z"
+        },
+        "webhookUrl": "https://example.invalid/webhook/moderation-queue-drain-staging",
+        "executionMode": "test"
+      }
+    }
+  ],
+  "Verify Drain Secret": [
+    {
+      "json": {
+        "authorized": true
+      }
+    }
+  ],
+  "Find Drainable Tokens": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_429",
+        "due_count": 3,
+        "earliest_due": "2026-08-26T05:50:00.000Z",
+        "allowance": 3,
+        "known_remaining": 3,
+        "reset_at": null,
+        "observed_at": null,
+        "x_username": "Drain429",
+        "account_chat_id": "8677383067",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "has_account": true
+      }
+    }
+  ],
+  "Claim Due Hide Rows": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000301",
+        "reply_id": "9990000000000000701",
+        "post_id": "9990000000000000004",
+        "x_user_id": "TEST_DRAIN_429",
+        "batch_id": "00000000-0000-4000-8000-0000000000b2",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4201,
+        "attempts": 1
+      }
+    },
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000302",
+        "reply_id": "9990000000000000702",
+        "post_id": "9990000000000000004",
+        "x_user_id": "TEST_DRAIN_429",
+        "batch_id": "00000000-0000-4000-8000-0000000000b2",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4201,
+        "attempts": 2
+      }
+    }
+  ],
+  "Hide Reply On X": [
+    {
+      "json": {
+        "statusCode": 200,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "0",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "data": {
+            "hidden": true
+          }
+        }
+      }
+    },
+    {
+      "json": {
+        "statusCode": 429,
+        "headers": {
+          "x-rate-limit-limit": "50",
+          "x-rate-limit-remaining": "0",
+          "x-rate-limit-reset": "4102444800"
+        },
+        "body": {
+          "title": "Too Many Requests",
+          "detail": "Rate limit exceeded for PUT /2/tweets/:id/hidden",
+          "type": "https://api.twitter.com/2/problems/usage-capped"
+        }
+      }
+    }
+  ],
+  "Refresh Drain X Token": [
+    {
+      "json": {
+        "statusCode": 200,
+        "body": {
+          "access_token": "UNUSED_IN_THIS_FIXTURE"
+        }
+      }
+    }
+  ],
+  "Upsert Refreshed Drain Account": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_429",
+        "allowance": 3
+      }
+    }
+  ],
+  "Persist Queue Outcomes": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000301",
+        "status": "done",
+        "attempts": 1
+      }
+    }
+  ],
+  "Persist Reply Statuses": [
+    {
+      "json": {
+        "reply_id": "9990000000000000701",
+        "status": "hidden"
+      }
+    }
+  ],
+  "Persist X Rate Limits": [
+    {
+      "json": {
+        "x_user_id": "TEST_DRAIN_429",
+        "remaining": 0,
+        "reset_at": "2100-01-01T00:00:00.000Z"
+      }
+    }
+  ],
+  "Defer Rate Limited Tokens": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000302"
+      }
+    }
+  ],
+  "Read Batch Progress": [
+    {
+      "json": {
+        "batch_id": "00000000-0000-4000-8000-0000000000b2",
+        "telegram_chat_id": "8677383067",
+        "telegram_message_id": 4201,
+        "post_id": "9990000000000000004",
+        "total": 3,
+        "done": 1,
+        "failed": 0,
+        "pending": 2,
+        "next_attempt_at": "2100-01-01T00:00:00.000Z"
+      }
+    }
+  ],
+  "Defer Token Rows": [],
+  "Fail Token Rows": [],
+  "Edit Telegram Progress": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 4201
+        }
+      }
+    }
+  ],
+  "Send Developer Alert - Drain Failures": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Drain Blocked": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ]
+}

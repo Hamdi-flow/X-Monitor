@@ -1,0 +1,101 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 900000006,
+        "message": {
+          "message_id": 4290,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "StagingTester"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "StagingTester",
+            "type": "private"
+          },
+          "date": 1787574800,
+          "text": "/track ?????"
+        }
+      }
+    }
+  ],
+  "Clear Telegram User Links": [
+    {
+      "json": {
+        "chat_id": "8677383067"
+      }
+    }
+  ],
+  "Deactivate Tracked Users For Chat": [
+    {
+      "json": {
+        "user_id": "1062472974",
+        "telegram_chat_id": "8677383067",
+        "is_active": false
+      }
+    }
+  ],
+  "Lookup X User By Username": [
+    {
+      "json": {
+        "data": {
+          "id": "1062472974",
+          "username": "lynnharfoush"
+        }
+      }
+    }
+  ],
+  "Upsert Tracked X User": [
+    {
+      "json": {
+        "user_id": "1062472974",
+        "is_active": true
+      }
+    }
+  ],
+  "Link Telegram User To X User": [
+    {
+      "json": {
+        "id": 6,
+        "chat_id": "8677383067"
+      }
+    }
+  ],
+  "Send Tracking Success": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Track Users Input Error": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Track Input": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Track User Lookup Error": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Developer Alert - Track Lookup": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ]
+}

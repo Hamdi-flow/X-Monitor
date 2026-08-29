@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-22T16:26:00.475Z",
+  "updatedAt": "2026-07-05T13:30:12.682Z",
   "createdAt": "2026-06-22T16:24:58.049Z",
   "id": "f2eFqB2wO91HAYMJ",
   "name": "XMonitor - Scheduled Post Tracking Native Sentiment Staging",
@@ -150,26 +150,48 @@
     },
     {
       "parameters": {
-        "inputText": "={{ $json.analysisText }}",
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Classify the sentiment of the reply toward the original post or its author. Use exactly one sentiment label: Positive, Neutral, or Negative. Return one JSON object only with a sentiment field. Example: {\"sentiment\":\"Neutral\"}"
+            },
+            {
+              "content": "={{ $json.analysisText }}"
+            }
+          ]
+        },
+        "builtInTools": {},
         "options": {
-          "categories": "Positive, Neutral, Negative",
-          "systemPromptTemplate": "You are a precise sentiment classifier for replies to social-media posts. The text may be Lebanese Arabic, Modern Standard Arabic, English, French, Arabizi, emojis, or code-switching. Classify the reply sentiment toward the original post or its author. Treat insults, mockery, threats, hostile sarcasm, and dismissive ridicule as Negative; clear praise, support, gratitude, and friendly humor as Positive; factual, ambiguous, mixed, unrelated, or unclear content as Neutral. Consider negation and context. Categorize it into exactly one of: {categories}. Use the provided formatting instructions. Only output the JSON.",
-          "includeDetailedResults": false,
-          "enableAutoFixing": false,
-          "batching": {
-            "batchSize": 5,
-            "delayBetweenBatches": 0
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
           }
         }
       },
       "id": "dccd843b-5736-4148-b170-6b2ae46c12f7",
       "name": "Analyze Reply Sentiment",
-      "type": "@n8n/n8n-nodes-langchain.sentimentAnalysis",
-      "typeVersion": 1.1,
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
       "position": [
         688,
         448
-      ]
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 6,
+      "waitBetweenTries": 60000
     },
     {
       "parameters": {
@@ -779,48 +801,16 @@
     },
     {
       "parameters": {
-        "model": {
-          "__rl": true,
-          "mode": "list",
-          "value": "gpt-4o-mini"
-        },
-        "responsesApiEnabled": false,
-        "builtInTools": {},
-        "options": {
-          "temperature": 0,
-          "maxTokens": 100,
-          "maxRetries": 1,
-          "timeout": 60000
-        }
+        "jsCode": "function parseJsonCandidate(value) {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch {\n      return null;\n    }\n  }\n  return value && typeof value === 'object' ? value : null;\n}\n\nfunction extractSentiment(item) {\n  const data = item.json || {};\n  const candidates = [\n    data.sentimentAnalysis?.category,\n    data.sentiment,\n    data.category,\n    data.output?.[0]?.content?.[0]?.text,\n    data.output,\n    data.text,\n  ];\n\n  for (const candidate of candidates) {\n    if (typeof candidate === 'string' && ['positive', 'neutral', 'negative'].includes(candidate.trim().toLowerCase())) {\n      return candidate;\n    }\n\n    const parsed = parseJsonCandidate(candidate);\n    const value = parsed?.sentiment ?? parsed?.category ?? parsed?.label;\n    if (typeof value === 'string' && ['positive', 'neutral', 'negative'].includes(value.trim().toLowerCase())) {\n      return value;\n    }\n  }\n\n  throw new Error('Sentiment response did not contain Positive, Neutral, or Negative.');\n}\n\nconst sourceItems = $('Build Deduplicated Reply Items').all();\nreturn items.map((item, index) => {\n  const source = sourceItems[index]?.json || {};\n  const sentiment = extractSentiment(item);\n  const normalized = sentiment.trim().toLowerCase();\n  const category = normalized[0].toUpperCase() + normalized.slice(1);\n\n  return {\n    json: {\n      ...source,\n      sentimentAnalysis: { category },\n    },\n  };\n});"
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.3,
-      "position": [
-        688,
-        672
-      ],
-      "id": "a8efcb9e-19a4-4f43-8ea4-5d40d1e0aab1",
-      "name": "OpenAI Chat Model - Sentiment",
-      "credentials": {
-        "openAiApi": {
-          "id": "Valu7LAYDqkPgcyU",
-          "name": "OpenAi account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 3
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
+      "id": "59812c27-e210-48b2-a0fb-c093efda6297",
+      "name": "Attach Sentiment Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1040,
         448
-      ],
-      "id": "f47ecb07-156d-4cb4-a260-8c8a03166477",
-      "name": "Merge Sentiment Categories"
+      ]
     }
   ],
   "connections": {
@@ -1117,39 +1107,14 @@
       "main": [
         [
           {
-            "node": "Merge Sentiment Categories",
+            "node": "Attach Sentiment Metadata",
             "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Merge Sentiment Categories",
-            "type": "main",
-            "index": 1
-          }
-        ],
-        [
-          {
-            "node": "Merge Sentiment Categories",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
-    "OpenAI Chat Model - Sentiment": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Analyze Reply Sentiment",
-            "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Sentiment Categories": {
+    "Attach Sentiment Metadata": {
       "main": [
         [
           {
@@ -1169,31 +1134,11 @@
   "meta": null,
   "nodeGroups": [],
   "pinData": null,
-  "versionId": "6e4f8763-70d5-465c-8638-4f4c58f6cedd",
+  "versionId": "562a95ce-6682-4829-972f-34a8d7d39967",
   "activeVersionId": null,
-  "versionCounter": 2,
+  "versionCounter": 4,
   "triggerCount": 0,
   "sourceWorkflowId": null,
-  "shared": [
-    {
-      "updatedAt": "2026-06-22T16:24:58.052Z",
-      "createdAt": "2026-06-22T16:24:58.052Z",
-      "role": "workflow:owner",
-      "workflowId": "f2eFqB2wO91HAYMJ",
-      "projectId": "HqQCDls654d5OYVX",
-      "project": {
-        "updatedAt": "2026-04-10T14:35:09.715Z",
-        "createdAt": "2026-04-10T14:33:58.687Z",
-        "id": "HqQCDls654d5OYVX",
-        "name": "Hamdi Said <hamdisaid12321@gmail.com>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "customTelemetryTags": [],
-        "creatorId": "e78584a4-e7b7-477e-8024-1104cd2f5985"
-      }
-    }
-  ],
   "tags": [],
   "activeVersion": null
 }

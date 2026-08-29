@@ -1,0 +1,40 @@
+{
+  "Schedule Trigger": [{ "json": {} }],
+  "Advance Post Suppression State": [{ "json": { "blocked_post_ids": [] } }],
+  "Get Run State": [{ "json": { "key": "scheduled_post_tracking", "last_successful_run_at": null, "run_started_at": "2026-08-29T09:00:00.000Z" } }],
+  "Get Tracked Users": [{"json":{"user_id":"1062472974","username":"lynnharfoush","display_name":null,"telegram_chat_id":"8677383067","is_active":true,"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89"}},{"json":{"user_id":"9990001112","username":"secondclient","display_name":null,"telegram_chat_id":"8677383067","is_active":true,"client_id":"11111111-2222-3333-4444-555555555555"}}],
+  "Get posts of tracked users": [
+    { "json": { "data": [
+      { "id": "P_A_1", "conversation_id": "P_A_1", "author_id": "1062472974", "created_at": "2026-08-29T08:00:00.000Z", "text": "Client A post text", "public_metrics": { "reply_count": 12 } },
+      { "id": "P_B_1", "conversation_id": "P_B_1", "author_id": "9990001112", "created_at": "2026-08-29T08:00:00.000Z", "text": "Client B post text", "public_metrics": { "reply_count": 12 } }
+    ], "meta": { "result_count": 2 } } }
+  ],
+  "Get Replies": [
+    { "json": { "data": [
+      { "id": "R_A_1", "conversation_id": "P_A_1", "author_id": "555000111", "created_at": "2026-08-29T08:30:00.000Z", "text": "shu hal haki el tafeh" },
+      { "id": "R_B_1", "conversation_id": "P_B_1", "author_id": "555000222", "created_at": "2026-08-29T08:31:00.000Z", "text": "great work keep it up" }
+    ], "includes": {}, "meta": { "result_count": 2 } } }
+  ],
+  "Get Analyzed Reply Ids": [{ "json": { "analyzed_reply_ids": [] } }],
+  "Get Active Cheat Sheets": [
+    { "json": { "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89", "version": 3, "rules_text": "CANARY_ALPHA rules for client A only." } },
+    { "json": { "client_id": "11111111-2222-3333-4444-555555555555", "version": 5, "rules_text": "CANARY_BRAVO rules for client B only." } }
+  ],
+  "Analyze Sentiment with ChatGPT": [
+    { "json": { "text": "{\"results\":[{\"postId\":\"P_A_1\",\"postText\":\"Client A post text\",\"userId\":\"1062472974\",\"replies\":[{\"id\":\"R_A_1\",\"sentiment\":\"Negative\",\"text\":\"shu hal haki el tafeh\"}]}]}" } }
+  ],
+  "Get Stored Post Counts": [
+    { "json": { "post_id": "P_A_1", "stored_analyzed": 0, "stored_negative": 0, "stored_positive": 0, "stored_neutral": 0 } },
+    { "json": { "post_id": "P_B_1", "stored_analyzed": 0, "stored_negative": 0, "stored_positive": 0, "stored_neutral": 0 } }
+  ],
+  "Classify Media Replies": [{ "json": {} }],
+  "Insert or update posts": [{ "json": { "post_id": "P_A_1" } }],
+  "Insert or update replies": [{ "json": { "reply_id": "R_A_1" } }],
+  "Get Reply Status Counts": [{ "json": { "post_id": "P_A_1", "hidden_negative_replies_count": 0, "non_hidden_negative_replies_count": 1 } }],
+  "Get Alert Recipients": [{"json":{"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_name":"House Account","client_slug":"house","chat_id":"8677383067","label":"Operator","role":"operator"}}],
+  "Send Negative Alert Notification": [{ "json": { "ok": true } }],
+  "Send Scheduler Developer Alert": [{ "json": { "ok": true } }],
+  "Probe OpenAI Error Reason": [{ "json": {} }],
+  "Advance Run State": [{ "json": { "key": "scheduled_post_tracking" } }],
+  "Advance Run State (Quiet Pass)": [{ "json": { "key": "scheduled_post_tracking" } }]
+}
