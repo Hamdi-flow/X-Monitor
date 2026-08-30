@@ -1572,9 +1572,20 @@ re-authorized; nothing reads it yet.
 The `count(*) = 1` fallback in `set_tracked_user_client_id` is now harmless either way, since
 `/track` supplies `client_id` explicitly.
 
-**Optional tidy-up, still open:** rebind production `Upsert Tracked X User` from
-`Postgres account` to `Supabase Account`. Both point at the same production database — proved
-by probe — so this only stops the two drifting apart later.
+**Credential tidy-up, done 2026-08-30.** Production `Upsert Tracked X User` was the only
+Postgres node not using `Supabase Account`, so under T5 a single `/track` resolved the client
+through one credential record and wrote it through another. Two independent records meant a
+later edit to either could silently split read from write — and the failure mode is the worst
+kind: the bot reports success, the row lands in a database nothing reads, and the account
+quietly stops being monitored.
+
+Checked before switching rather than after. A read-only parity probe bound to each credential
+returned identical results — role `postgres`, database `postgres`, `SELECT`/`INSERT`/`UPDATE`
+on `"Tracked Users"`, `SELECT` on `"Clients"`, and the same row counts — so the swap could
+not trade a theoretical risk for a real permissions one. The probe was archived. All **15**
+Postgres nodes in the production router now share one credential; published
+`9c8b0bae-88e1-4ccd-bf15-9bf21438a637`, with `tenancy-pins` 21/21 and `risky-pins` 10/10
+re-run against it afterwards.
 
 ---
 

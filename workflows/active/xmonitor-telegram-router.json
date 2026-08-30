@@ -2,7 +2,7 @@
   "id": "cWczsttyDbTBbRAC",
   "name": "XMonitor - Telegram Router",
   "active": true,
-  "activeVersionId": "3057a599-91c0-45f2-86ad-cfad8bf40d68",
+  "activeVersionId": "9c8b0bae-88e1-4ccd-bf15-9bf21438a637",
   "nodeCount": 147,
   "settings": {
     "executionOrder": "v1",
@@ -5016,8 +5016,8 @@
       },
       "credentials": {
         "postgres": {
-          "id": "eJASCkyhwd9Hiqvb",
-          "name": "Postgres account"
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
         }
       }
     },
@@ -6047,11 +6047,11 @@
   "activeVersion": {
     "sameAsDraft": true
   },
-  "versionId": "3057a599-91c0-45f2-86ad-cfad8bf40d68",
+  "versionId": "9c8b0bae-88e1-4ccd-bf15-9bf21438a637",
   "isArchived": false,
   "triggerCount": 1,
   "createdAt": "2026-05-25T11:22:54.341Z",
-  "updatedAt": "2026-08-30T09:22:49.139Z",
+  "updatedAt": "2026-08-30T09:33:34.309Z",
   "tags": [
     {
       "id": "PHJBSmdCiEBgM8Lb",

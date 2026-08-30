@@ -484,6 +484,11 @@ State check 2026-08-29 (verified against live n8n and both Supabase projects):
   `4b436194-a5a0-4a4e-a69a-29252e3f38bd`. New fixture
   `track-blocked-takeover-preserves-list` guards it, using a new `expectJson` assertion in
   the runner that was negative-tested to confirm it can fail.
+- **The generic `Postgres account` credential is gone from the router as of 2026-08-30.**
+  Production `Upsert Tracked X User` was rebound to `Supabase Account` after a parity probe
+  confirmed both credentials use the same role, database and grants. All 15 Postgres nodes now
+  share one credential; published `9c8b0bae-88e1-4ccd-bf15-9bf21438a637`, both suites re-run
+  green. Original finding, kept for the reasoning:
 - **The generic `Postgres account` credential was checked, and it is benign.** Production's
   `Upsert Tracked X User` uses it while every other Postgres node uses `Supabase Account`, so
   under T5 the client is resolved through one credential and written through the other. A
