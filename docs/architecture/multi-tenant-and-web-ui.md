@@ -1343,6 +1343,43 @@ Staging router `oLwwjO05IcRjtF8E`, every Telegram send pinned, database writes l
 | OAuth session carries the client | `19265` | session row: `telegram_chat_id 9900000002`, `client_id c2698b52-…` |
 | callback stamps the account | `19267` | `Stamp Auth Account Client` → `client_id c2698b52-…` on `X Auth Accounts` |
 
+### The real authorization — 2026-08-30
+
+Everything above pins the X token exchange. This is the one run that does not, and it is the
+only thing that can prove the flow actually works end to end.
+
+**Execution `19434`**, mode `webhook`, a genuine authorization performed by the operator from
+chat `8677383067`. `Exchange Code For Tokens` and `Get Authenticated X User` really ran
+against X, returning `HamSadkaev` / `2060633836858339332`. The session carried
+`client_id f7317adc-…` (`house`) and `telegram_chat_id 8677383067`, `Stamp Auth Account
+Client` wrote that client onto the account, and the row now reads
+`HamSadkaev → house` with a live access and refresh token — where before it had no client at
+all. The null-chat bug caught in `19264` is confirmed dead on a real run.
+
+**A correction to what this proves.** The test was designed as
+`/auth_x client:oauth-proof` so the real grant would exercise the explicit-slug branch. That
+is not what completed: a session for `oauth-proof` was issued at 08:56:21 and went **unused**,
+while a second, plain `/auth_x` issued at 08:58:30 resolved `house` through the sole-client
+path and is the one that was authorized. So the real grant proves the *membership* branch, and
+the explicit-slug branch is proved separately by pinned execution `19443`, where the operator —
+a member of `house` only — typed `client:oauth-proof` and `Resolve Auth Client` returned
+`a577850d-…` (`oauth-proof`), not `house`. That is the discriminating result: `$1` beats
+`$2`. It is worth stating plainly rather than letting the evidence table imply the designed
+test ran.
+
+**Replay protection, proved incidentally.** The callback fired four times —
+`19434` completed; `19435`, `19436` and `19437` arrived seconds later against the
+now-used session, returned
+`This X authentication link has already been used` and ended at `Respond Session Error`.
+`Stamp Auth Account Client` did not run on any of the repeats, so a refreshed or prefetched
+callback cannot double-write an account.
+
+| Row | Execution | Result |
+| --- | --- | --- |
+| real token exchange + stamp | `19434` | `HamSadkaev` authorized for real; `X Auth Accounts.client_id` = `house` |
+| duplicate callback is refused | `19435`–`19437` | session already used; no second stamp |
+| explicit `client:<slug>` beats the caller's own client | `19443` | resolved `oauth-proof` from a chat that belongs to `house` |
+
 `19260` is the row that proves the blocker is genuinely gone: it is the first `/track` ever
 run in this project with two `Clients` rows present, and the pre-T5 code would have failed the
 `NOT NULL` on `Tracked Users.client_id` at exactly that point.
@@ -1436,9 +1473,18 @@ Created: client `tenancy-b`, member chat `9900000002`, tracked user `99900000000
 `X Auth Sessions` rows. All removed. Counts are identical to the pre-T5 baseline — clients 1,
 members 1, staff 1, tracked 3, posts 4, replies 184, moderation queue 0, auth sessions 22,
 auth accounts 14 — a residue probe over `tenancy%` / `99000000%` / `999%` / `t5test%` / `T5%`
-returns 0, and `Tracked Users` is byte-identical to baseline
-(`HamSadkaev=false, keryxpoc=false, lynnharfoush=true`). The `Staff` row was kept: it is the
-operator's T2 grant, not scaffolding.
+returns 0, and after the 2026-08-30 OAuth proof a further probe over `oauth%` returns 0.
+
+**Two things were deliberately kept, and are not residue.** `X Auth Sessions` stands at 23
+rather than the pre-T5 22 — the extra row is the completed session from the real
+authorization, which is a genuine record. And `X Auth Accounts.HamSadkaev.client_id` is left
+set to `house`: the account was authorized from `8677383067`, which is the `house` member chat,
+so `house` is the correct owner. Reverting it would deliberately un-populate correct data,
+which is the opposite of what T5 is for.
+
+`Tracked Users` is byte-identical to baseline
+(`HamSadkaev=false, keryxpoc=false, lynnharfoush=true`), and the `Staff` row was kept: it is
+the operator's T2 grant, not scaffolding.
 
 ### One thing found on the way
 

@@ -97,9 +97,16 @@ no Telegram message — while the database writes ran live. `Stamp Auth Account 
 `client_id c2698b52-…` and the account row carried the correct client. The row and its session
 were removed afterwards.
 
-**Never run a real authorization against a production X account without asking.** A pinned run
-proves the wiring; it does not prove the token exchange, which cannot be exercised without a
-real grant.
+**The token exchange has now been proved with a real grant.** Execution `19434` (2026-08-30,
+mode `webhook`) authorized `HamSadkaev` for real from chat `8677383067`:
+`Exchange Code For Tokens` and `Get Authenticated X User` ran against X, and
+`Stamp Auth Account Client` wrote `house` onto `X Auth Accounts.client_id`, which had been
+null. Duplicate callbacks `19435`–`19437` hit the used session, returned "already been used"
+and did **not** stamp again, so a refreshed callback cannot double-write.
+
+**Never run a real authorization against a production X account without asking.** Re-authorizing
+replaces the account's tokens — the callback upserts on `x_user_id` — and invalidates the
+previous ones.
 
 ## Agent Change Guidance
 
