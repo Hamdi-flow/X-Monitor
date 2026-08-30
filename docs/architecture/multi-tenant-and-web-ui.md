@@ -882,7 +882,7 @@ T1 shrinks to almost nothing.
 | **T2** ✅ **done 2026-08-29** | **Authorization.** Every `Get Post For *` gains an owner check: the caller's chat must be an active `Client Members` row for the post's client, or in `Staff`. A refusal is a clean user-facing message, not a crash, and it is recorded. Unknown chat → refuse and ping staff with chat id, name and type (decision #7). | `L` — this is the security fix | **met** — see §12c. Both routers at 127 nodes, `active` and published. Every cross-tenant action refused with a message identical to "post not found"; chat A and the staff chat unaffected; all ten existing risky-path fixtures pass unchanged |
 | **T3** ✅ **done 2026-08-29** | **Alert routing.** Scheduler resolves recipients as `Posts → Tracked Users.client_id → Client Members where receives_alerts and is_active`. Per-client thresholds read from `Clients`. Retire `Telegram Users` as a routing source. Staff chat receives **no** post alerts (decision #5) — developer alerts still go to the dev chat. | `L` | **met** — all six acceptance rows proved against live staging (18822 / 18824 / 18827 / 18828 / 18830), then re-proved with the recipient query **unpinned** against three real synthetic clients (18865). Watermark behaviours re-proved (18832 / 18833 / 18834); unpinned live pass 18840; first production pass under T3 is 18854 |
 | **T4** | **Isolation proof.** New fixture class `tests/n8n/tenancy-pins/`: two clients, two chats, one post each. Every cross-tenant action returns a refusal. Run the acceptance test above end to end in staging, then production. | `M` | the acceptance test passes in both environments |
-| **T5** | **Onboarding path.** `/track` takes a client (staff-only, decision #3). Per-chat `setMyCommands` so client chats never see `/track` or staff commands — note `all_private_chats` silently overrides the default scope. X OAuth carries `client_id` through the PKCE state onto `X Auth Accounts`. Populate `Moderation Queue.client_id`. | `M` | a second client onboarded from scratch with no manual SQL |
+| **T5** ⚠️ **staging done 2026-08-30, production BLOCKED** | **Onboarding path.** `/track` takes a client (staff-only, decision #3). Per-chat `setMyCommands` so client chats never see `/track` or staff commands — note `all_private_chats` silently overrides the default scope. X OAuth carries `client_id` through the PKCE state onto `X Auth Accounts`. Populate `Moderation Queue.client_id`. | `M` | **met in staging** — a second client (`tenancy-b`) was created, given a chat, and had an X account tracked into it entirely from Telegram, with two clients present. **Not in production:** every production write was refused by the permission classifier. See §12e |
 | **T6** | **Console tenancy.** Group by `Clients.name` rather than raw chat id. Staff sees all clients; the grouping key becomes stable rather than a phone-number-shaped integer. | `S` | console shows two named clients with correct membership |
 | **T7** | **Pilot.** Onboard one real second client and watch a full week: alerts, moderation, an order, a token refresh. | `M` | no cross-tenant event in `Action Log` or execution history |
 
@@ -1206,6 +1206,245 @@ T3 — T3 is scheduler-only.
 
 ---
 
+## 12e. What T5 delivered — 2026-08-30
+
+**Status: live in staging, absent from production.** Staging router `oLwwjO05IcRjtF8E` is
+`active` and published at 145 nodes; staging OAuth callback `gji3bQd2LdodwEJR` at 17 nodes.
+**Nothing reached production** — every production write in this session, the schema migration
+included, was refused by the environment's permission classifier. The production half is
+written, idempotent and ready to run; it has simply never been applied. See "What is still
+owed to production" below.
+
+### The two design calls
+
+**`/track client:<slug> @user1 @user2` — a labelled token, and required.**
+
+Labelled rather than positional because `Parse Users To Track` accepts bare words as
+usernames: under a positional syntax `/track acme @foo` is genuinely ambiguous, and the
+failure is silent — the accounts land under the wrong client and nothing downstream
+disagrees. The token is stripped from the text *before* username extraction, so a slug can
+never be read as a handle. Proved by execution `19260`: `client:tenancy-b` produced
+`client_slug: tenancy-b` and `usersToTrack: [tenancybtest]`, with no `tenancy-b` candidate.
+
+Required, with no default, because the default is the defect. The pre-T5 path derived
+ownership from the caller's chat and fell back to "the sole active client" — a fallback
+guarded by `count(*) = 1`, which returns `NULL` the instant a second `Clients` row exists and
+fails the `NOT NULL` on `Tracked Users.client_id`. Omitting the client now refuses
+(`invalid_reason: missing_client`, execution `19262`) and, critically, refuses *before* the
+deactivate, so a mistyped `/track` cannot empty a client's list.
+
+An unknown or inactive slug is refused by name and told what it could have typed —
+`No active client with slug "nosuchclient". Active clients: house, tenancy-b.` Naming the
+slugs is safe **here and nowhere else**: `/track` is staff-only, so the message can only reach
+a chat already permitted to act across every client. It is not the oracle a post id would be,
+which is why the T2 post refusals stay deliberately indistinguishable.
+
+**`Tracked Users.telegram_chat_id` — `client_id` is now the sole owner.**
+
+`/track` no longer writes the column. Existing values are left untouched, because they are
+historically accurate, and the column is scheduled for removal in T6. The alternative —
+writing the client's chat — has no correct value to write: a client may hold several chats or
+none, and under staff-only `/track` the caller's chat is neither client's chat, so writing it
+would actively misattribute ownership.
+
+Nothing needs the column any more. The evidence, gathered before the decision:
+
+| Reader | After T5 |
+| --- | --- |
+| `Upsert Tracked X User` ownership guard | re-keyed to `client_id` |
+| `Deactivate Tracked Users For Chat` filter | re-keyed to `client_id` |
+| Scheduler `Get Tracked Users` | selects it, uses it nowhere — `Filter Suppressed Posts` reads only `client_id` |
+| `set_tracked_user_client_id` fallback | dead once `client_id` arrives explicitly |
+
+The guard change is the one worth stating plainly. It was
+
+```sql
+WHERE "Tracked Users".telegram_chat_id IS NULL
+   OR "Tracked Users".telegram_chat_id = EXCLUDED.telegram_chat_id
+```
+
+which compared **chats**. Once T2 made `/track` staff-only that stopped meaning anything: a
+staff chat matches no client's rows, so the guard would have let any staff caller move an
+account between clients. It now reads `"Tracked Users".client_id = EXCLUDED.client_id` —
+one X account belongs to one client. Proved by execution `19263`: a staff attempt to move
+house's `lynnharfoush` into `tenancy-b` was blocked, and the row is still active on `house`.
+
+### What was built
+
+| Change | Where |
+| --- | --- |
+| `client:<slug>` parsing, `invalid_reason` | `Parse Users To Track` |
+| slug → active client, plus the valid-slug list for the refusal | `Resolve Track Client` (new) |
+| merge client onto the parsed payload, fail closed | `Build Track Client Result` (new) |
+| gate to the refusal surface | `If Track Client Known` (new) |
+| `client_id` written and guarded on | `Upsert Tracked X User` |
+| deactivate scoped to the client, not the chat | `Deactivate Tracked Users For Chat` (name kept — three pinned fixtures reference it) |
+| `unknown_client` reason and message | `Build Access Refusal` |
+| `/clients`, `/client_new`, `/client_attach` | 14 new nodes behind `If Client Admin Is Staff` |
+| `client_id` from the owning post | `Enqueue Hide Requests` |
+| client carried onto the session | `Resolve Auth Client` (new), `Generate X OAuth Link`, `Save Auth Session` |
+| client carried onto the account | callback `Validate Auth Session`, `Prepare Account Row`, `Stamp Auth Account Client` (new) |
+
+Schema: `db/migrations/2026-08-29-t5-onboarding.sql` adds `"X Auth Sessions".client_id`
+(nullable, FK to `Clients`, `on delete set null`), indexes `"Moderation Queue".client_id`, and
+records the `telegram_chat_id` decision as a column comment. **Applied to staging only.**
+
+**`Build Access Refusal` stayed one node.** The `unknown_client` branch is gated on an
+explicit `track_client_unresolved` marker that only `Build Track Client Result` ever sets, and
+is checked first. Every pre-T5 branch reaches the node with the marker absent and behaves
+exactly as before — which is why the T2 fixtures pass untouched.
+
+**The OAuth callback was changed the cautious way.** `client_id` is *not* added to
+`Upsert X Auth Account`'s column mapping. A null or empty uuid cast there would break the
+insert, and the failure would only surface the next time someone ran `/auth_x` — meaning
+clients could not connect X accounts at all. Instead `Stamp Auth Account Client` runs
+*after* the account row is safely written, is a no-op when no client resolved, and carries
+`onError: continueRegularOutput` so it can never break an authorization. Client resolution is
+best-effort throughout and never refuses: a chat with no client authorizes exactly as it does
+today, leaving `client_id` null, which is why T1 left the column nullable.
+
+### Per-chat command menus
+
+The client menu is the **baseline**, applied to both the default scope and `all_private_chats`.
+That ordering is the whole trick: `all_private_chats` silently overrides the visible default
+menu, so whatever sits there is what an ordinary chat sees. Putting the *client* menu there
+means a chat that is not explicitly staff can never be offered `/track` or a
+client-administration command. Staff chats then get the fuller menu through a per-chat scope,
+which outranks `all_private_chats` for that one chat.
+
+`scripts/set-telegram-bot-commands.ps1` was extended rather than duplicated, gaining
+`-StaffChatIds` and `-ClientChatIds`, and it throws if a client scope ever contains a staff
+command. Verified against `@XmonitorBetaBot` with `getMyCommands` per scope:
+
+| Scope | Commands | Staff commands present |
+| --- | --- | --- |
+| default | 9 | none |
+| `all_private_chats` | 9 | none |
+| chat `8677383067` (staff) | 13 | `/track`, `/clients`, `/client_new`, `/client_attach` |
+
+**A per-chat scope can only be set for a chat Telegram already knows.** Stamping the
+synthetic validation chat `9900000002` returned `Bad Request: chat not found`. A real client
+chat inherits the client menu from `all_private_chats` regardless, so this limits the
+*proof*, not the behaviour.
+
+### Evidence
+
+Staging router `oLwwjO05IcRjtF8E`, every Telegram send pinned, database writes live.
+
+| Acceptance row | Execution | Result |
+| --- | --- | --- |
+| create a second client from Telegram | `19258` | `Create Client` ran live (251 ms), `tenancy-b` = `c2698b52-…`, `created: true` |
+| attach a chat from Telegram | `19259` | `9900000002` → `tenancy-b`, role `client`, label `Tenancy B ops`, alerts on |
+| track into the new client as staff | `19260` | `Resolve Track Client` returned `available_slugs: "house, tenancy-b"` — **two clients present** — and the upsert returned `client_id c2698b52-…` |
+| `Tracked Users.client_id` is the new client | DB | `tenancybtest` → `tenancy-b`, `telegram_chat_id` **null**; house rows untouched |
+| unknown client refused | `19261` | `unknown_client`; `Deactivate` / `Upsert` / `Clear` **all unreached** |
+| missing client refused | `19262` | `missing_client`; no destructive node reached |
+| cross-client takeover blocked | `19263` | `lynnharfoush` still `is_active` on `house` |
+| OAuth session carries the client | `19265` | session row: `telegram_chat_id 9900000002`, `client_id c2698b52-…` |
+| callback stamps the account | `19267` | `Stamp Auth Account Client` → `client_id c2698b52-…` on `X Auth Accounts` |
+
+`19260` is the row that proves the blocker is genuinely gone: it is the first `/track` ever
+run in this project with two `Clients` rows present, and the pre-T5 code would have failed the
+`NOT NULL` on `Tracked Users.client_id` at exactly that point.
+
+**Regression, all against the live staging router:**
+
+| Suite | Result |
+| --- | --- |
+| `tests/n8n/tenancy-pins/` | **20/20** (`19286`–`19305`) |
+| `tests/n8n/telegram-router-risky-pins/` | **10/10** (`19316`–`19325`) |
+| T3 routing invariants | `Get Alert Recipients` still reads `Client Members`; `Telegram Users` read by neither scheduler |
+| T3 routing, two real clients | house → `8677383067` only, `tenancy-b` → `9900000002` only, one row each |
+| production watermark | `Run State` advanced `2026-08-30 07:00:12+00`, hourly cadence intact |
+
+Two fixtures had to change, and both changes are honest rather than cosmetic:
+
+- **`tenancy-pins/staff-track-authorized`** passed unchanged, but only because it asserts the
+  T2 gate and "no access refusal" — under T5 its input `/track @lynnharfoush` now hits
+  *input validation*, so it no longer proved a successful track at all, and its stated
+  assertion ("a staff /track still assigns to the caller's own client — choosing a client is
+  T5") had been overtaken by this very phase. Its input is now
+  `/track client:house @lynnharfoush` and it once again proves the success path.
+- **`telegram-router-risky-pins/track-users-soft-delete`** could not pass unchanged: it feeds
+  `/track @lynnharfoush` and expects it to succeed, which is exactly the input T5 refuses.
+  Its input moved to the new syntax; all three of its actual assertions — parse before either
+  destructive node, a scoped `is_active` update rather than a delete, `Restore Track User
+  List` re-emitting `usersToTrack` — are unchanged and still proved.
+
+Two fixtures were added: `track-missing-client-refusal` and `track-unknown-client-refusal`.
+
+### A defect this phase created, and did not fix
+
+**A blocked ownership takeover now also empties the target client's list, and still reports
+success.** `/track` means "replace this client's tracked accounts", so the client-scoped
+deactivate runs *before* the upsert. When the upsert is then refused by the ownership guard,
+the target client is left with nothing active and the caller is told it worked. Observed in
+execution `19263`: the takeover was correctly blocked, and `tenancybtest` — `tenancy-b`'s only
+account — went `is_active = false`.
+
+The "blocked takeover reports success" half is pre-existing and already recorded in the router
+doc. The "and empties the target client" half is new, and follows from re-keying the
+deactivate to the client. It is recorded rather than fixed because the fix is a real design
+question — deactivate after a successful lookup, or diff the list instead of replacing it —
+and belongs with the Action Executor rather than bolted onto this phase.
+
+### `Moderation Queue.client_id` was proved without leaving a row
+
+Both queue drains are `active: true` on a five-minute schedule and perform real X hides
+(§12b, "Two things to fix regardless"). Enqueuing a live row would have handed one to the
+drain, so the enqueue statement was instead executed inside a transaction and rolled back: it
+resolved `client_id` to `house` from the owning `Posts` row, and a follow-up count confirmed
+`Moderation Queue` still holds 0 rows and no probe residue. The `hide-replies-enqueue` fixture
+separately proves the node is reached with the right input. `client_id` is read from the post
+inside the statement rather than threaded through the row builder, because `Posts.client_id`
+is `NOT NULL` and trigger-maintained and therefore cannot disagree with the post.
+
+### Staging rows created and cleaned up
+
+Created: client `tenancy-b`, member chat `9900000002`, tracked user `9990000000000000001`
+(`tenancybtest`), X auth account `9990000000000000002` (`t5oauthtest`), and three
+`X Auth Sessions` rows. All removed. Counts are identical to the pre-T5 baseline — clients 1,
+members 1, staff 1, tracked 3, posts 4, replies 184, moderation queue 0, auth sessions 22,
+auth accounts 14 — a residue probe over `tenancy%` / `99000000%` / `999%` / `t5test%` / `T5%`
+returns 0, and `Tracked Users` is byte-identical to baseline
+(`HamSadkaev=false, keryxpoc=false, lynnharfoush=true`). The `Staff` row was kept: it is the
+operator's T2 grant, not scaffolding.
+
+### One thing found on the way
+
+`Resolve Track Client` was auto-assigned the generic **`Postgres account`** credential when it
+was created, not `Supabase Staging Postgres` like every other Postgres node in the staging
+router. It was caught and rebound before the node ever ran. Worth knowing for the production
+promotion: production's `Upsert Tracked X User` *already* carries that same generic
+`Postgres account` credential while every other Postgres node there uses `Supabase Account` —
+a pre-existing inconsistency that should be reconciled, since under T5 the client is resolved
+through one credential and written through the other.
+
+### What is still owed to production
+
+Nothing in this list has been attempted-and-failed; each was refused before it ran, so
+production is exactly as T3 left it.
+
+1. `db/migrations/2026-08-29-t5-onboarding.sql` against `jxnzdxyhoakpfmkbjdeq`. Production
+   already has `Moderation Queue.client_id` and `Tracked Users.client_id`; it is missing
+   `"X Auth Sessions".client_id`, which is why the OAuth half must not ship before it.
+2. `node scripts/apply-t5-track-client.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
+3. `node scripts/apply-t5-client-admin.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
+4. `node scripts/apply-t5-queue-client.mjs cWczsttyDbTBbRAC`
+5. `node scripts/apply-t5-oauth-client.mjs router cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
+   and `… callback JQ9KM3l1kRJQhWxb Usl8p3UJw2s7aMMe "Supabase Account"` — **only after step 1**
+6. Publish both, then re-read and confirm `versionId == activeVersionId` on each. This is the
+   check the project has skipped three times.
+7. `scripts/set-telegram-bot-commands.ps1 -TokenVariable TELEGRAM_BOT_TOKEN -StaffChatIds 8372903693`
+8. Re-run both pinned suites against `cWczsttyDbTBbRAC`.
+
+Every script is idempotent and anchored on node names, so it can be re-applied to a freshly
+pulled live graph; re-running the track script against staging left the node count at 145 and
+added nothing. **Do not create a second client in production** — that is T7 and the user's
+call.
+
+---
+
 ## 13. Testing
 
 - **Alert routing** is tested twice over as of T3: `tests/n8n/t3-alert-routing.test.mjs` and
@@ -1215,12 +1454,19 @@ T3 — T3 is scheduler-only.
   `tests/n8n/scheduled-tracking-pins/` assert the same table through n8n itself. The offline
   pair proves the logic and nothing else — wiring, credentials and publish state need the
   pinned run.
-- **Tenancy isolation** is the new test class. `tests/n8n/tenancy-pins/` exists as of T2 with
-  18 fixtures — six cross-tenant refusals, an unknown chat, a staff-only `/track`, the
-  not-found/cross-tenant message-identity check, and authorized controls for chat A and the
-  staff chat. Every fixture pins `Resolve Caller Authorization`, so it is self-contained and
-  runs against either router. The `Action Log` row each denial should write arrives with the
-  executor; until then the denial is recorded in execution data and the developer alert.
+- **Tenancy isolation** is the new test class. `tests/n8n/tenancy-pins/` exists as of T2 and
+  holds **20 fixtures** as of T5 — six cross-tenant refusals, an unknown chat, a staff-only
+  `/track`, the not-found/cross-tenant message-identity check, authorized controls for chat A
+  and the staff chat, and T5's two `/track` client refusals (missing client, unknown client).
+  Every fixture pins `Resolve Caller Authorization`, so it is self-contained and runs against
+  either router. The `Action Log` row each denial should write arrives with the executor;
+  until then the denial is recorded in execution data and the developer alert.
+- **Running a pinned suite.** `tests/n8n/tenancy-pins/run-tenancy-pins.mjs [workflowId]`
+  executes every fixture against a live router and checks the manifest's `reaches`,
+  `doesNotReach` and `refusalReason` assertions. `run-pin-suite.mjs` is the same runner
+  pointed at any fixture directory via `FIXTURE_DIR=telegram-router-risky-pins`. Both refuse
+  to run a fixture that leaves a money- or X-writing node unpinned, rather than trusting the
+  manifest, and both need `N8N_MCP_URL` / `N8N_MCP_ACCESS_TOKEN` from `keys.env`.
 - **RLS** gets a `pgTAP`-style test or a plain SQL script run as each role, asserting zero
   rows across the boundary. Test it as `authenticated` with a real JWT, not as `postgres` —
   the superuser bypasses RLS and will pass a broken policy.

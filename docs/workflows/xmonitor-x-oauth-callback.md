@@ -15,6 +15,18 @@ Production webhook workflow that completes the X OAuth PKCE flow started by the 
 - Webhook path: `/webhook/x-oauth-callback`
 - HTTP method: `GET`
 
+## Phase T5 is NOT in production yet
+
+The staging callback ([XMonitor - X OAuth Callback Staging](./xmonitor-x-oauth-callback-staging.md),
+`gji3bQd2LdodwEJR`) gained a `Stamp Auth Account Client` node that records which client an X
+authorization was for. **This workflow does not have it**, and must not get it until
+`"X Auth Sessions".client_id` exists in the production database — production currently has no
+such column, so `Save Auth Session` writing it would break `/auth_x` outright.
+
+Both the migration and the workflow edit were refused by the permission classifier in the
+session that built T5. See `docs/architecture/multi-tenant-and-web-ui.md` §12e for the ordered
+promotion steps. `X Auth Accounts.client_id` therefore remains unpopulated in production.
+
 ## Important Variables
 
 | Variable | Location | Current value | Meaning |

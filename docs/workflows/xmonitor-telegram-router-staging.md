@@ -10,8 +10,8 @@ Staging copy of the production Telegram router. This is the preferred workflow f
 - Environment: staging
 - Active: yes
 - Local export: `workflows/staging/xmonitor-codex-staging.json`
-- Node count: `127`
-- Last observed live update: `2026-07-11T09:33:28Z`
+- Node count: `145`
+- Last observed live update: `2026-08-30T07:49Z` (T5, published `c4623bc9-9a80-4893-90cd-374b6bfbdce6`)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 - Main trigger node: `Telegram Trigger`
 
@@ -40,7 +40,7 @@ The property was previously absent, leaving correct behaviour resting on n8n's d
 
 ## Tracking Delete Behavior
 
-`/track` no longer deletes tracked users. It deactivates the **caller's** rows and re-activates the ones it resolves, so post and reply history survives a re-track.
+`/track` no longer deletes tracked users. It deactivates the **target client's** rows and re-activates the ones it resolves, so post and reply history survives a re-track. Before T5 the scope was the caller's chat; see Client-Scoped Tracking below for why that had to change.
 
 History of this branch, because the earlier fix made things worse before better:
 
@@ -51,6 +51,70 @@ History of this branch, because the earlier fix made things worse before better:
 Indexes `posts_user_id_idx` and `replies_post_id_idx` still cover the foreign-key columns, so `RESTRICT` is enforced against an index rather than a sequential scan. `tracked_users_active_owner_idx` on `(telegram_chat_id) WHERE is_active` serves both the router's scoped deactivate and the scheduler's active-only read.
 
 Fixtures `track-users-soft-delete.pinData.json` and `track-users-invalid-input.pinData.json` cover this branch; `TRACK-FIX-EVIDENCE.md` in the same directory records the pinned and live staging runs and the production promotion.
+
+## Client-Scoped Tracking (Phase T5)
+
+`/track` is staff-only (T2) and must name the client it is tracking **for**:
+
+```
+/track client:<slug> @user1 @user2
+```
+
+The token is **labelled, not positional**, because `Parse Users To Track` accepts bare words as usernames — under a positional syntax `/track acme @foo` is genuinely ambiguous, and getting it wrong silently files an account under the wrong client. The token is stripped before username extraction, so a slug can never be parsed as a handle.
+
+It is **required, with no default**. Omitting it refuses (`invalid_reason: missing_client`) *before* the deactivate, so a mistyped `/track` cannot empty a client's list. There is deliberately no fallback: the pre-T5 path fell back to "the sole active client", which returns NULL the moment a second `Clients` row exists and fails the `NOT NULL` on `Tracked Users.client_id`.
+
+```
+If Track Users Input Valid
+  -> Resolve Track Client        slug -> active client, plus the valid-slug list
+  -> Build Track Client Result   merges client onto the payload; fails closed
+  -> If Track Client Known
+       [true]  -> Clear Telegram User Links ...   (the original chain)
+       [false] -> Build Access Refusal            (refusal_reason: unknown_client)
+```
+
+An unknown or inactive slug is named back to the caller along with the valid slugs. That is safe **here and nowhere else** — `/track` is staff-only, so the message only ever reaches a chat already allowed to act across every client. The T2 post refusals stay deliberately indistinguishable.
+
+### `Tracked Users.telegram_chat_id` is deprecated
+
+**`client_id` is the sole ownership key.** `/track` no longer writes `telegram_chat_id`; existing values are left alone as historical record, and the column is scheduled for removal in T6. A staff caller's chat is neither client's chat, so writing it would misattribute ownership, and a client may hold several chats or none — there is no correct single value.
+
+The upsert guard changed with it. It used to compare **chats**:
+
+```sql
+WHERE "Tracked Users".telegram_chat_id IS NULL
+   OR "Tracked Users".telegram_chat_id = EXCLUDED.telegram_chat_id
+```
+
+which stopped meaning anything once `/track` became staff-only — a staff chat matches no client's rows, so any staff caller could have moved an account between clients. It now reads `"Tracked Users".client_id = EXCLUDED.client_id`: **one X account belongs to one client**. `Deactivate Tracked Users For Chat` was re-keyed the same way; its name is kept because three pinned fixtures reference it.
+
+> **Known defect, recorded not fixed.** A blocked takeover still reports success *and* now leaves the target client with an empty active list, because the client-scoped deactivate runs before the refused upsert. Observed in staging execution `19263`. The fix belongs with the Action Executor — see `docs/architecture/multi-tenant-and-web-ui.md` §12e.
+
+## Client Administration (Phase T5)
+
+Three staff-only commands, so a client can be onboarded with no hand-written SQL (the console is read-only). All three route through `If Client Admin Is Staff` into `Route Client Admin Intent`, and a non-staff caller lands on the same `Build Access Refusal` as `/track` with `refusal_reason: staff_only_command`.
+
+| Command | Effect |
+| --- | --- |
+| `/clients` | lists active clients, their attached chats, and per-client thresholds |
+| `/client_new <slug> <Name>` | creates a `Clients` row; re-running with an existing slug reports it rather than failing |
+| `/client_attach <slug> <chat_id> [role] [label]` | upserts a `Client Members` row; `role` defaults to `client`, and re-attaching reactivates |
+
+`role` is optional and positional, so a label in its place is treated as a label rather than an invalid role. An unknown slug on `/client_attach` reports the unknown client instead of silently succeeding — the insert selects from an empty CTE, so an empty result is the signal.
+
+## Per-Chat Command Menus (Phase T5)
+
+The **client** menu is the baseline and goes on both the default scope and `all_private_chats`. This matters: `all_private_chats` silently overrides the visible default menu, so whatever sits there is what an ordinary chat sees. Putting the client menu there means a chat that is not explicitly staff can never be offered `/track` or a client-administration command. Staff chats get the fuller menu through a per-chat scope, which outranks `all_private_chats` for that chat.
+
+`scripts/set-telegram-bot-commands.ps1` takes `-StaffChatIds` and `-ClientChatIds` and throws if a client scope ever contains a staff command. A per-chat scope can only be set for a chat Telegram already knows — an unknown id returns `Bad Request: chat not found`.
+
+## OAuth Carries The Client (Phase T5)
+
+`Resolve Auth Client` sits between the route switch and `Generate X OAuth Link` and resolves either an explicit `client:<slug>` typed by staff or the caller's own client when they belong to exactly one. `Save Auth Session` records it on `X Auth Sessions.client_id`, and the callback stamps it onto `X Auth Accounts.client_id`.
+
+Resolution is **best-effort and never refuses**: a chat with no client authorizes exactly as before, leaving `client_id` null. Breaking this flow would mean clients cannot connect X accounts at all, and the failure would only surface the next time someone ran `/auth_x`.
+
+> `Generate X OAuth Link` now sits *behind* a Postgres node, so `$json` is that row and the chat id must come from `Parse Telegram Message`. Missing this wrote a session with a null `telegram_chat_id`, leaving the callback with nowhere to reply — caught by staging execution `19264` and fixed before publish.
 
 ## Hide Replies Enqueues, It No Longer Calls X
 

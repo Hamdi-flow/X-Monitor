@@ -393,19 +393,24 @@ State check 2026-08-29 (verified against live n8n and both Supabase projects):
   client" must return the same message.** They differ only by the post id the caller typed.
   If they ever diverge the bot becomes an oracle for probing other clients' post ids.
   `tests/n8n/tenancy-pins/missing-post-refusal` exists to catch exactly that.
-- **T3 written 2026-08-29, not promoted.** Both scheduler exports now resolve recipients
+- **T3 landed and promoted 2026-08-29** — corrected 2026-08-30, this entry previously said
+  "written, not promoted". Production `Emb26wP77eFXgnVi` is `active` and published at
+  `577efebb-acdd-4062-a205-dbeed364a17e`, first production pass `18854`; re-verified
+  2026-08-30 that `Get Alert Recipients` reads `Client Members` in both schedulers and that
+  `Telegram Users` is read by neither. Both scheduler exports resolve recipients
   through `Client Members` (`Get Telegram Users` → `Get Alert Recipients`) and apply each
   client's own `min_replies` / `negative_threshold`. `Telegram Users` is no longer read by
   either scheduler; it is deliberately **not** dropped, because the Telegram router still
   writes it. 58 offline assertions across `tests/n8n/t3-alert-routing.test.mjs` and
   `tests/n8n/t3-alert-routing-fixtures.test.mjs`, plus three new `tenancy-*` pin fixtures
   awaiting an n8n run.
-- **What blocks T3 from being done:** no n8n access. The claude.ai n8n connector was absent
-  and `N8N_MCP_URL` / `N8N_MCP_ACCESS_TOKEN` are no longer in `keys.env` —
-  `tests/n8n/scheduled-tracking-pins/run-pins.sh` hard-requires both. Supabase was reachable
-  throughout. Restore either route, then follow §12d's six promotion steps; re-run
-  `scripts/apply-t3-alert-routing.mjs` against a freshly pulled live export rather than
-  pushing the local one, since it may have drifted.
+- **Nothing blocks T3 any more; the access note this replaces was wrong.** Corrected
+  2026-08-30: `keys.env` does hold `N8N_MCP_URL` and `N8N_MCP_ACCESS_TOKEN` (seven variables,
+  not three), and a `tools/list` POST to that URL returns HTTP 200. The claude.ai n8n and
+  Supabase connectors also both appear under stable UUIDs, often about an hour into a
+  session. So `tests/n8n/scheduled-tracking-pins/run-pins.sh` and the tenancy runners can
+  run. Whichever route is used, re-run transform scripts against a freshly pulled live graph
+  rather than pushing a local export, since exports drift.
 - **T3 found and fixed the `executeOnce` matched pair** already recorded in
   `docs/workflows/xmonitor-scheduled-post-tracking.md` (staging execution `18789`).
   `executeOnce` removed from `Build Negative Alert Notification`, added to
@@ -421,6 +426,42 @@ State check 2026-08-29 (verified against live n8n and both Supabase projects):
   Telegram alerts entirely and is an operational choice, not a side effect of a code change.
   T3 makes the flip sufficient — nothing else needs to change:
   `update public."Client Members" set receives_alerts = false where chat_id = '8372903693';`
+- **T5 landed in staging 2026-08-30; production is BLOCKED, not deferred.** A second client
+  was created, given a chat, and had an X account tracked into it end to end from Telegram
+  with no hand-written SQL — staging executions `19258` (create client), `19259` (attach
+  chat), `19260` (track into it with two clients present, which is the run the pre-T5 NULL
+  fallback would have failed). Staging router `oLwwjO05IcRjtF8E` is published at 145 nodes
+  (`c4623bc9-9a80-4893-90cd-374b6bfbdce6`), staging OAuth callback `gji3bQd2LdodwEJR` at 17
+  (`774ebf62-14ca-4118-a3b9-0bf423fec471`). Regression: `tenancy-pins` 20/20,
+  `telegram-router-risky-pins` 10/10, T3 routing invariants intact, production watermark
+  still advancing hourly. Full record in §12e.
+- **What blocks T5 from being done: the permission classifier, not access.** Every production
+  write was refused — the schema migration against `jxnzdxyhoakpfmkbjdeq` and all three
+  router transform scripts. Production is therefore exactly as T3 left it (127 nodes, no
+  client-administration commands, `/track` still takes no client). §12e carries the ordered
+  promotion steps; every script is idempotent and anchored on node names.
+- **Do not create a second `Clients` row in production until T5 is promoted.** Production
+  still runs `set_tracked_user_client_id` with its `count(*) = 1` fallback, so a second
+  client breaks `/track` with a `NOT NULL` violation. That coupling is precisely why T5
+  gates T7.
+- **T5 command syntax: `/track client:<slug> @user1`** — labelled rather than positional
+  (the parser accepts bare words as usernames, so a positional slug is ambiguous), and
+  required with no default (the default is the defect). Plus `/clients`, `/client_new`,
+  `/client_attach`, all staff-only through T2's refusal surface.
+- **T5 decision: `Tracked Users.telegram_chat_id` is deprecated**, `client_id` is the sole
+  ownership key. `/track` stops writing it, existing values are left as historical record,
+  removal scheduled for T6. The upsert guard was re-keyed from chat to client — it compared
+  chats, which stopped meaning anything when T2 made `/track` staff-only.
+- **T5 created a defect it did not fix:** a blocked ownership takeover now also empties the
+  target client's active list and still reports success, because the client-scoped deactivate
+  runs before the refused upsert (staging `19263`). The "reports success" half is
+  pre-existing. The fix — deactivate after a successful lookup, or diff rather than replace —
+  belongs with the Action Executor.
+- **Pre-existing inconsistency worth reconciling during promotion:** production's
+  `Upsert Tracked X User` uses the generic `Postgres account` credential while every other
+  Postgres node uses `Supabase Account`. Under T5 the client is resolved through one and
+  written through the other. The same generic credential was auto-assigned to a new staging
+  node and had to be rebound before it ran.
 - Order of work was T2 (authorization) before T3 (alert routing): a broadcast alert is
   embarrassing, unauthorized spending on another client's post is worse.
 - The design call before T1 is settled: **`Clients`**, chosen 2026-08-28 on edit count rather
@@ -441,8 +482,8 @@ Design:
 
 Validation:
 
-- Per phase, per §12 gate column. `tests/n8n/tenancy-pins/` exists as of T2 (18 fixtures,
-  self-contained, runnable against either router); RLS asserted as `authenticated`, never as
+- Per phase, per §12 gate column. `tests/n8n/tenancy-pins/` holds 20 fixtures as of T5 (
+  self-contained, runnable against either router via `run-tenancy-pins.mjs`); RLS asserted as `authenticated`, never as
   `postgres`.
 - Existing `tests/n8n/telegram-router-risky-pins/` fixtures must pass unchanged after the
   executor extraction — that is the parity proof.

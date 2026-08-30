@@ -33,6 +33,23 @@ Production Telegram workflow that receives bot commands and alert button callbac
 | `ORDER_LIKES` | `/order_likes POST_ID AMOUNT`, `order_likes:<post_id>` | Places an SMM likes order, prompting for amount when the callback omitted it. |
 | `UNKNOWN` | Anything else | Sends default help. |
 
+## Phase T5 is NOT in production yet
+
+T5 (onboarding path) is live and validated in **staging only**. Every production write in the
+session that built it — the schema migration included — was refused by the environment's
+permission classifier, so this router is exactly as T3 left it: 127 nodes, `/track` still
+takes no client, and no client-administration commands exist here.
+
+Read `docs/architecture/multi-tenant-and-web-ui.md` §12e for the behaviour this router will
+have once promoted, the ordered list of what is still owed to production, and the reason the
+OAuth half must not ship before the migration (production has no
+`"X Auth Sessions".client_id` column).
+
+Until then, production still carries the pre-T5 hazard this phase exists to remove:
+`set_tracked_user_client_id` falls back to "the sole active client", guarded by
+`count(*) = 1`. **Creating a second `Clients` row in production before T5 is promoted will
+break `/track`** with a `NOT NULL` violation on `Tracked Users.client_id`.
+
 ## Authorization (Phase T2)
 
 Every action is authorized before it runs. One shared step resolves the caller once, and

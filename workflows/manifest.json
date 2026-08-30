@@ -40,7 +40,7 @@
       "id": "oLwwjO05IcRjtF8E",
       "name": "XMonitor - Telegram Router Staging",
       "active": true,
-      "updatedAt": "2026-08-29T10:23:35.643Z",
+      "updatedAt": "2026-08-30T08:03:22.828Z",
       "file": "workflows/staging/xmonitor-codex-staging.json"
     },
     {
@@ -91,6 +91,13 @@
       "active": false,
       "updatedAt": "2026-08-29T10:27:27.683Z",
       "file": "workflows/staging/xmonitor-sentiment-cheat-sheet-review-staging.json"
+    },
+    {
+      "id": "gji3bQd2LdodwEJR",
+      "name": "XMonitor - X OAuth Callback Staging",
+      "active": true,
+      "updatedAt": "2026-08-30T08:03:22.835Z",
+      "file": "workflows/staging/xmonitor-x-oauth-callback-staging.json"
     }
   ]
 }

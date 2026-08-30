@@ -285,7 +285,7 @@
     {
       "id": "track-users-soft-delete",
       "file": "track-users-soft-delete.pinData.json",
-      "input": "message.text=/track @lynnharfoush",
+      "input": "message.text=/track client:house @lynnharfoush",
       "riskPinned": [
         "Clear Telegram User Links",
         "Deactivate Tracked Users For Chat",
@@ -298,6 +298,9 @@
         "reaches": [
           "Parse Users To Track",
           "If Track Users Input Valid",
+          "Resolve Track Client",
+          "Build Track Client Result",
+          "If Track Client Known",
           "Deactivate Tracked Users For Chat",
           "Restore Track User List",
           "Split Users To Track",
@@ -306,7 +309,7 @@
         ],
         "asserts": [
           "Parse Users To Track runs before either destructive node",
-          "Deactivate Tracked Users For Chat is a chat-scoped is_active update, not a delete",
+          "Deactivate Tracked Users For Chat is a CLIENT-scoped is_active update, not a delete (T5 re-keyed it from telegram_chat_id)",
           "Restore Track User List re-emits usersToTrack so Split Users To Track is not starved"
         ],
         "doesNotCallLive": [

@@ -1,0 +1,81 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 950025,
+        "message": {
+          "message_id": 518,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Tenancy",
+            "last_name": "Test",
+            "username": "tenancy_test",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "Tenancy",
+            "type": "private"
+          },
+          "date": 1756450000,
+          "text": "/track @lynnharfoush",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 6,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Clear Telegram User Links": [],
+  "Deactivate Tracked Users For Chat": [],
+  "Lookup X User By Username": [
+    {
+      "json": {
+        "data": {
+          "id": "1062472974",
+          "username": "lynnharfoush",
+          "name": "Lynn"
+        }
+      }
+    }
+  ],
+  "Upsert Tracked X User": [
+    {
+      "json": {
+        "user_id": "1062472974"
+      }
+    }
+  ],
+  "Link Telegram User To X User": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Tracking Success": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 9401
+        }
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [
+          "f7317adc-eea5-49db-81bf-8b2393a93c89"
+        ],
+        "is_staff": true
+      }
+    }
+  ]
+}

@@ -19,7 +19,7 @@
             "type": "private"
           },
           "date": 1756450000,
-          "text": "/track @lynnharfoush",
+          "text": "/track client:house @lynnharfoush",
           "entities": [
             {
               "offset": 0,

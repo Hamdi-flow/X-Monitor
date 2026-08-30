@@ -2,8 +2,8 @@
   "id": "oLwwjO05IcRjtF8E",
   "name": "XMonitor - Telegram Router Staging",
   "active": true,
-  "activeVersionId": "d7e0a22b-1d18-4fee-8440-f3f125943ec8",
-  "nodeCount": 127,
+  "activeVersionId": "c4623bc9-9a80-4893-90cd-374b6bfbdce6",
+  "nodeCount": 145,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -497,7 +497,7 @@
         ],
         [
           {
-            "node": "Generate X OAuth Link",
+            "node": "Resolve Auth Client",
             "type": "main",
             "index": 0
           }
@@ -563,6 +563,25 @@
             "node": "Send Default Help",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "If Client Admin Is Staff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Client Admin Is Staff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Client Admin Is Staff",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -593,7 +612,7 @@
       "main": [
         [
           {
-            "node": "Clear Telegram User Links",
+            "node": "Resolve Track Client",
             "type": "main",
             "index": 0
           }
@@ -1375,12 +1394,241 @@
           }
         ]
       ]
+    },
+    "Resolve Track Client": {
+      "main": [
+        [
+          {
+            "node": "Build Track Client Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Track Client Result": {
+      "main": [
+        [
+          {
+            "node": "If Track Client Known",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Track Client Known": {
+      "main": [
+        [
+          {
+            "node": "Clear Telegram User Links",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Access Refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Client Admin Is Staff": {
+      "main": [
+        [
+          {
+            "node": "Route Client Admin Intent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Access Refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Client Admin Intent": {
+      "main": [
+        [
+          {
+            "node": "List Clients",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Client New",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Client Attach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Clients": {
+      "main": [
+        [
+          {
+            "node": "Build Clients List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Clients List": {
+      "main": [
+        [
+          {
+            "node": "Send Client Admin Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Client New": {
+      "main": [
+        [
+          {
+            "node": "If Client New Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Client New Valid": {
+      "main": [
+        [
+          {
+            "node": "Create Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Client Admin Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Client": {
+      "main": [
+        [
+          {
+            "node": "Build Client New Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Client New Result": {
+      "main": [
+        [
+          {
+            "node": "Send Client Admin Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Client Attach": {
+      "main": [
+        [
+          {
+            "node": "If Client Attach Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Client Attach Valid": {
+      "main": [
+        [
+          {
+            "node": "Attach Client Member",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Client Admin Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Client Member": {
+      "main": [
+        [
+          {
+            "node": "Build Client Attach Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Client Attach Result": {
+      "main": [
+        [
+          {
+            "node": "Send Client Admin Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Client Admin Error": {
+      "main": [
+        [
+          {
+            "node": "Send Client Admin Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Auth Client": {
+      "main": [
+        [
+          {
+            "node": "Generate X OAuth Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nconst SNOOZE_OPTIONS = {\n  '1h': { runs: 1, label: '1 hour' },\n  '4h': { runs: 4, label: '4 hours' },\n  '12h': { runs: 12, label: '12 hours' },\n  '24h': { runs: 24, label: '24 hours' },\n};\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet snooze_duration_key = '';\nlet snooze_duration_label = '';\nlet snooze_runs_remaining = null;\nlet snooze_duration_invalid = '';\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nfunction setSnoozeDuration(key) {\n  const option = SNOOZE_OPTIONS[String(key || '').toLowerCase()];\n  if (!option) return false;\n  snooze_duration_key = String(key).toLowerCase();\n  snooze_duration_label = option.label;\n  snooze_runs_remaining = option.runs;\n  return true;\n}\n\nconst snoozeDurationMatch = callbackData.match(/^snooze_duration:([0-9]{1,19}):(1h|4h|12h|24h)$/i);\nif (snoozeDurationMatch) {\n  post_id = snoozeDurationMatch[1];\n  command = 'snooze_duration';\n  command_args = `${post_id} ${snoozeDurationMatch[2].toLowerCase()}`;\n  intent = 'SNOOZE_POST';\n  setSnoozeDuration(snoozeDurationMatch[2]);\n}\n\nconst callbackMatch = !snoozeDurationMatch ? callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/) : null;\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_MENU';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !snoozeDurationMatch && !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setSnoozeIntent(commandName, args) {\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  const duration = String(tokens[1] || '').toLowerCase();\n\n  if (!post_id) {\n    intent = 'SNOOZE_POST';\n    return;\n  }\n\n  if (duration) {\n    intent = 'SNOOZE_POST';\n    if (!setSnoozeDuration(duration)) {\n      snooze_duration_invalid = duration;\n    }\n    return;\n  }\n\n  intent = 'SNOOZE_MENU';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})(?:\\s+(\\S+))?$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      resume: 'RESUME_POST',\n    };\n    if (action === 'snooze') {\n      setSnoozeIntent(action, `${actionMatch[2]} ${actionMatch[3] || ''}`.trim());\n      return;\n    }\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setSnoozeIntent(command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!snoozeDurationMatch && !callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    snooze_duration_key,\n    snooze_duration_label,\n    snooze_runs_remaining,\n    snooze_duration_invalid,\n    input_source,\n  },\n}];"
+        "jsCode": "const input = $input.first()?.json || $json || {};\nconst message = input.message || {};\nconst callbackQuery = input.callback_query || null;\nconst callbackMessage = callbackQuery?.message || {};\nconst callbackData = String(callbackQuery?.data || '');\nconst text = callbackData || String(message.text || '').trim();\nconst chatId = String(callbackMessage.chat?.id || callbackQuery?.from?.id || message.chat?.id || '');\nconst lower = text.toLowerCase();\n\nconst SNOOZE_OPTIONS = {\n  '1h': { runs: 1, label: '1 hour' },\n  '4h': { runs: 4, label: '4 hours' },\n  '12h': { runs: 12, label: '12 hours' },\n  '24h': { runs: 24, label: '24 hours' },\n};\n\nlet intent = 'UNKNOWN';\nlet post_id = '';\nlet command = '';\nlet command_args = '';\nlet like_amount = '';\nlet likes_prompt_required = false;\nlet snooze_duration_key = '';\nlet snooze_duration_label = '';\nlet snooze_runs_remaining = null;\nlet snooze_duration_invalid = '';\nlet start_payload = '';\nconst callback_query_id = callbackQuery?.id || '';\nconst callback_message_id = callbackMessage.message_id ? String(callbackMessage.message_id) : '';\nconst callback_message_text = String(callbackMessage.text || callbackMessage.caption || '');\nconst input_source = callbackQuery ? 'callback' : 'command';\n\nfunction setSnoozeDuration(key) {\n  const option = SNOOZE_OPTIONS[String(key || '').toLowerCase()];\n  if (!option) return false;\n  snooze_duration_key = String(key).toLowerCase();\n  snooze_duration_label = option.label;\n  snooze_runs_remaining = option.runs;\n  return true;\n}\n\nconst snoozeDurationMatch = callbackData.match(/^snooze_duration:([0-9]{1,19}):(1h|4h|12h|24h)$/i);\nif (snoozeDurationMatch) {\n  post_id = snoozeDurationMatch[1];\n  command = 'snooze_duration';\n  command_args = `${post_id} ${snoozeDurationMatch[2].toLowerCase()}`;\n  intent = 'SNOOZE_POST';\n  setSnoozeDuration(snoozeDurationMatch[2]);\n}\n\nconst callbackMatch = !snoozeDurationMatch ? callbackData.match(/^(hide_replies|ignore|snooze|resume|order_likes):([0-9]{1,19})$/) : null;\nif (callbackMatch) {\n  const callbackCommand = callbackMatch[1];\n  post_id = callbackMatch[2];\n  command = callbackCommand;\n  command_args = post_id;\n\n  if (callbackCommand === 'hide_replies') intent = 'HIDE_REPLIES';\n  if (callbackCommand === 'ignore') intent = 'IGNORE_POST';\n  if (callbackCommand === 'snooze') intent = 'SNOOZE_MENU';\n  if (callbackCommand === 'resume') intent = 'RESUME_POST';\n  if (callbackCommand === 'order_likes') {\n    intent = 'ORDER_LIKES';\n    like_amount = null;\n    likes_prompt_required = true;\n  }\n}\n\nconst commandMatch = !snoozeDurationMatch && !callbackMatch ? text.match(/^\\/(\\w+)(?:@\\w+)?(?:\\s+([\\s\\S]*))?$/) : null;\n\nfunction setPostIntent(nextIntent, commandName, args) {\n  intent = nextIntent;\n  command = commandName;\n  const idMatch = String(args || '').match(/([0-9]{1,19})/);\n  post_id = idMatch ? idMatch[1] : '';\n}\n\nfunction setSnoozeIntent(commandName, args) {\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  const duration = String(tokens[1] || '').toLowerCase();\n\n  if (!post_id) {\n    intent = 'SNOOZE_POST';\n    return;\n  }\n\n  if (duration) {\n    intent = 'SNOOZE_POST';\n    if (!setSnoozeDuration(duration)) {\n      snooze_duration_invalid = duration;\n    }\n    return;\n  }\n\n  intent = 'SNOOZE_MENU';\n}\n\nfunction setLikesIntent(commandName, args) {\n  intent = 'ORDER_LIKES';\n  command = commandName;\n  const tokens = String(args || '').trim().split(/\\s+/).filter(Boolean);\n  post_id = /^[0-9]{1,19}$/.test(tokens[0] || '') ? tokens[0] : '';\n  like_amount = tokens.length >= 2 ? tokens[1] : '';\n  likes_prompt_required = Boolean(callbackQuery && post_id && tokens.length === 1);\n  if (likes_prompt_required) like_amount = null;\n}\n\nfunction applyStartPayload(args) {\n  const payload = String(args || '').trim();\n  start_payload = payload;\n  const normalized = payload.toLowerCase();\n\n  if (['auth', 'auth_x', 'connect', 'connect_x'].includes(normalized)) {\n    intent = 'AUTH_X';\n    command = 'auth_x';\n    command_args = '';\n    return true;\n  }\n\n  const trackMatch = payload.match(/^track[-_](.+)$/i);\n  if (trackMatch) {\n    intent = 'TRACK_USERS';\n    command = 'track';\n    command_args = trackMatch[1].trim();\n    return true;\n  }\n\n  return false;\n}\n\nfunction applyCompatibilityParsing() {\n  if (lower === 'help' || lower === 'start') {\n    intent = 'HELP';\n    return;\n  }\n\n  const hideMatch = text.match(/hide\\s+(?:the\\s+)?replies\\s+(?:of|for)\\s+post\\s*:?\\s*([0-9]{1,19})/i)\n    || text.match(/hide\\s+post\\s*:?\\s*([0-9]{1,19})/i);\n  if (hideMatch) {\n    setPostIntent('HIDE_REPLIES', 'hide_replies', hideMatch[1]);\n    return;\n  }\n\n  const actionMatch = text.match(/^(ignore|snooze|resume)(?:\\s+(?:the\\s+)?)?(?:post\\s*)?:?\\s*([0-9]{1,19})(?:\\s+(\\S+))?$/i);\n  if (actionMatch) {\n    const action = actionMatch[1].toLowerCase();\n    const intentMap = {\n      ignore: 'IGNORE_POST',\n      resume: 'RESUME_POST',\n    };\n    if (action === 'snooze') {\n      setSnoozeIntent(action, `${actionMatch[2]} ${actionMatch[3] || ''}`.trim());\n      return;\n    }\n    setPostIntent(intentMap[action], action, actionMatch[2]);\n  }\n}\n\nif (commandMatch) {\n  command = commandMatch[1].toLowerCase();\n  command_args = (commandMatch[2] || '').trim();\n\n  switch (command) {\n    case 'help':\n      intent = 'HELP';\n      break;\n\n    case 'start':\n      if (!applyStartPayload(command_args)) {\n        intent = 'HELP';\n      }\n      break;\n\n    case 'auth_x':\n    case 'auth':\n      intent = 'AUTH_X';\n      break;\n\n    case 'track':\n      intent = 'TRACK_USERS';\n      break;\n\n    // T5 staff-only client administration. Gated on Staff by\n    // If Client Admin Is Staff, exactly like /track.\n    case 'clients':\n      intent = 'LIST_CLIENTS';\n      break;\n\n    case 'client_new':\n      intent = 'CREATE_CLIENT';\n      break;\n\n    case 'client_attach':\n      intent = 'ATTACH_CHAT';\n      break;\n\n    case 'hide_replies':\n    case 'hide':\n      setPostIntent('HIDE_REPLIES', command, command_args);\n      break;\n\n    case 'ignore':\n      setPostIntent('IGNORE_POST', command, command_args);\n      break;\n\n    case 'snooze':\n      setSnoozeIntent(command, command_args);\n      break;\n\n    case 'resume':\n      setPostIntent('RESUME_POST', command, command_args);\n      break;\n\n    case 'order_comments':\n      setPostIntent('ORDER_COMMENTS', command, command_args);\n      break;\n\n    case 'order_likes':\n      setLikesIntent(command, command_args);\n      break;\n\n    default:\n      intent = 'UNKNOWN';\n  }\n} else if (!snoozeDurationMatch && !callbackMatch) {\n  applyCompatibilityParsing();\n}\n\nreturn [{\n  json: {\n    intent,\n    command,\n    command_args,\n    start_payload,\n    callback_query_id,\n    callback_message_id,\n    callback_message_text,\n    telegram_chat_id: chatId,\n    message_text: text,\n    post_id,\n    like_amount,\n    likes_prompt_required,\n    snooze_duration_key,\n    snooze_duration_label,\n    snooze_runs_remaining,\n    snooze_duration_invalid,\n    input_source,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1393,7 +1641,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\n\n// TODO: Replace these placeholders after import.\nconst clientId = 'Q285bFM0VUJLdlJHTk82aW5YcVE6MTpjaQ';\nconst redirectUri = 'https://tarek1207.app.n8n.cloud/webhook/x-oauth-callback-staging';\n\nconst scopes = [\n  'tweet.read',\n  'users.read',\n  'tweet.write',\n  'tweet.moderate.write',\n  'offline.access',\n];\n\nfunction base64Url(buffer) {\n  return buffer\n    .toString('base64')\n    .replace(/\\+/g, '-')\n    .replace(/\\//g, '_')\n    .replace(/=+$/, '');\n}\n\nfunction toQueryString(params) {\n  return Object.keys(params)\n    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)\n    .join('&');\n}\n\nif (clientId === 'YOUR_X_CLIENT_ID' || redirectUri === 'YOUR_N8N_CALLBACK_URL') {\n  throw new Error('Replace YOUR_X_CLIENT_ID and YOUR_N8N_CALLBACK_URL before activating this workflow.');\n}\n\nconst state = base64Url(crypto.randomBytes(32));\nconst codeVerifier = base64Url(crypto.randomBytes(32));\nconst codeChallenge = base64Url(\n  crypto.createHash('sha256').update(codeVerifier).digest()\n);\n\nconst expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();\n\nconst query = toQueryString({\n  response_type: 'code',\n  client_id: clientId,\n  redirect_uri: redirectUri,\n  scope: scopes.join(' '),\n  state,\n  code_challenge: codeChallenge,\n  code_challenge_method: 'S256',\n});\n\nreturn [{\n  json: {\n    telegram_chat_id: $json.telegram_chat_id,\n    state,\n    code_verifier: codeVerifier,\n    expires_at: expiresAt,\n    auth_url: `https://x.com/i/oauth2/authorize?${query}`,\n  },\n}];"
+        "jsCode": "const crypto = require('crypto');\n\n// TODO: Replace these placeholders after import.\nconst clientId = 'Q285bFM0VUJLdlJHTk82aW5YcVE6MTpjaQ';\nconst redirectUri = 'https://tarek1207.app.n8n.cloud/webhook/x-oauth-callback-staging';\n\nconst scopes = [\n  'tweet.read',\n  'users.read',\n  'tweet.write',\n  'tweet.moderate.write',\n  'offline.access',\n];\n\nfunction base64Url(buffer) {\n  return buffer\n    .toString('base64')\n    .replace(/\\+/g, '-')\n    .replace(/\\//g, '_')\n    .replace(/=+$/, '');\n}\n\nfunction toQueryString(params) {\n  return Object.keys(params)\n    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)\n    .join('&');\n}\n\nif (clientId === 'YOUR_X_CLIENT_ID' || redirectUri === 'YOUR_N8N_CALLBACK_URL') {\n  throw new Error('Replace YOUR_X_CLIENT_ID and YOUR_N8N_CALLBACK_URL before activating this workflow.');\n}\n\nconst state = base64Url(crypto.randomBytes(32));\nconst codeVerifier = base64Url(crypto.randomBytes(32));\nconst codeChallenge = base64Url(\n  crypto.createHash('sha256').update(codeVerifier).digest()\n);\n\nconst expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();\n\nconst query = toQueryString({\n  response_type: 'code',\n  client_id: clientId,\n  redirect_uri: redirectUri,\n  scope: scopes.join(' '),\n  state,\n  code_challenge: codeChallenge,\n  code_challenge_method: 'S256',\n});\n\n// T5-AUTH-CLIENT: this node now sits behind Resolve Auth Client, so $json is\n// that Postgres row, NOT the parsed message -- the chat id must come from the\n// parser or the session row is written with a null chat and the callback has\n// nowhere to reply. client_id may legitimately be null for an unowned chat.\nreturn [{\n  json: {\n    telegram_chat_id: $('Parse Telegram Message').first().json.telegram_chat_id,\n    client_id: $json.client_id || null,\n    state,\n    code_verifier: codeVerifier,\n    expires_at: expiresAt,\n    auth_url: `https://x.com/i/oauth2/authorize?${query}`,\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1428,6 +1676,10 @@
             {
               "fieldId": "used",
               "fieldValue": "false"
+            },
+            {
+              "fieldId": "client_id",
+              "fieldValue": "={{ $json.client_id }}"
             }
           ]
         }
@@ -2063,9 +2315,9 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "telegram_chat_id",
+              "keyName": "client_id",
               "condition": "eq",
-              "keyValue": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}"
+              "keyValue": "={{ $('Build Track Client Result').first().json.client_id }}"
             }
           ]
         },
@@ -2139,7 +2391,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "={{ $('Parse Users To Track').item.json.message }}.",
+        "text": "={{ $('Build Track Client Result').first().json.message }}",
         "additionalFields": {
           "appendAttribution": false,
           "parse_mode": "HTML"
@@ -2163,7 +2415,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const route = $('Parse Telegram Message').first().json;\nconst text = route.command_args || route.message_text || '';\n\nfunction normalizeUsername(value) {\n  return String(value || '')\n    .trim()\n    .replace(/^https?:\\/\\/(?:www\\.)?(?:x|twitter)\\.com\\//i, '')\n    .replace(/^@+/, '')\n    .split(/[/?#]/)[0]\n    .replace(/[^A-Za-z0-9_]/g, '')\n    .toLowerCase();\n}\n\nconst candidates = [];\n\nfor (const match of text.matchAll(/@([A-Za-z0-9_]{1,15})/g)) {\n  candidates.push(match[1]);\n}\n\nfor (const match of text.matchAll(/(?:https?:\\/\\/)?(?:www\\.)?(?:x|twitter)\\.com\\/([A-Za-z0-9_]{1,15})(?:[/?#]|$)/gi)) {\n  candidates.push(match[1]);\n}\n\nlet cleanedText = text\n  .replace(/(?:https?:\\/\\/)?(?:www\\.)?(?:x|twitter)\\.com\\/[A-Za-z0-9_]{1,15}(?:[/?#][^\\s]*)?/gi, ' ')\n  .replace(/@[A-Za-z0-9_]{1,15}/g, ' ')\n  .replace(/^\\/track(?:@\\w+)?/i, ' ')\n  .replace(/\\b(track|tracking|accounts?|users?|usernames?|x|twitter|please|pls|add|the|following|and|or|to|of)\\b/gi, ' ');\n\nfor (const part of cleanedText.split(/[\\s,;:]+/)) {\n  candidates.push(part);\n}\n\nconst reserved = new Set([\n  'home', 'explore', 'notifications', 'messages', 'i', 'intent', 'search',\n  'settings', 'compose', 'share', 'status', 'post', 'posts', 'reply', 'replies',\n]);\n\nconst usersArray = [...new Set(\n  candidates\n    .map(normalizeUsername)\n    .filter(user => /^[a-z0-9_]{1,15}$/.test(user))\n    .filter(user => !reserved.has(user))\n)];\n\nif (usersArray.length === 0) {\n  return [{\n    json: {\n      users_valid: false,\n      telegram_chat_id: route.telegram_chat_id,\n      usersToTrack: [{ user: '' }],\n      message: '',\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    users_valid: true,\n    telegram_chat_id: route.telegram_chat_id,\n    usersToTrack: usersArray.map(user => ({ user })),\n    message: `Successfully tracking the following users:\\n- ${usersArray.join('\\n- ')}`,\n  },\n}];"
+        "jsCode": "// T5: /track is staff-only and must name the client it is tracking FOR.\n//\n// The client token is LABELLED (client:<slug>), never positional. This parser\n// accepts bare words as usernames, so a positional slug would make\n// `/track acme @foo` genuinely ambiguous -- and tracking into the wrong client\n// silently mis-files that client's monitoring, which nothing downstream would\n// catch. The token is stripped BEFORE username extraction so the slug can\n// never be read as a handle.\n//\n// There is deliberately NO default client. Omitting it refuses. The old\n// behaviour derived ownership from the caller's chat and fell back to \"the\n// sole active client\", which returns NULL the moment a second client exists\n// (see set_tracked_user_client_id) -- guessing is the defect T5 removes.\nconst route = $('Parse Telegram Message').first().json;\nconst text = route.command_args || route.message_text || '';\n\nconst CLIENT_TOKEN = /(?:^|\\s)client[:=]([A-Za-z0-9][A-Za-z0-9_-]{0,48})(?=\\s|$)/i;\nconst clientMatch = text.match(CLIENT_TOKEN);\nconst client_slug = clientMatch ? clientMatch[1].toLowerCase() : '';\n\n// Remove the client token first so it never becomes a username candidate.\nconst textWithoutClient = text.replace(new RegExp(CLIENT_TOKEN.source, 'gi'), ' ');\n\nfunction normalizeUsername(value) {\n  return String(value || '')\n    .trim()\n    .replace(/^https?:\\/\\/(?:www\\.)?(?:x|twitter)\\.com\\//i, '')\n    .replace(/^@+/, '')\n    .split(/[/?#]/)[0]\n    .replace(/[^A-Za-z0-9_]/g, '')\n    .toLowerCase();\n}\n\nconst candidates = [];\n\nfor (const match of textWithoutClient.matchAll(/@([A-Za-z0-9_]{1,15})/g)) {\n  candidates.push(match[1]);\n}\n\nfor (const match of textWithoutClient.matchAll(/(?:https?:\\/\\/)?(?:www\\.)?(?:x|twitter)\\.com\\/([A-Za-z0-9_]{1,15})(?:[/?#]|$)/gi)) {\n  candidates.push(match[1]);\n}\n\nlet cleanedText = textWithoutClient\n  .replace(/(?:https?:\\/\\/)?(?:www\\.)?(?:x|twitter)\\.com\\/[A-Za-z0-9_]{1,15}(?:[/?#][^\\s]*)?/gi, ' ')\n  .replace(/@[A-Za-z0-9_]{1,15}/g, ' ')\n  .replace(/^\\/track(?:@\\w+)?/i, ' ')\n  .replace(/\\b(track|tracking|accounts?|users?|usernames?|x|twitter|please|pls|add|the|following|and|or|to|of|for|client)\\b/gi, ' ');\n\nfor (const part of cleanedText.split(/[\\s,;:]+/)) {\n  candidates.push(part);\n}\n\nconst reserved = new Set([\n  'home', 'explore', 'notifications', 'messages', 'i', 'intent', 'search',\n  'settings', 'compose', 'share', 'status', 'post', 'posts', 'reply', 'replies',\n]);\n\nconst usersArray = [...new Set(\n  candidates\n    .map(normalizeUsername)\n    .filter(user => /^[a-z0-9_]{1,15}$/.test(user))\n    .filter(user => !reserved.has(user))\n)];\n\nconst users_valid = usersArray.length > 0 && Boolean(client_slug);\n\n// One invalid branch, two distinct causes -- the operator needs to know which.\nlet invalid_reason = '';\nif (!client_slug && usersArray.length === 0) invalid_reason = 'no_client_and_no_users';\nelse if (!client_slug) invalid_reason = 'missing_client';\nelse if (usersArray.length === 0) invalid_reason = 'no_users';\n\nreturn [{\n  json: {\n    users_valid,\n    invalid_reason,\n    client_slug,\n    telegram_chat_id: route.telegram_chat_id,\n    usersToTrack: users_valid ? usersArray.map(user => ({ user })) : [{ user: '' }],\n    usernames: usersArray,\n    message: '',\n  },\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2478,6 +2730,78 @@
               },
               "renameOutput": true,
               "outputKey": "SNOOZE_MENU"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c5000000-0000-4000-8000-LIST_CLIENTS",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "LIST_CLIENTS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "LIST_CLIENTS"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c5000000-0000-4000-8000-CREATE_CLIEN",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "CREATE_CLIENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CREATE_CLIENT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c5000000-0000-4000-8000-ATTACH_CHAT0",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "ATTACH_CHAT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ATTACH_CHAT"
             }
           ]
         },
@@ -4703,10 +5027,10 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO public.\"Tracked Users\" (user_id, username, telegram_chat_id, is_active)\nVALUES ($1, $2, $3, true)\nON CONFLICT (user_id) DO UPDATE\nSET\n  username = EXCLUDED.username,\n  telegram_chat_id = EXCLUDED.telegram_chat_id,\n  is_active = true\nWHERE\n  public.\"Tracked Users\".telegram_chat_id IS NULL\n  OR public.\"Tracked Users\".telegram_chat_id = EXCLUDED.telegram_chat_id\nRETURNING user_id, username, telegram_chat_id, is_active;",
+        "query": "INSERT INTO public.\"Tracked Users\" (user_id, username, client_id, is_active)\nVALUES ($1, $2, $3, true)\nON CONFLICT (user_id) DO UPDATE\nSET\n  username = EXCLUDED.username,\n  client_id = EXCLUDED.client_id,\n  is_active = true\nWHERE\n  public.\"Tracked Users\".client_id = EXCLUDED.client_id\nRETURNING user_id, username, client_id, is_active;",
         "options": {
           "queryBatching": "independently",
-          "queryReplacement": "={{ [$json.data.id, $json.data.username, $('Parse Telegram Message').item.json.telegram_chat_id] }}"
+          "queryReplacement": "={{ [$json.data.id, $json.data.username, $('Build Track Client Result').first().json.client_id] }}"
         }
       },
       "credentials": {
@@ -4726,7 +5050,7 @@
         -400
       ],
       "parameters": {
-        "jsCode": "// Clear Telegram User Links and Deactivate Tracked Users For Chat both return\n// Supabase rows, which do not carry the usersToTrack list that\n// Split Users To Track needs. Re-emit the parsed payload so the tracking branch\n// keeps its input, and keep pairedItem so downstream\n// $('Parse Users To Track').item lookups still resolve.\nreturn [{\n  json: $('Parse Users To Track').first().json,\n  pairedItem: { item: 0 },\n}];"
+        "jsCode": "// Clear Telegram User Links and Deactivate Tracked Users For Chat both return\n// Supabase rows, which do not carry the usersToTrack list that\n// Split Users To Track needs. Re-emit the resolved payload so the tracking\n// branch keeps its input, and keep pairedItem so downstream\n// $('...').item lookups still resolve.\n//\n// T5: re-emits Build Track Client Result rather than Parse Users To Track, so\n// the resolved client_id travels with the accounts instead of being looked up\n// again further down.\nreturn [{\n  json: $('Build Track Client Result').first().json,\n  pairedItem: { item: 0 },\n}];"
       },
       "notes": "Bridges the parsed handle list past the deactivate step. Without it Split Users To Track silently emits zero items and /track succeeds while doing nothing."
     },
@@ -4773,7 +5097,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Enqueue every candidate reply. Section 2.2: \"one pending hide per reply,\n-- ever\" is the UNIQUE (reply_id) constraint; ON CONFLICT DO UPDATE re-arms a\n-- row sitting in failed/abandoned/done so a retry after /auth_x still works,\n-- while an in_flight row is left alone because its request may already be\n-- airborne.\nWITH input AS (\n  SELECT * FROM jsonb_to_recordset($1::jsonb)\n    AS r(post_id text, reply_id text, x_user_id text, telegram_chat_id text)\n),\nupserted AS (\n  INSERT INTO public.\"Moderation Queue\"\n    (post_id, reply_id, x_user_id, telegram_chat_id, batch_id, action, status, attempts, not_before)\n  SELECT i.post_id, i.reply_id, i.x_user_id, i.telegram_chat_id, $2::uuid, 'hide', 'queued', 0, now()\n  FROM input i\n  ON CONFLICT (reply_id) DO UPDATE\n    SET status = 'queued',\n        attempts = 0,\n        not_before = now(),\n        last_error = NULL,\n        last_error_code = NULL,\n        batch_id = EXCLUDED.batch_id,\n        telegram_chat_id = EXCLUDED.telegram_chat_id,\n        telegram_message_id = NULL,\n        post_id = EXCLUDED.post_id,\n        x_user_id = EXCLUDED.x_user_id\n    WHERE public.\"Moderation Queue\".status <> 'in_flight'\n  RETURNING id\n)\nSELECT (SELECT count(*) FROM input)    AS submitted,\n       (SELECT count(*) FROM upserted) AS queued,\n       $2::uuid AS batch_id;",
+        "query": "-- Enqueue every candidate reply. Section 2.2: \"one pending hide per reply,\n-- ever\" is the UNIQUE (reply_id) constraint; ON CONFLICT DO UPDATE re-arms a\n-- row sitting in failed/abandoned/done so a retry after /auth_x still works,\n-- while an in_flight row is left alone because its request may already be\n-- airborne.\n--\n-- T5: client_id is resolved from the owning \"Posts\" row here rather than being\n-- threaded through the row builder. Posts.client_id is NOT NULL and trigger-\n-- maintained, so it is authoritative and cannot disagree with the post.\nWITH input AS (\n  SELECT * FROM jsonb_to_recordset($1::jsonb)\n    AS r(post_id text, reply_id text, x_user_id text, telegram_chat_id text)\n),\nupserted AS (\n  INSERT INTO public.\"Moderation Queue\"\n    (post_id, reply_id, x_user_id, telegram_chat_id, client_id, batch_id, action, status, attempts, not_before)\n  SELECT i.post_id, i.reply_id, i.x_user_id, i.telegram_chat_id,\n         (SELECT p.client_id FROM public.\"Posts\" p WHERE p.post_id = i.post_id),\n         $2::uuid, 'hide', 'queued', 0, now()\n  FROM input i\n  ON CONFLICT (reply_id) DO UPDATE\n    SET status = 'queued',\n        attempts = 0,\n        not_before = now(),\n        last_error = NULL,\n        last_error_code = NULL,\n        batch_id = EXCLUDED.batch_id,\n        telegram_chat_id = EXCLUDED.telegram_chat_id,\n        telegram_message_id = NULL,\n        post_id = EXCLUDED.post_id,\n        x_user_id = EXCLUDED.x_user_id,\n        client_id = EXCLUDED.client_id\n    WHERE public.\"Moderation Queue\".status <> 'in_flight'\n  RETURNING id\n)\nSELECT (SELECT count(*) FROM input)    AS submitted,\n       (SELECT count(*) FROM upserted) AS queued,\n       $2::uuid AS batch_id;",
         "options": {
           "queryReplacement": "={{ [$json.queued_rows_json, $json.batch_id] }}"
         }
@@ -5103,7 +5427,7 @@
         1760
       ],
       "parameters": {
-        "jsCode": "// T2 shared refusal surface. Every denial in this workflow lands here.\n// SECURITY: 'post_not_found' and 'cross_tenant_post' MUST return the same\n// user-facing text. Distinguishing them turns the bot into an oracle for\n// probing which post ids exist inside other clients. The real reason is\n// recorded in refusal_reason (execution data) and in the developer alert only.\nconst auth = $('Build Caller Authorization').first().json;\nconst post = $input.first()?.json || {};\n\nconst postId = String(auth.post_id || '');\nconst postExists = Boolean(post && post.post_id);\n\nlet refusal_reason;\nif (auth.auth_is_known !== true) {\n  refusal_reason = 'unknown_chat';\n} else if (auth.intent === 'TRACK_USERS') {\n  refusal_reason = 'staff_only_command';\n} else if (postExists) {\n  refusal_reason = 'cross_tenant_post';\n} else {\n  refusal_reason = 'post_not_found';\n}\n\nconst MESSAGES = {\n  unknown_chat: {\n    message: 'This chat is not registered with XMonitor. Ask your account manager to add it, then try again.',\n    callback_text: 'Chat not registered.',\n  },\n  staff_only_command: {\n    message: 'This command is not available for this chat.',\n    callback_text: 'Not available.',\n  },\n  post_denied: {\n    message: `Post ${postId} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  },\n};\n\nconst chosen = refusal_reason === 'unknown_chat'\n  ? MESSAGES.unknown_chat\n  : refusal_reason === 'staff_only_command'\n    ? MESSAGES.staff_only_command\n    : MESSAGES.post_denied;\n\nreturn [{\n  json: {\n    telegram_chat_id: auth.telegram_chat_id,\n    callback_query_id: auth.callback_query_id || '',\n    callback_message_id: auth.callback_message_id || '',\n    post_id: postId,\n    intent: auth.intent || '',\n    command: auth.command || '',\n    refusal_reason,\n    denied_post_client_id: postExists ? String(post.client_id || '') : '',\n    caller_client_ids: auth.auth_client_ids || [],\n    caller_is_staff: auth.auth_is_staff === true,\n    message: chosen.message,\n    callback_text: chosen.callback_text,\n  },\n}];"
+        "jsCode": "// T2 shared refusal surface. Every denial in this workflow lands here.\n// SECURITY: 'post_not_found' and 'cross_tenant_post' MUST return the same\n// user-facing text. Distinguishing them turns the bot into an oracle for\n// probing which post ids exist inside other clients. The real reason is\n// recorded in refusal_reason (execution data) and in the developer alert only.\nconst auth = $('Build Caller Authorization').first().json;\nconst post = $input.first()?.json || {};\n\nconst postId = String(auth.post_id || '');\nconst postExists = Boolean(post && post.post_id);\n\n// T5: an unknown/inactive client on a staff /track. Checked FIRST and gated on\n// an explicit marker set only by Build Track Client Result, so every pre-T5\n// branch reaches this node with the marker absent and behaves exactly as before.\nconst trackClientUnresolved = post.track_client_unresolved === true;\n\n// T5: the client-administration commands are staff-only for the same reason\n// /track is -- they change who owns what. Same refusal text, so a client chat\n// cannot tell a staff-only command from an unrecognised one.\nconst STAFF_ONLY_INTENTS = new Set(['TRACK_USERS', 'LIST_CLIENTS', 'CREATE_CLIENT', 'ATTACH_CHAT']);\n\nlet refusal_reason;\nif (trackClientUnresolved) {\n  refusal_reason = 'unknown_client';\n} else if (auth.auth_is_known !== true) {\n  refusal_reason = 'unknown_chat';\n} else if (STAFF_ONLY_INTENTS.has(auth.intent)) {\n  refusal_reason = 'staff_only_command';\n} else if (postExists) {\n  refusal_reason = 'cross_tenant_post';\n} else {\n  refusal_reason = 'post_not_found';\n}\n\nconst requestedSlug = String(post.requested_client_slug || '');\nconst availableSlugs = String(post.available_slugs || '');\n\nconst MESSAGES = {\n  unknown_chat: {\n    message: 'This chat is not registered with XMonitor. Ask your account manager to add it, then try again.',\n    callback_text: 'Chat not registered.',\n  },\n  staff_only_command: {\n    message: 'This command is not available for this chat.',\n    callback_text: 'Not available.',\n  },\n  post_denied: {\n    message: `Post ${postId} was not found. Wait for monitoring to flag it, then try again.`,\n    callback_text: 'Post not found.',\n  },\n  // Naming the valid slugs is safe here and nowhere else: /track is staff-only,\n  // so this message can only ever reach a chat that is already allowed to act\n  // across every client. It is not an oracle the way a post id would be.\n  unknown_client: {\n    message: availableSlugs\n      ? `No active client with slug \"${requestedSlug}\". Active clients: ${availableSlugs}.`\n      : `No active client with slug \"${requestedSlug}\". There are no active clients yet -- create one with /client_new first.`,\n    callback_text: 'Unknown client.',\n  },\n};\n\nconst chosen = MESSAGES[refusal_reason] || MESSAGES.post_denied;\n\nreturn [{\n  json: {\n    telegram_chat_id: auth.telegram_chat_id,\n    callback_query_id: auth.callback_query_id || '',\n    callback_message_id: auth.callback_message_id || '',\n    post_id: postId,\n    intent: auth.intent || '',\n    command: auth.command || '',\n    refusal_reason,\n    denied_post_client_id: postExists ? String(post.client_id || '') : '',\n    requested_client_slug: requestedSlug,\n    caller_client_ids: auth.auth_client_ids || [],\n    caller_is_staff: auth.auth_is_staff === true,\n    message: chosen.message,\n    callback_text: chosen.callback_text,\n  },\n}];"
       }
     },
     {
@@ -5228,11 +5552,500 @@
           "name": "Testing Telegram API"
         }
       }
+    },
+    {
+      "id": "fce8db1c-057e-4473-b00a-95ca67a25f3e",
+      "name": "Resolve Track Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -180,
+        1180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T5: resolve the slug the staff caller typed to a real, ACTIVE client.\n-- Always returns exactly one row, so an unknown slug is a null client_id\n-- rather than an empty result -- the refusal path needs available_slugs to\n-- tell the caller what they could have typed.\n-- Both Supabase projects are shared with FB Monitor, so the table is named\n-- explicitly.\nselect\n  (select c.id::text from public.\"Clients\" c where c.slug = $1 and c.is_active) as client_id,\n  (select c.name    from public.\"Clients\" c where c.slug = $1 and c.is_active) as client_name,\n  coalesce((\n    select string_agg(c.slug, ', ' order by c.slug)\n      from public.\"Clients\" c where c.is_active\n  ), '') as available_slugs",
+        "options": {
+          "queryReplacement": "={{ $json.client_slug }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "69883c2d-9f78-404b-a59e-cebe1bf2b7a1",
+      "name": "Build Track Client Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1180
+      ],
+      "parameters": {
+        "jsCode": "// T5: merge the resolved client back onto the parsed /track payload, so one\n// item carries both the accounts to track and the client that will own them.\n// Fails closed: no row, or a row with a null client_id, means unresolved.\nconst parsed = $('Parse Users To Track').first().json;\nconst row = $input.first()?.json || {};\n\nconst client_id = String(row.client_id || '');\nconst track_client_resolved = client_id.length > 0;\n\nconst usernames = Array.isArray(parsed.usernames) ? parsed.usernames : [];\nconst client_name = String(row.client_name || '');\n\nreturn [{\n  json: {\n    ...parsed,\n    client_id,\n    client_name,\n    track_client_resolved,\n    // Consumed by Build Access Refusal to distinguish an unknown client from\n    // the T2 refusals, which must keep their existing messages verbatim.\n    track_client_unresolved: !track_client_resolved,\n    requested_client_slug: String(parsed.client_slug || ''),\n    available_slugs: String(row.available_slugs || ''),\n    // The success message names the client, so a mis-typed slug that happens\n    // to resolve is still visible to the operator in the reply.\n    message: `Now tracking for ${client_name} (${parsed.client_slug}):\\n- ${usernames.join('\\n- ')}`,\n  },\n  pairedItem: { item: 0 },\n}];"
+      }
+    },
+    {
+      "id": "9d05e381-888f-4fcc-9d0f-ac1d93cdc214",
+      "name": "If Track Client Known",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        180,
+        1180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b0000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.track_client_resolved === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "35c5d177-fd37-47f5-8d47-5ff346ac8ab7",
+      "name": "If Client Admin Is Staff",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1400,
+        2600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c5000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ $('Build Caller Authorization').first().json.auth_is_staff === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1965da8f-4817-4bc7-8d0f-494b011e8d05",
+      "name": "Route Client Admin Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1200,
+        2600
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "LIST_CLIENTS",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c5000000-0000-4000-8000-000000000100",
+                    "leftValue": "={{ $('Build Caller Authorization').first().json.intent }}",
+                    "rightValue": "LIST_CLIENTS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "CREATE_CLIENT",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c5000000-0000-4000-8000-000000000101",
+                    "leftValue": "={{ $('Build Caller Authorization').first().json.intent }}",
+                    "rightValue": "CREATE_CLIENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "ATTACH_CHAT",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c5000000-0000-4000-8000-000000000102",
+                    "leftValue": "={{ $('Build Caller Authorization').first().json.intent }}",
+                    "rightValue": "ATTACH_CHAT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "858d1572-f990-475d-b1f8-3237f6475227",
+      "name": "List Clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -980,
+        2380
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T5 /clients. One row per client with its attached chats, so staff can see\n-- what exists before tracking into it. Both Supabase projects are shared with\n-- the sibling FB Monitor project, so tables are named explicitly.\nselect\n  c.slug,\n  c.name,\n  c.is_active,\n  c.min_replies,\n  c.negative_threshold::float8 as negative_threshold,\n  coalesce((\n    select count(*) from public.\"Client Members\" cm\n     where cm.client_id = c.id and cm.is_active\n  ), 0) as active_chats,\n  coalesce((\n    select string_agg(cm.chat_id || case when cm.receives_alerts then '' else ' (muted)' end, ', ' order by cm.chat_id)\n      from public.\"Client Members\" cm\n     where cm.client_id = c.id and cm.is_active\n  ), '') as chat_ids\nfrom public.\"Clients\" c\norder by c.is_active desc, c.slug",
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "bbbfe149-5cda-49d2-83d0-c5eacb9fcb90",
+      "name": "Build Clients List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -780,
+        2380
+      ],
+      "parameters": {
+        "jsCode": "// T5 /clients — render the client roster for a staff chat.\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.slug);\n\nif (!rows.length) {\n  return [{ json: { message: 'No clients exist yet. Create one with:\\n/client_new <slug> <Name>' } }];\n}\n\nconst lines = rows.map((r) => {\n  const state = r.is_active ? '' : ' [inactive]';\n  const chats = r.chat_ids ? r.chat_ids : 'no chats attached';\n  return `• ${r.slug}${state} — ${r.name}\\n   chats: ${chats}\\n   min_replies ${r.min_replies}, threshold ${r.negative_threshold}`;\n});\n\nreturn [{ json: { message: `Clients (${rows.length}):\\n\\n${lines.join('\\n\\n')}` } }];"
+      }
+    },
+    {
+      "id": "7dba556c-9517-40a6-9194-cf7f7828ef1c",
+      "name": "Parse Client New",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        2600
+      ],
+      "parameters": {
+        "jsCode": "// T5 /client_new <slug> <Name...>\n// The slug is the key staff will type into /track, so it is constrained to the\n// shape /track accepts and lowercased here rather than at use time.\nconst route = $('Parse Telegram Message').first().json;\nconst args = String(route.command_args || '').trim();\nconst tokens = args.split(/\\s+/).filter(Boolean);\n\nconst slug = String(tokens[0] || '').toLowerCase();\nconst name = tokens.slice(1).join(' ').trim();\n\nlet error = '';\nif (!slug || !name) {\n  error = 'Usage: /client_new <slug> <Name>\\nExample: /client_new acme Acme Corporation';\n} else if (!/^[a-z0-9][a-z0-9_-]{1,48}$/.test(slug)) {\n  error = `\"${slug}\" is not a valid slug. Use 2-49 characters: lowercase letters, digits, hyphen or underscore, starting with a letter or digit.`;\n}\n\nreturn [{\n  json: {\n    client_new_valid: error === '',\n    slug,\n    client_name: name,\n    message: error,\n  },\n}];"
+      }
+    },
+    {
+      "id": "eb988ac8-0676-480e-9dfb-fa7db8441be7",
+      "name": "If Client New Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -780,
+        2600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c5000000-0000-4000-8000-000000000201",
+              "leftValue": "={{ $json.client_new_valid === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0f050fb6-43a7-4265-8796-f34e9ae029f6",
+      "name": "Create Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -580,
+        2520
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T5 /client_new. Idempotent: re-running with an existing slug reports the\n-- existing row rather than failing, so a staff retry is never destructive.\n-- The 'created' flag is what tells the two cases apart downstream.\nwith ins as (\n  insert into public.\"Clients\" (slug, name)\n  values ($1, $2)\n  on conflict (slug) do nothing\n  returning id, slug, name, is_active\n)\nselect id::text as client_id, slug, name, is_active, true as created from ins\nunion all\nselect c.id::text, c.slug, c.name, c.is_active, false as created\n  from public.\"Clients\" c\n where c.slug = $1 and not exists (select 1 from ins)",
+        "options": {
+          "queryReplacement": "={{ [$json.slug, $json.client_name] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "de242c05-ba41-47af-992a-68927e47970a",
+      "name": "Build Client New Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        2520
+      ],
+      "parameters": {
+        "jsCode": "// T5 /client_new result. Names the next step explicitly — a client with no\n// chat attached receives nothing, which is the easiest thing to forget.\nconst row = $input.first()?.json || {};\n\nif (!row.client_id) {\n  return [{ json: { message: 'Could not create the client. Check the slug and try again.' } }];\n}\n\nconst created = row.created === true || row.created === 'true';\nconst head = created\n  ? `Created client ${row.name} (${row.slug}).`\n  : `Client ${row.slug} already exists — ${row.name}${row.is_active ? '' : ' [inactive]'}. Nothing changed.`;\n\nreturn [{\n  json: {\n    message: `${head}\\n\\nNext:\\n/client_attach ${row.slug} <chat_id>\\n/track client:${row.slug} @handle`,\n  },\n}];"
+      }
+    },
+    {
+      "id": "b3c88905-41d1-4555-b23f-dcbaef0cb655",
+      "name": "Parse Client Attach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        2840
+      ],
+      "parameters": {
+        "jsCode": "// T5 /client_attach <slug> <chat_id> [role] [label...]\n// role defaults to 'client'; 'operator' is the only other value the\n// Client Members_role_check constraint accepts.\nconst route = $('Parse Telegram Message').first().json;\nconst tokens = String(route.command_args || '').trim().split(/\\s+/).filter(Boolean);\n\nconst slug = String(tokens[0] || '').toLowerCase();\nconst chat_id = String(tokens[1] || '');\nlet role = String(tokens[2] || '').toLowerCase();\nlet label = tokens.slice(3).join(' ').trim();\n\n// role is optional and positional, so a label in its place must not become a role.\nif (role && role !== 'client' && role !== 'operator') {\n  label = [tokens[2], ...tokens.slice(3)].join(' ').trim();\n  role = 'client';\n}\nif (!role) role = 'client';\n\nlet error = '';\nif (!slug || !chat_id) {\n  error = 'Usage: /client_attach <slug> <chat_id> [role] [label]\\nExample: /client_attach acme 8677383067 client Acme ops';\n} else if (!/^-?[0-9]{1,19}$/.test(chat_id)) {\n  error = `\"${chat_id}\" is not a valid Telegram chat id.`;\n}\n\nreturn [{\n  json: {\n    client_attach_valid: error === '',\n    slug,\n    chat_id,\n    role,\n    label,\n    message: error,\n  },\n}];"
+      }
+    },
+    {
+      "id": "63545928-d9fc-4b82-8ebb-37c2d07e5a41",
+      "name": "If Client Attach Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -780,
+        2840
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c5000000-0000-4000-8000-000000000301",
+              "leftValue": "={{ $json.client_attach_valid === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "360d843e-ee5d-4261-a835-c89df6828fb4",
+      "name": "Attach Client Member",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -580,
+        2780
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T5 /client_attach. Returns zero rows when the slug names no ACTIVE client,\n-- which the builder reports as an unknown-client error rather than a success.\n-- Re-attaching an existing chat reactivates it instead of erroring, so a retry\n-- is safe.\nwith c as (\n  select id, name from public.\"Clients\" where slug = $1 and is_active\n)\ninsert into public.\"Client Members\" (client_id, chat_id, role, label, receives_alerts, is_active)\nselect c.id, $2, $3, nullif($4, ''), true, true from c\non conflict (client_id, chat_id) do update\n  set role = excluded.role,\n      label = coalesce(excluded.label, public.\"Client Members\".label),\n      is_active = true,\n      updated_at = now()\nreturning\n  client_id::text,\n  chat_id,\n  role,\n  label,\n  receives_alerts,\n  (select name from c) as client_name",
+        "options": {
+          "queryReplacement": "={{ [$json.slug, $json.chat_id, $json.role, $json.label] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "e20a9e82-f840-4571-a8ff-d140f062c4e7",
+      "name": "Build Client Attach Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        2780
+      ],
+      "parameters": {
+        "jsCode": "// T5 /client_attach result. An empty result means the slug matched no active\n// client — the insert selected from an empty CTE — so it is reported as an\n// unknown client, not as a silent success.\nconst row = $input.first()?.json || {};\nconst parsed = $('Parse Client Attach').first().json;\n\nif (!row.client_id) {\n  return [{\n    json: {\n      message: `No active client with slug \"${parsed.slug}\". Run /clients to see what exists, or create it with /client_new.`,\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    message: `Attached chat ${row.chat_id} to ${row.client_name} (${parsed.slug}) as ${row.role}.\\nAlerts: ${row.receives_alerts ? 'on' : 'off'}.\\n\\nNext:\\n/track client:${parsed.slug} @handle`,\n  },\n}];"
+      }
+    },
+    {
+      "id": "9584478c-8929-4c5f-ad4d-41b240c459d6",
+      "name": "Build Client Admin Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        3020
+      ],
+      "parameters": {
+        "jsCode": "// Shared usage/validation error surface for the three client-admin commands.\n// The message is built by whichever Parse node rejected the input.\nreturn [{ json: { message: String($json.message || 'Invalid input.') } }];"
+      }
+    },
+    {
+      "id": "0a58c0ec-64b7-43b8-8bd6-6bc4ddeab931",
+      "name": "Send Client Admin Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        2600
+      ],
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').first().json.telegram_chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "3e687fc3-ac5b-4b90-a61f-71fe7765d5af",
+      "credentials": {
+        "telegramApi": {
+          "id": "1PkKyBUkopLzyBuI",
+          "name": "Testing Telegram API"
+        }
+      }
+    },
+    {
+      "id": "702abb83-54e1-4ec3-ad05-a5afc28ed25a",
+      "name": "Resolve Auth Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -14744,
+        -1088
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T5: which client is this X authorization for?\n--   $1 an explicit client:<slug> typed by a staff caller, else ''\n--   $2 the caller's own client when they belong to exactly one, else ''\n-- Returns one row always. A null client_id is a valid outcome -- the chat has\n-- no client, or a staff caller typed a slug that does not resolve -- and the\n-- authorization proceeds regardless, exactly as it did before T5.\nselect\n  case\n    when $1 <> '' then (select c.id::text from public.\"Clients\" c where c.slug = $1 and c.is_active)\n    when $2 <> '' then $2\n    else null\n  end as client_id",
+        "options": {
+          "queryReplacement": "={{ [ ($('Build Caller Authorization').first().json.command_args || '').match(/client[:=]([A-Za-z0-9][A-Za-z0-9_-]{0,48})/i)?.[1]?.toLowerCase() || '', (($('Build Caller Authorization').first().json.auth_client_ids || []).length === 1 ? $('Build Caller Authorization').first().json.auth_client_ids[0] : '') ] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
     }
   ],
   "nodeGroups": [],
   "activeVersion": {
     "sameAsDraft": true
   },
-  "versionId": "d7e0a22b-1d18-4fee-8440-f3f125943ec8"
+  "versionId": "c4623bc9-9a80-4893-90cd-374b6bfbdce6",
+  "isArchived": false,
+  "triggerCount": 1,
+  "createdAt": "2026-06-14T10:21:23.067Z",
+  "updatedAt": "2026-08-30T08:00:38.255Z",
+  "tags": [
+    {
+      "id": "CapkBTEZDHfdjRgZ",
+      "name": "Codex"
+    }
+  ],
+  "scopes": [
+    "execution:reveal",
+    "workflow:delete",
+    "workflow:disableRedaction",
+    "workflow:enableRedaction",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:export",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update"
+  ],
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true
+  }
 }
