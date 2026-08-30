@@ -24,11 +24,33 @@ const RISKY = [
   'Enqueue Hide Requests', 'Generate Supportive Comments',
 ];
 
+
+// Fixtures that do not pin "Resolve Caller Authorization" resolve the caller
+// live, so their hardcoded chat id ties them to one environment. The risky-pins
+// were written against staging's operator (8677383067) and are therefore
+// refused as an unknown chat on production, whose operator is 8372903693 --
+// true since T2, not a T5 regression. ACTOR_CHAT_ID rewrites the acting chat so
+// one fixture set covers both routers.
+function retarget(pinData, chatId) {
+  if (!chatId) return pinData;
+  const clone = JSON.parse(JSON.stringify(pinData));
+  for (const item of clone['Telegram Trigger'] || []) {
+    const j = item.json || {};
+    if (j.message?.chat?.id !== undefined) j.message.chat.id = Number(chatId);
+    if (j.message?.from?.id !== undefined) j.message.from.id = Number(chatId);
+    if (j.callback_query?.message?.chat?.id !== undefined) j.callback_query.message.chat.id = Number(chatId);
+    if (j.callback_query?.from?.id !== undefined) j.callback_query.from.id = Number(chatId);
+  }
+  return clone;
+}
+
+const actorChatId = process.env.ACTOR_CHAT_ID || '';
+
 const results = [];
 
 for (const fx of manifest.fixtures) {
   const raw = JSON.parse(readFileSync(join(here, fx.file), 'utf8'));
-  const pinData = raw.pinData || raw;
+  const pinData = retarget(raw.pinData || raw, actorChatId);
 
   const unpinnedRisky = RISKY.filter(
     (n) => (fx.expected?.reaches || []).includes(n) && !pinData[n],

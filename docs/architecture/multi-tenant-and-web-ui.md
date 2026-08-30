@@ -882,7 +882,7 @@ T1 shrinks to almost nothing.
 | **T2** ✅ **done 2026-08-29** | **Authorization.** Every `Get Post For *` gains an owner check: the caller's chat must be an active `Client Members` row for the post's client, or in `Staff`. A refusal is a clean user-facing message, not a crash, and it is recorded. Unknown chat → refuse and ping staff with chat id, name and type (decision #7). | `L` — this is the security fix | **met** — see §12c. Both routers at 127 nodes, `active` and published. Every cross-tenant action refused with a message identical to "post not found"; chat A and the staff chat unaffected; all ten existing risky-path fixtures pass unchanged |
 | **T3** ✅ **done 2026-08-29** | **Alert routing.** Scheduler resolves recipients as `Posts → Tracked Users.client_id → Client Members where receives_alerts and is_active`. Per-client thresholds read from `Clients`. Retire `Telegram Users` as a routing source. Staff chat receives **no** post alerts (decision #5) — developer alerts still go to the dev chat. | `L` | **met** — all six acceptance rows proved against live staging (18822 / 18824 / 18827 / 18828 / 18830), then re-proved with the recipient query **unpinned** against three real synthetic clients (18865). Watermark behaviours re-proved (18832 / 18833 / 18834); unpinned live pass 18840; first production pass under T3 is 18854 |
 | **T4** | **Isolation proof.** New fixture class `tests/n8n/tenancy-pins/`: two clients, two chats, one post each. Every cross-tenant action returns a refusal. Run the acceptance test above end to end in staging, then production. | `M` | the acceptance test passes in both environments |
-| **T5** ⚠️ **staging done 2026-08-30, production BLOCKED** | **Onboarding path.** `/track` takes a client (staff-only, decision #3). Per-chat `setMyCommands` so client chats never see `/track` or staff commands — note `all_private_chats` silently overrides the default scope. X OAuth carries `client_id` through the PKCE state onto `X Auth Accounts`. Populate `Moderation Queue.client_id`. | `M` | **met in staging** — a second client (`tenancy-b`) was created, given a chat, and had an X account tracked into it entirely from Telegram, with two clients present. **Not in production:** every production write was refused by the permission classifier. See §12e |
+| **T5** ✅ **done 2026-08-30, both environments** | **Onboarding path.** `/track` takes a client (staff-only, decision #3). Per-chat `setMyCommands` so client chats never see `/track` or staff commands — note `all_private_chats` silently overrides the default scope. X OAuth carries `client_id` through the PKCE state onto `X Auth Accounts`. Populate `Moderation Queue.client_id`. | `M` | **met** — a second client (`tenancy-b`) was created, given a chat, and had an X account tracked into it entirely from Telegram with two clients present; promoted to production the same day, routers node-for-node identical at 147, both published and re-read. See §12e |
 | **T6** | **Console tenancy.** Group by `Clients.name` rather than raw chat id. Staff sees all clients; the grouping key becomes stable rather than a phone-number-shaped integer. | `S` | console shows two named clients with correct membership |
 | **T7** | **Pilot.** Onboard one real second client and watch a full week: alerts, moderation, an order, a token refresh. | `M` | no cross-tenant event in `Action Log` or execution history |
 
@@ -1505,34 +1505,76 @@ where it should. The inconsistency is cosmetic, not a data-routing bug, and rebi
 optional tidy-up rather than a correctness fix — worth doing during promotion so a future edit
 to one credential cannot silently diverge from the other, but it fixes nothing today.
 
-### What is still owed to production
+### Promoted to production — 2026-08-30
 
-Nothing in this list has been attempted-and-failed; each was refused before it ran, so
-production is exactly as T3 left it.
+T5 is live in both environments. The permission block that stopped the first attempt was
+lifted, and the whole sequence ran in the order below.
 
-1. `db/migrations/2026-08-29-t5-onboarding.sql` against `jxnzdxyhoakpfmkbjdeq`. Production
-   already has `Moderation Queue.client_id` and `Tracked Users.client_id`; it is missing
-   `"X Auth Sessions".client_id`, which is why the OAuth half must not ship before it.
-2. `node scripts/apply-t5-track-client.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
-3. `node scripts/apply-t5-track-diff.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
-   — must run AFTER step 2; it moves the deactivate to the end of the branch and changes its
-   node type, so applying it to a router that has not had step 2 will not find its anchors.
-4. `node scripts/apply-t5-client-admin.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
-5. `node scripts/apply-t5-queue-client.mjs cWczsttyDbTBbRAC`
-6. `node scripts/apply-t5-oauth-client.mjs router cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
-   and `… callback JQ9KM3l1kRJQhWxb Usl8p3UJw2s7aMMe "Supabase Account"` — **only after step 1**
-7. Publish both, then re-read and confirm `versionId == activeVersionId` on each. This is the
-   check the project has skipped three times.
-8. `scripts/set-telegram-bot-commands.ps1 -TokenVariable TELEGRAM_BOT_TOKEN -StaffChatIds 8372903693`
-9. Re-run both pinned suites against `cWczsttyDbTBbRAC`.
-10. Optional tidy-up, not a correctness fix: rebind `Upsert Tracked X User` from `Postgres
-    account` to `Supabase Account`. Both point at the same production database (proved by
-    probe, see above), so this only stops the two drifting apart later.
+| Step | Result |
+| --- | --- |
+| `db/migrations/2026-08-29-t5-onboarding.sql` on `jxnzdxyhoakpfmkbjdeq` | applied — column, FK and both indexes verified present |
+| drift check before editing | **zero drift**: 127 nodes, every anchor present, no T5 node already there |
+| `apply-t5-track-client.mjs` | 127 → 130 |
+| `apply-t5-track-diff.mjs` | 130 → 132 |
+| `apply-t5-client-admin.mjs` | 132 → 146 |
+| `apply-t5-queue-client.mjs` | 146 |
+| `apply-t5-oauth-client.mjs` router + callback | 147 and 17 |
+| publish both, then **re-read** | `cWczsttyDbTBbRAC` `3057a599-…`, `JQ9KM3l1kRJQhWxb` `75af05ef-…`, both `versionId == activeVersionId` |
+| production command menus | default 9, `all_private_chats` 9, operator `8372903693` 13 |
 
-Every script is idempotent and anchored on node names, so it can be re-applied to a freshly
-pulled live graph; re-running the track script against staging left the node count at 145 and
-added nothing. **Do not create a second client in production** — that is T7 and the user's
-call.
+Production and staging are now node-for-node identical: routers 147, callbacks 17.
+
+**The draft was tested before publishing, and it caught a real bug.** `test_workflow` runs the
+draft, so both suites were run against the unpublished graph first. That is what exposed the
+`Generate X OAuth Link` defect below while the live version was still the old, working one.
+
+**The idempotence guard that shipped nothing, twice.** `apply-t5-oauth-client.mjs` guarded its
+edit with `if (!code.includes('client_id'))` — but `client_id` already appears in that node's
+OAuth *query parameters*, so the guard was always true-skipped and the patch silently did
+nothing. Because `Resolve Auth Client` now precedes the node, `$json` is that Postgres row and
+`telegram_chat_id` resolved to `undefined`, which would have written every new session with a
+null chat and left the callback with nowhere to reply. It hit staging first (fixed after
+`19264`) and then hit production identically, because the script itself was never corrected.
+It is now guarded on a `T5-AUTH-CLIENT` marker that cannot collide, and the marker is part of
+the inserted text so the post-check is meaningful.
+
+**Production regression, run against the draft before publishing:**
+
+| Suite | Result |
+| --- | --- |
+| `tenancy-pins` | **21/21** (`19457`–`19477`) |
+| `telegram-router-risky-pins` | **10/10** (`19488`–`19497`), retargeted — see below |
+
+**The risky-pins were never portable, and T5 only revealed it.** All ten failed on the first
+production run, every one refused at `If Caller Known` before reaching the route switch. They
+hardcode chat `8677383067`, the **staging** operator, and — unlike tenancy-pins — they do not
+pin `Resolve Caller Authorization`, so they resolve the caller live. Production's operator is
+`8372903693`, so T2 correctly treated them as an unknown chat. This has been true since T2
+landed; nothing in T5 caused it, and §13's claim that these fixtures run against either router
+was only ever true of tenancy-pins. The runners now accept `ACTOR_CHAT_ID` to rewrite the
+acting chat, and with `ACTOR_CHAT_ID=8372903693` all ten pass. Tenancy-pins are deliberately
+**not** retargeted: they pin the resolver and encode specific chat A / chat B / staff roles
+that a rewrite would destroy.
+
+**Production data was not touched.** Verified after the promotion: 1 client, 1 member, 1 staff,
+3 tracked accounts all still active (`camille_mourani`, `lynnharfoush`, `michelhelou_lb`),
+posts 22, replies 929, moderation queue 0, alerts still routing to `8372903693`, and the
+scheduler watermark advanced normally at `2026-08-30 09:00:12+00`. T5 is router-only, so
+monitoring and alert routing were never in its path.
+
+**What changes for the operator.** Bare `/track @handle` is now refused; it must be
+`/track client:house @handle`. The replace semantics moved from chat-scoped to client-scoped,
+which in production selects exactly the same three rows, so there is no behavioural difference
+there. `X Auth Accounts.client_id` stays null on the existing production tokens until each is
+re-authorized; nothing reads it yet.
+
+**Still not done, deliberately:** no second production client. That is T7 and the user's call.
+The `count(*) = 1` fallback in `set_tracked_user_client_id` is now harmless either way, since
+`/track` supplies `client_id` explicitly.
+
+**Optional tidy-up, still open:** rebind production `Upsert Tracked X User` from
+`Postgres account` to `Supabase Account`. Both point at the same production database — proved
+by probe — so this only stops the two drifting apart later.
 
 ---
 
@@ -1551,7 +1593,8 @@ call.
   and the staff chat, T5's two `/track` client refusals (missing client, unknown client), and the
   blocked-takeover regression guard.
   Every fixture pins `Resolve Caller Authorization`, so it is self-contained and runs against
-  either router. The `Action Log` row each denial should write arrives with the executor;
+  either router. The risky-pins do **not** pin it and hardcode the staging operator chat, so
+  they need `ACTOR_CHAT_ID=8372903693` to run against production. The `Action Log` row each denial should write arrives with the executor;
   until then the denial is recorded in execution data and the developer alert.
 - **Running a pinned suite.** `tests/n8n/tenancy-pins/run-tenancy-pins.mjs [workflowId]`
   executes every fixture against a live router and checks the manifest's `reaches`,

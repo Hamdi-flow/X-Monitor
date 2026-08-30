@@ -82,11 +82,15 @@ select
   // parser, and carry client_id onto the session payload.
   const gen = wf.nodes.find((n) => n.name === 'Generate X OAuth Link');
   let code = gen.parameters.jsCode;
-  if (!code.includes('client_id')) {
+  // Guard on a marker, NOT on the string 'client_id': that already appears in
+  // the OAuth query parameters, so the obvious guard silently skips the patch
+  // and leaves the node reading $json.telegram_chat_id from the Postgres row
+  // that now precedes it. That shipped a null chat id to staging once.
+  if (!code.includes('T5-AUTH-CLIENT')) {
     code = code.replace(
       'return [{\n  json: {\n    telegram_chat_id: $json.telegram_chat_id,',
-      `// T5: $json is now Resolve Auth Client's row, so the chat id comes from the
-// parser. client_id may be null -- an unowned chat still authorizes.
+      `// T5-AUTH-CLIENT: $json is now Resolve Auth Client's row, so the chat id comes from
+// the parser. client_id may be null -- an unowned chat still authorizes.
 const clientId = $json.client_id || null;
 
 return [{
@@ -94,7 +98,7 @@ return [{
     telegram_chat_id: $('Parse Telegram Message').first().json.telegram_chat_id,
     client_id: clientId,`,
     );
-    if (!code.includes('client_id: clientId')) throw new Error('Generate X OAuth Link: anchor not found');
+    if (!code.includes('T5-AUTH-CLIENT')) throw new Error('Generate X OAuth Link: anchor not found');
   }
   operations.push({ type: 'updateNodeParameters', nodeName: 'Generate X OAuth Link', parameters: { jsCode: code } });
 

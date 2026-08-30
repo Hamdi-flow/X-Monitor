@@ -426,20 +426,39 @@ State check 2026-08-29 (verified against live n8n and both Supabase projects):
   Telegram alerts entirely and is an operational choice, not a side effect of a code change.
   T3 makes the flip sufficient — nothing else needs to change:
   `update public."Client Members" set receives_alerts = false where chat_id = '8372903693';`
-- **T5 landed in staging 2026-08-30; production is BLOCKED, not deferred.** A second client
-  was created, given a chat, and had an X account tracked into it end to end from Telegram
-  with no hand-written SQL — staging executions `19258` (create client), `19259` (attach
-  chat), `19260` (track into it with two clients present, which is the run the pre-T5 NULL
-  fallback would have failed). Staging router `oLwwjO05IcRjtF8E` is published at 145 nodes
-  (`c4623bc9-9a80-4893-90cd-374b6bfbdce6`), staging OAuth callback `gji3bQd2LdodwEJR` at 17
-  (`774ebf62-14ca-4118-a3b9-0bf423fec471`). Regression: `tenancy-pins` 20/20,
-  `telegram-router-risky-pins` 10/10, T3 routing invariants intact, production watermark
-  still advancing hourly. Full record in §12e.
-- **What blocks T5 from being done: the permission classifier, not access.** Every production
-  write was refused — the schema migration against `jxnzdxyhoakpfmkbjdeq` and all three
-  router transform scripts. Production is therefore exactly as T3 left it (127 nodes, no
-  client-administration commands, `/track` still takes no client). §12e carries the ordered
-  promotion steps; every script is idempotent and anchored on node names.
+- **T5 landed 2026-08-30 in BOTH environments.** A second client was created, given a chat,
+  and had an X account tracked into it end to end from Telegram with two clients present —
+  staging executions `19258` (create client), `19259` (attach chat), `19260` (track with two
+  clients present, the run the pre-T5 NULL fallback would have failed). Promoted to
+  production the same day: migration applied to `jxnzdxyhoakpfmkbjdeq`, then the five
+  transform scripts, then publish. Routers are node-for-node identical at 147 nodes,
+  callbacks at 17. Production `cWczsttyDbTBbRAC` published `3057a599-91c0-45f2-86ad-cfad8bf40d68`
+  and `JQ9KM3l1kRJQhWxb` published `75af05ef-4586-472a-8bd9-5c6ee088a554`, both confirmed by
+  re-reading `versionId == activeVersionId` rather than trusting the publish response.
+  Command menus set on both bots. Full record in §12e.
+- **The production promotion was tested against the draft first, and that caught a real bug.**
+  `test_workflow` runs the draft, so both suites ran before publishing. That exposed
+  `apply-t5-oauth-client.mjs` guarding its edit with `if (!code.includes('client_id'))` — a
+  string that already appears in the node's OAuth query parameters, so the patch silently
+  did nothing and `Generate X OAuth Link` kept reading `$json.telegram_chat_id` from the
+  Postgres row that now precedes it. Every new session would have been written with a null
+  chat and the callback would have had nowhere to reply. It had already happened on staging
+  and recurred on production because the script was never fixed; it is now guarded on a
+  `T5-AUTH-CLIENT` marker that is part of the inserted text.
+- **The risky-pins were never portable to production, and T5 only revealed it.** All ten
+  failed the first production run, refused at `If Caller Known` before the route switch:
+  they hardcode chat `8677383067` (staging operator) and, unlike tenancy-pins, do not pin
+  `Resolve Caller Authorization`. Production's operator is `8372903693`. True since T2, not
+  caused by T5. The runners now take `ACTOR_CHAT_ID`; with `ACTOR_CHAT_ID=8372903693` all ten
+  pass (`19488`–`19497`). Tenancy-pins are deliberately not retargeted — they pin the
+  resolver and encode specific chat A / chat B / staff roles.
+- **Production data was untouched by the promotion.** 1 client, 1 member, 1 staff, 3 tracked
+  accounts still active (`camille_mourani`, `lynnharfoush`, `michelhelou_lb`), posts 22,
+  replies 929, queue 0, alerts still to `8372903693`, watermark advanced at
+  `2026-08-30 09:00:12+00`. T5 is router-only; monitoring and alert routing were never in its
+  path.
+- **Operator-facing change:** bare `/track @handle` is now refused in production; it must be
+  `/track client:house @handle`.
 - **Do not create a second `Clients` row in production until T5 is promoted.** Production
   still runs `set_tracked_user_client_id` with its `count(*) = 1` fallback, so a second
   client breaks `/track` with a `NOT NULL` violation. That coupling is precisely why T5

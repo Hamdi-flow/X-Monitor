@@ -10,9 +10,9 @@ Production Telegram workflow that receives bot commands and alert button callbac
 - Environment: production
 - Active: yes
 - Local export: `workflows/active/xmonitor-telegram-router.json`
-- Node count: `127`
+- Node count: `147`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-07-18T14:48:04.997Z`
+- Last observed live update: `2026-08-30` (T5, published `3057a599-91c0-45f2-86ad-cfad8bf40d68`)
 - Main trigger node: `Telegram Trigger`
 
 ## Supported Inputs And Intents
@@ -33,22 +33,33 @@ Production Telegram workflow that receives bot commands and alert button callbac
 | `ORDER_LIKES` | `/order_likes POST_ID AMOUNT`, `order_likes:<post_id>` | Places an SMM likes order, prompting for amount when the callback omitted it. |
 | `UNKNOWN` | Anything else | Sends default help. |
 
-## Phase T5 is NOT in production yet
+## Client-Scoped Tracking (Phase T5)
 
-T5 (onboarding path) is live and validated in **staging only**. Every production write in the
-session that built it — the schema migration included — was refused by the environment's
-permission classifier, so this router is exactly as T3 left it: 127 nodes, `/track` still
-takes no client, and no client-administration commands exist here.
+Live in production since 2026-08-30, published `3057a599-91c0-45f2-86ad-cfad8bf40d68` at 147
+nodes — node-for-node identical to the staging router.
 
-Read `docs/architecture/multi-tenant-and-web-ui.md` §12e for the behaviour this router will
-have once promoted, the ordered list of what is still owed to production, and the reason the
-OAuth half must not ship before the migration (production has no
-`"X Auth Sessions".client_id` column).
+`/track` is staff-only and must name the client it is tracking **for**:
 
-Until then, production still carries the pre-T5 hazard this phase exists to remove:
-`set_tracked_user_client_id` falls back to "the sole active client", guarded by
-`count(*) = 1`. **Creating a second `Clients` row in production before T5 is promoted will
-break `/track`** with a `NOT NULL` violation on `Tracked Users.client_id`.
+```
+/track client:<slug> @user1 @user2
+```
+
+Bare `/track @handle` is now refused. The token is labelled rather than positional because the
+parser accepts bare words as usernames, and it is required with no default because the old
+fallback — "the sole active client", guarded by `count(*) = 1` — returns NULL the moment a
+second client exists. Deactivation happens **last and by difference**, so a blocked takeover or
+a failed X lookup can no longer empty a client's list.
+
+Staff also get `/clients`, `/client_new` and `/client_attach`, so a client can be onboarded
+with no hand-written SQL. All are gated on `Staff` through the same refusal surface as
+`/track`.
+
+`Tracked Users.telegram_chat_id` is deprecated — `client_id` is the sole ownership key — and
+is scheduled for removal in T6.
+
+Full record, including the promotion evidence, in
+`docs/architecture/multi-tenant-and-web-ui.md` §12e. The staging router doc carries the
+detailed node-by-node description.
 
 ## Authorization (Phase T2)
 

@@ -11,21 +11,21 @@ Production webhook workflow that completes the X OAuth PKCE flow started by the 
 - Active: yes
 - Local export: `workflows/active/xmonitor-x-oauth-callback.json`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-07-07T17:16:21.845Z`
+- Last observed live update: `2026-08-30` (T5, published `75af05ef-4586-472a-8bd9-5c6ee088a554`, 17 nodes)
 - Webhook path: `/webhook/x-oauth-callback`
 - HTTP method: `GET`
 
-## Phase T5 is NOT in production yet
+## The Client Stamp (Phase T5)
 
-The staging callback ([XMonitor - X OAuth Callback Staging](./xmonitor-x-oauth-callback-staging.md),
-`gji3bQd2LdodwEJR`) gained a `Stamp Auth Account Client` node that records which client an X
-authorization was for. **This workflow does not have it**, and must not get it until
-`"X Auth Sessions".client_id` exists in the production database — production currently has no
-such column, so `Save Auth Session` writing it would break `/auth_x` outright.
+Live since 2026-08-30, published `75af05ef-4586-472a-8bd9-5c6ee088a554` at 17 nodes.
+`Stamp Auth Account Client` runs after `Upsert X Auth Account` and records which client an X
+authorization was for, on `X Auth Accounts.client_id`. It is a separate node rather than a
+column on that upsert, and carries `onError: continueRegularOutput`, so it can never break an
+authorization — see the staging doc for the reasoning.
 
-Both the migration and the workflow edit were refused by the permission classifier in the
-session that built T5. See `docs/architecture/multi-tenant-and-web-ui.md` §12e for the ordered
-promotion steps. `X Auth Accounts.client_id` therefore remains unpopulated in production.
+`"X Auth Sessions".client_id` was added by `db/migrations/2026-08-29-t5-onboarding.sql`.
+Existing production tokens keep `client_id = null` until each is re-authorized; nothing reads
+the column yet.
 
 ## Important Variables
 
@@ -48,7 +48,7 @@ promotion steps. `X Auth Accounts.client_id` therefore remains unpopulated in pr
 6. `Exchange Code For Tokens` posts `grant_type=authorization_code`, `code`, `redirect_uri`, and `code_verifier` to X.
 7. `Get Authenticated X User` calls X `/2/users/me`.
 8. `Prepare Account Row` builds the persistent token/account row.
-9. `Upsert X Auth Account` stores access token, refresh token, expiry, scope, username, and Telegram chat.
+9. `Upsert X Auth Account` stores access token, refresh token, expiry, scope, username, and Telegram chat; **`Stamp Auth Account Client`** then records the owning client (T5).
 10. `Mark Auth Session Used` marks the PKCE state as used.
 11. `Send Telegram Success` tells the user their X account connected.
 12. `Respond Success` tells the browser the flow is complete.
@@ -57,8 +57,8 @@ promotion steps. `X Auth Accounts.client_id` therefore remains unpopulated in pr
 
 | Table | Use |
 | --- | --- |
-| `X Auth Sessions` | Reads `state`, `code_verifier`, `telegram_chat_id`, `expires_at`, and `used`; marks the state used after success. |
-| `X Auth Accounts` | Stores `telegram_chat_id`, `x_user_id`, `x_username`, access/refresh tokens, expiry, scope, and update time. |
+| `X Auth Sessions` | Reads `state`, `code_verifier`, `telegram_chat_id`, `client_id`, `expires_at`, and `used`; marks the state used after success. |
+| `X Auth Accounts` | Stores `telegram_chat_id`, `x_user_id`, `x_username`, access/refresh tokens, expiry, scope, update time, and `client_id` (T5). |
 
 ## Error Paths
 
