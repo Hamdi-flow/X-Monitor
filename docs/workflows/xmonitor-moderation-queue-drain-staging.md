@@ -54,9 +54,13 @@ Created by `db/migrations/2026-08-26-moderation-queue.sql`.
 - **`X Rate Limits`** — `(x_user_id, endpoint)` quota state read from the
   `x-rate-limit-*` response headers. This is what replaced static data.
 
-`action_id` and `client_id` exist on the queue but are nullable and carry no
-foreign keys, because `Action Log` and `Clients` do not exist yet. See the
-migration header before adding them.
+`action_id` gained its foreign key to `"Action Log"(id)` on 2026-08-30
+(`db/migrations/2026-08-30-action-log.sql`, `ON DELETE SET NULL ON UPDATE
+CASCADE`) -- it had pointed at a non-existent table since the queue was built.
+`"Action Log"` itself is created but **unwritten**: no workflow inserts into it
+yet, so `action_id` is still NULL on every row this drain sees. `client_id`
+remains nullable with no foreign key even though `"Clients"` now exists; adding
+it is still open. Read the migration header before touching either.
 
 ## Flow
 
@@ -342,9 +346,14 @@ and that `retryOnFail` / `executeOnce` have not drifted.
 
 ## Safety
 
-- **Never activate without explicit user approval.** Active, this hits the live
-  X hide endpoint every 5 minutes for whatever is queued. A passing pinned run is
-  not approval.
+- **Active in both environments since 2026-08-27 -- decided 2026-08-30 to keep it
+  that way.** The router’s hide path enqueues rather than calling X inline, so an
+  inactive drain means hides are accepted and never finish. Do not deactivate
+  either environment without explicit user approval, and do not run a pass by hand
+  against live queue rows: each drained row hides a real reply on X and there is no
+  undo. A passing pinned run is not approval. (The cadence is the `pg_cron`
+  heartbeat, every minute, gated on due rows -- not the 5-minute Schedule Trigger it
+  replaced.)
 - A live drain also needs a working X connection for the owning account. As of
   2026-08-26 the staging token for `951803761` / `RebelHam_` expired 2026-07-05,
   so a live run needs a fresh `/auth_x` first.

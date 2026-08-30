@@ -351,6 +351,16 @@ from public."Order Info"
 group by 1,2,3;
 ```
 
+**Shipped 2026-08-30** to staging (`npytqidroqxgikaqofmq`) and production
+(`jxnzdxyhoakpfmkbjdeq`) as `db/migrations/2026-08-30-client-spend-view.sql`. The live view
+adds `currency` to the select list as well as the grouping, so the console can render it.
+Verified against the three real production orders: `0.0387` (Jun, 10 likes), `0.79305`
+(Jul, comments -- `units` 15 via `coalesce(quantity, comment_count)`, proving gap 2), and
+`0.1935` (Aug, 50 likes) -- all USD, all `client_id` populated, `awaiting_price` 0. Note
+that `currency` is written by the same poll that writes `charge`, so an order that is still
+`awaiting_price` also has a NULL currency and lands in its own group; render that group as
+a dash, not as a currency, and never as $0.
+
 The console's Orders screen surfaces this as a running month-to-date total per client. If a
 bill ever surprises you, add `Clients.monthly_order_cap` later — the executor is the one
 place that would need to check it, so the door stays open.

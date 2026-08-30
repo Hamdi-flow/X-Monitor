@@ -11,7 +11,7 @@
     "callerPolicy": "workflowsFromSameOwner"
   },
   "parentFolderId": null,
-  "description": "Drains the Moderation Queue hide backlog every 5 minutes inside the per-token X 50/15min limit. Created INACTIVE.",
+  "description": "Staging drain for the hide-replies \"Moderation Queue\".\n\nACTIVE, and must stay active. The Telegram Router's hide path enqueues rather than calling X inline, so an inactive drain means hides are accepted from the operator and then never finish.\n\nWoken by the Postgres pg_cron job `moderation-queue-drain`, which ticks EVERY MINUTE and calls POST /webhook/moderation-queue-drain-staging only when \"Moderation Queue\" actually has due rows. That heartbeat replaced a 5-minute n8n Schedule Trigger on 2026-08-27 (db/migrations/2026-08-27-moderation-drain-cron.sql), so any text still saying \"runs every 5 minutes\" is stale — worst-case pickup latency is 1 minute, and an idle queue costs no n8n execution.\n\nDrains inside X's real rate limit: PUT /2/tweets/:id/hidden is capped at 50 requests per 15 minutes PER ACCESS TOKEN. Quota state is read from the x-rate-limit-* response headers into \"X Rate Limits\"; a token with no allowance is deferred, not dropped.\n\nPERFORMS REAL X WRITES. Every drained row hides a real reply on X and there is no undo. Do not execute it by hand against live queue rows without explicit approval.\n\nDocs: docs/workflows/xmonitor-moderation-queue-drain-staging.md (covers both environments).",
   "canExecute": true,
   "connections": {
     "Find Drainable Tokens": {

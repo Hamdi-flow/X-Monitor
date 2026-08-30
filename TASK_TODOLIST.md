@@ -127,7 +127,15 @@ Validation:
 
 ### Durable hide-replies moderation queue and scheduled drain
 
-- Status: done — promoted to production 2026-08-27; both environments live and validated
+- Status: done — promoted to production 2026-08-27; both environments live and validated.
+  **2026-08-30:** both drain descriptions rewritten — they still said "Created INACTIVE."
+  while both workflows were `active: true`, and the staging one still claimed a 5-minute
+  cadence. Decided 2026-08-30 to keep both ACTIVE and correct the text: the router enqueues
+  rather than hiding inline, so an inactive drain means hides never finish. Activation state
+  untouched; both remain `active: true` with `versionId` equal to `activeVersionId`
+  (production `f19a65a0-3710-4528-8d0f-a10aec6ed13d`, staging
+  `1879e15f-714c-4a30-8a04-718a66869535`), and a description edit turned out not to create a
+  draft at all. `action_id` also gained its real FK — see the multi-tenancy task
 - Priority: high
 - Complexity: `L`
 - Source: request 2026-08-26, `docs/architecture/limits-and-capacity.md` §2.2, defect G in `docs/architecture/multi-tenant-and-web-ui.md`
@@ -143,9 +151,12 @@ Replaced with enqueue-plus-drain:
 
 1. `db/migrations/2026-08-26-moderation-queue.sql` adds `Moderation Queue` (with the
    `(x_user_id, not_before) WHERE status='queued'` due index) and `X Rate Limits`.
-   Single-tenant adaptation: `action_id` and `client_id` keep the §2.2 names and types but
-   are nullable with no FK, because `Action Log` and `Clients` do not exist yet. The
-   migration header carries the exact follow-up ALTER.
+   Single-tenant adaptation: `action_id` and `client_id` kept the §2.2 names and types but
+   were nullable with no FK, because `Action Log` and `Clients` did not exist yet.
+   **`action_id` gained its FK on 2026-08-30** (`db/migrations/2026-08-30-action-log.sql`,
+   `ON DELETE SET NULL ON UPDATE CASCADE`) in both environments; both queue tables were
+   empty so it validated instantly. `client_id` is still nullable with no FK even though
+   `Clients` now exists — that ALTER is still open.
 2. Staging router `oLwwjO05IcRjtF8E`: `Build Reply Hide Items` → `Build Hide Queue Items`,
    which enqueues every non-hidden candidate under one `batch_id`; new `Enqueue Hide
    Requests`, `Build Hide Queued Summary`, `Send Hide Queued Summary`, `Store Queue Message
@@ -421,6 +432,30 @@ State check 2026-08-29 (verified against live n8n and both Supabase projects):
   Telegram alerts entirely and is an operational choice, not a side effect of a code change.
   T3 makes the flip sufficient — nothing else needs to change:
   `update public."Client Members" set receives_alerts = false where chat_id = '8372903693';`
+- **Decision #8 and #9 controls landed 2026-08-30**, in staging then production:
+  `db/migrations/2026-08-30-action-log.sql` (the `Action Log` audit table from §4.1, its two
+  read indexes, and the missing `"Moderation Queue".action_id` FK),
+  `db/migrations/2026-08-30-client-spend-view.sql` (the `Client Spend` view from
+  `limits-and-capacity.md` §7), and `db/migrations/2026-08-30-console-read-policies.sql`
+  (§5 read-only RLS). **`Action Log` exists but nothing writes to it** — see the separate
+  open task below; until that lands, decision #8 has its record and no entries.
+- **The §5 policies deliberately do not use `App Users` / `Client Access`.**
+  `acting_client_ids()` keys on `"Client Members".app_user_id`, which T1 already shipped as
+  an FK to `auth.users`; decision #1 makes the operator a member of every client, so
+  operator membership already carries the cross-client reach `App Users.is_staff` existed
+  for, and `Client Access.role` is unused by read-only policies. Both tables are deferred
+  until logins are real. Select-only, `authenticated`-only, on `Clients`, `Client Members`,
+  `Tracked Users`, `Posts`, `Replies`, `Order Info`, `Moderation Queue`, `Action Log`. No
+  write policy anywhere, and **`X Auth Accounts` has no policy at all** — it holds
+  plaintext tokens. Verified live: `service_role` reads unchanged (production 22 posts, 929
+  replies, both console views); `authenticated` reads 0 rows everywhere; and a rolled-back
+  positive test in staging (auth user temporarily linked to the `tarek` client) returned
+  that client only and leaked 0 `house` rows and 0 `X Auth Accounts` rows.
+- **`console_posts` and `console_x_connections` already carried `security_invoker = true`**
+  in both environments — checked, no tenancy hole, nothing changed. One consequence to
+  close before client logins: `console_x_connections` reads `X Auth Accounts`, which has no
+  policy, so under RLS it returns zero rows to `authenticated` and needs a definer-side,
+  tenant-filtered source. `authenticated` also holds no GRANT on either view today.
 - Order of work was T2 (authorization) before T3 (alert routing): a broadcast alert is
   embarrassing, unauthorized spending on another client's post is worse.
 - The design call before T1 is settled: **`Clients`**, chosen 2026-08-28 on edit count rather
@@ -472,6 +507,63 @@ Notes:
   per-user hide bucket's app-scoping is undocumented.
 - Sibling FB Monitor already implements the per-row config, self-registering recipients,
   audit table, and alert-dedupe patterns this design reuses.
+
+### Wire `Action Log` writes into the router action points
+
+- Status: open — the table exists in both environments and **nothing writes to it**
+- Priority: high
+- Complexity: `M`
+- Source: 2026-08-30, decision #8 in `docs/architecture/multi-tenant-and-web-ui.md` §11
+
+Design:
+
+`db/migrations/2026-08-30-action-log.sql` created `Action Log` in staging
+(`npytqidroqxgikaqofmq`) and production (`jxnzdxyhoakpfmkbjdeq`) on 2026-08-30, with the
+`(client_id, created_at desc)` and `(post_id, created_at desc)` indexes, RLS on, a
+select-only `authenticated` policy, and the `"Moderation Queue".action_id` FK that column
+had been missing since the queue was built. The schema half of decision #8 is therefore
+done and the behavioural half is not: the audit trail is empty because no workflow inserts
+into it.
+
+The writes were deliberately not wired in that piece of work — the Telegram routers were
+off limits while the T4 isolation proof ran against them.
+
+1. Both Telegram routers (`cWczsttyDbTBbRAC` production, `oLwwjO05IcRjtF8E` staging):
+   insert a `queued` row at each action point — hide, ignore, snooze, resume,
+   `/order_likes`, `/order_comments` — carrying `idempotency_key`, `client_id`,
+   `channel = telegram`, `actor_chat_id`, `params`, and `n8n_execution_id`; then finalize
+   it to `succeeded` / `partial` / `failed` / `denied` with `result`, `error_category` and
+   `finished_at`.
+2. Authorization refusals must write `denied` rows, or the log understates what was
+   attempted — but they must keep returning the T2 identical-refusal text, so the row is
+   the only place the difference is visible.
+3. The hide path should set `"Moderation Queue".action_id` to the row it just created, so
+   the new FK carries real values and the drain can report progress against an action.
+4. Decision #15 needs the enqueue-time Telegram `message_id` in `Action Log.result`.
+5. Consider whether `Order Info` should carry `action_id` too — `limits-and-capacity.md`
+   §7.1 #2 wants the intent row written *before* the provider call, and that intent is
+   exactly an `Action Log` row.
+
+Validation:
+
+- Pinned first, per `tests/n8n/telegram-router-risky-pins/` and `tests/n8n/tenancy-pins/`.
+- Assert one row per action and **exactly one** per idempotency key on a replay.
+- Snapshot and restore `Action Log` around any live staging run; it starts empty.
+- The order paths spend real money and need explicit approval before any live run.
+
+Open Questions:
+
+- Does an operator acting on a client's post log under that client's `client_id` (recommended
+  — the console groups by client) or under the operator's? `actor_chat_id` records who
+  either way.
+
+Notes:
+
+- `"Moderation Queue".client_id` is still nullable with no FK even though `Clients` exists.
+  Worth closing in the same piece of work.
+- The action executor of §6 is the eventual home for these writes. Wiring them into the
+  routers first is deliberate: it makes the log real now, and the executor extraction later
+  moves the same inserts rather than inventing them.
 
 ### Evaluate native sentiment tracker accuracy and readiness
 

@@ -284,6 +284,15 @@ create table public."X Rate Limits" (
 );
 ```
 
+**Status 2026-08-30.** `Clients`, `Client Members` and `X Rate Limits` shipped under T1.
+`Action Log` shipped on 2026-08-30 to both environments as
+`db/migrations/2026-08-30-action-log.sql`, together with the foreign key
+`"Moderation Queue".action_id` -> `"Action Log"(id)` that column had been missing since the
+queue was built. **Nothing writes to `Action Log` yet** -- the action points live in the
+Telegram router, and wiring them is a separate task -- so decision #8 has its record but not
+yet its entries. `App Users` and `Client Access` are **deferred**: see §5, which now keys
+authorization on `"Client Members".app_user_id` instead and does not need them.
+
 ### 4.2 Altered tables
 
 ```sql
@@ -451,6 +460,26 @@ left join public."X Auth Accounts" a on a.x_user_id = tu.user_id;
 
 `security_invoker = true` makes the view run under the caller's RLS rather than the
 owner's — without it the view is a tenancy hole.
+
+---
+
+**Status 2026-08-30.** Shipped to both environments as
+`db/migrations/2026-08-30-console-read-policies.sql`, with one deliberate deviation:
+`acting_client_ids()` is keyed on `"Client Members".app_user_id` (shipped in T1, already a
+FK to `auth.users`) rather than on the `App Users` / `Client Access` tables above, neither
+of which exists. Decision #1 makes the operator a member of every client, so operator
+membership already carries the cross-client reach `App Users.is_staff` was there to
+provide, and `Client Access.role` is unused by read-only policies. Select-only policies for
+`authenticated` are live on `Clients`, `Client Members`, `Tracked Users`, `Posts`,
+`Replies`, `Order Info`, `Moderation Queue` and `Action Log`. There are no insert, update or
+delete policies anywhere, and **`X Auth Accounts` has no policy at all.** No row has
+`app_user_id` set in either environment, so every policy currently matches zero rows;
+`service_role` reads are unchanged, verified live. Both `console_posts` and
+`console_x_connections` were already `security_invoker = true` in both environments -- no
+tenancy hole, nothing to fix. Consequence to close when logins are real:
+`console_x_connections` reads `X Auth Accounts`, so under RLS it returns **zero rows** to
+`authenticated`; it needs a definer-side, tenant-filtered source before a client can see
+connection status. `authenticated` also holds no GRANT on either console view today.
 
 ---
 
