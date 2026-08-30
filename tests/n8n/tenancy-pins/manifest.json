@@ -382,6 +382,34 @@
           "no row is touched before the client resolves"
         ]
       }
+    },
+    {
+      "id": "track-blocked-takeover-preserves-list",
+      "file": "track-blocked-takeover-preserves-list.pinData.json",
+      "input": "message.text=/track client:house @lynnharfoush with the upsert pinned to the blocked shape (RETURNING matched no row)",
+      "expected": {
+        "reaches": [
+          "Upsert Tracked X User",
+          "Build Track Outcome",
+          "Deactivate Tracked Users For Chat",
+          "Build Track Result Message"
+        ],
+        "expectJson": {
+          "Build Track Outcome": {
+            "succeeded_ids": []
+          },
+          "Build Track Result Message": {
+            "succeeded_count": 0,
+            "blocked_count": 1,
+            "deactivated_count": 0
+          }
+        },
+        "asserts": [
+          "a blocked ownership takeover deactivates NOTHING -- succeeded_ids is empty so the deactivate statement no-ops",
+          "the caller is told the account is owned elsewhere instead of being told success",
+          "regression guard for the defect T5 introduced: the deactivate used to run first and empty the target client list"
+        ]
+      }
     }
   ],
   "note": "Every fixture in tests/n8n/telegram-router-risky-pins/ must also still pass unchanged after T2. They all run as chat 8677383067, which is a Staff row, so is_staff short-circuits the owner check and their pinned post rows - authored before T1 and carrying no client_id - are never consulted. If one of them ever starts failing, the resolver is rejecting something it should allow."

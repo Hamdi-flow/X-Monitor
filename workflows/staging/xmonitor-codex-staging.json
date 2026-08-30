@@ -2,8 +2,8 @@
   "id": "oLwwjO05IcRjtF8E",
   "name": "XMonitor - Telegram Router Staging",
   "active": true,
-  "activeVersionId": "c4623bc9-9a80-4893-90cd-374b6bfbdce6",
-  "nodeCount": 145,
+  "activeVersionId": "4b436194-a5a0-4a4e-a69a-29252e3f38bd",
+  "nodeCount": 147,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -586,28 +586,6 @@
         ]
       ]
     },
-    "Clear Telegram User Links": {
-      "main": [
-        [
-          {
-            "node": "Deactivate Tracked Users For Chat",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Link Telegram User To X User": {
-      "main": [
-        [
-          {
-            "node": "Send Tracking Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "If Track Users Input Valid": {
       "main": [
         [
@@ -1076,17 +1054,6 @@
         [
           {
             "node": "Link Telegram User To X User",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Deactivate Tracked Users For Chat": {
-      "main": [
-        [
-          {
-            "node": "Restore Track User List",
             "type": "main",
             "index": 0
           }
@@ -1618,6 +1585,61 @@
         [
           {
             "node": "Generate X OAuth Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Telegram User Links": {
+      "main": [
+        [
+          {
+            "node": "Restore Track User List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link Telegram User To X User": {
+      "main": [
+        [
+          {
+            "node": "Build Track Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Track Outcome": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Tracked Users For Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Tracked Users For Chat": {
+      "main": [
+        [
+          {
+            "node": "Build Track Result Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Track Result Message": {
+      "main": [
+        [
+          {
+            "node": "Send Tracking Success",
             "type": "main",
             "index": 0
           }
@@ -2309,45 +2331,6 @@
     },
     {
       "parameters": {
-        "operation": "update",
-        "tableId": "Tracked Users",
-        "filterType": "manual",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "client_id",
-              "condition": "eq",
-              "keyValue": "={{ $('Build Track Client Result').first().json.client_id }}"
-            }
-          ]
-        },
-        "fieldsUi": {
-          "fieldValues": [
-            {
-              "fieldId": "is_active",
-              "fieldValue": "false"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
-      "position": [
-        -14320,
-        -368
-      ],
-      "id": "3f0b10af-55f0-4830-a47e-dd324f2bafdc",
-      "name": "Deactivate Tracked Users For Chat",
-      "alwaysOutputData": true,
-      "credentials": {
-        "supabaseApi": {
-          "id": "6hDGofcoxdcQctBK",
-          "name": "Supabase Staging API"
-        }
-      }
-    },
-    {
-      "parameters": {
         "fieldToSplitOut": "usersToTrack",
         "options": {}
       },
@@ -2391,7 +2374,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse Telegram Message').item.json.telegram_chat_id }}",
-        "text": "={{ $('Build Track Client Result').first().json.message }}",
+        "text": "={{ $('Build Track Result Message').first().json.message }}",
         "additionalFields": {
           "appendAttribution": false,
           "parse_mode": "HTML"
@@ -2400,7 +2383,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -12400,
+        -11728,
         -624
       ],
       "id": "d3c0cd2a-ce63-45e6-8acf-59c2ed62a62c",
@@ -6010,17 +5993,67 @@
           "name": "Supabase Staging Postgres"
         }
       }
+    },
+    {
+      "id": "90fe7617-0876-43b9-86ac-85a3615fd201",
+      "name": "Deactivate Tracked Users For Chat",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -12176,
+        -624
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T5 follow-up: /track replaces a client's list, so accounts the caller did\n-- NOT name are deactivated. This runs AFTER the upserts and takes the set of\n-- accounts actually written, so a blocked takeover or a failed X lookup can no\n-- longer empty a client's list.\n--\n-- jsonb_array_length($2) > 0 is load-bearing: with an empty succeeded set the\n-- NOT EXISTS matches every row and this would deactivate everything. An empty\n-- set means nothing was tracked, so the correct behaviour is to change nothing.\n--\n-- Both Supabase projects are shared with the sibling FB Monitor project, so the\n-- table is named explicitly.\nupdate public.\"Tracked Users\" t\n   set is_active = false\n where t.client_id = $1::uuid\n   and t.is_active\n   and jsonb_array_length($2::jsonb) > 0\n   and not exists (\n     select 1\n       from jsonb_array_elements_text($2::jsonb) as k(id)\n      where k.id = t.user_id\n   )\nreturning t.user_id, t.username;",
+        "options": {
+          "queryReplacement": "={{ [$json.client_id, JSON.stringify($json.succeeded_ids)] }}"
+        }
+      },
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "1d8068ed-d677-40c0-b751-1d78357f2b5e",
+      "name": "Build Track Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -12400,
+        -624
+      ],
+      "parameters": {
+        "jsCode": "// T5 follow-up: classify what the upsert actually did, per requested account.\n//\n// \"Upsert Tracked X User\" is guarded by\n//   WHERE \"Tracked Users\".client_id = EXCLUDED.client_id\n// so an account owned by ANOTHER client updates zero rows and the node emits an\n// item with no user_id. That is the blocked-takeover case, and before this node\n// existed it was indistinguishable from success.\n//\n// Index alignment: \"If X User Lookup Successful\" output 0 is exactly the set of\n// items that reached the upsert, in the same order, so the two zip 1:1.\nconst attempts = $('Upsert Tracked X User').all();\nconst requested = $('If X User Lookup Successful').all();\nconst client = $('Build Track Client Result').first().json;\n\nconst succeeded = [];\nconst blocked = [];\n\nattempts.forEach((item, i) => {\n  const row = item.json || {};\n  if (row.user_id) {\n    succeeded.push({ user_id: String(row.user_id), username: String(row.username || '') });\n    return;\n  }\n  const asked = requested[i]?.json?.data || {};\n  blocked.push({ user_id: String(asked.id || ''), username: String(asked.username || '') });\n});\n\nreturn [{\n  json: {\n    client_id: String(client.client_id || ''),\n    client_name: String(client.client_name || ''),\n    client_slug: String(client.client_slug || ''),\n    succeeded,\n    blocked,\n    succeeded_ids: succeeded.map((s) => s.user_id),\n  },\n}];"
+      }
+    },
+    {
+      "id": "309ac0e3-9e95-43ca-aea7-858a7354db86",
+      "name": "Build Track Result Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -11952,
+        -624
+      ],
+      "parameters": {
+        "jsCode": "// T5 follow-up: report what actually happened, per account.\n//\n// A blocked account used to be silently reported as success. It is now named,\n// because \"already tracked by another client\" is something only staff can\n// resolve and they cannot resolve what they are not told.\nconst outcome = $('Build Track Outcome').first().json;\nconst deactivated = $input.all()\n  .map((i) => i.json || {})\n  .filter((r) => r.user_id);\n\nconst lines = [];\n\nif (outcome.succeeded.length) {\n  lines.push(`Now tracking for ${outcome.client_name} (${outcome.client_slug}):`);\n  lines.push(outcome.succeeded.map((s) => `- ${s.username}`).join('\\n'));\n} else {\n  lines.push(`No accounts were tracked for ${outcome.client_name} (${outcome.client_slug}).`);\n  lines.push('Nothing was changed.');\n}\n\nif (deactivated.length) {\n  lines.push('');\n  lines.push('Stopped tracking:');\n  lines.push(deactivated.map((r) => `- ${r.username || r.user_id}`).join('\\n'));\n}\n\nif (outcome.blocked.length) {\n  lines.push('');\n  lines.push('Could not track — already tracked by another client:');\n  lines.push(outcome.blocked.map((b) => `- ${b.username || b.user_id}`).join('\\n'));\n  lines.push('Move the account off its current client first, or track it there.');\n}\n\nreturn [{\n  json: {\n    message: lines.join('\\n'),\n    succeeded_count: outcome.succeeded.length,\n    blocked_count: outcome.blocked.length,\n    deactivated_count: deactivated.length,\n  },\n}];"
+      }
     }
   ],
   "nodeGroups": [],
   "activeVersion": {
     "sameAsDraft": true
   },
-  "versionId": "c4623bc9-9a80-4893-90cd-374b6bfbdce6",
+  "versionId": "4b436194-a5a0-4a4e-a69a-29252e3f38bd",
   "isArchived": false,
   "triggerCount": 1,
   "createdAt": "2026-06-14T10:21:23.067Z",
-  "updatedAt": "2026-08-30T08:00:38.255Z",
+  "updatedAt": "2026-08-30T08:37:37.830Z",
   "tags": [
     {
       "id": "CapkBTEZDHfdjRgZ",

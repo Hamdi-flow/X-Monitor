@@ -1351,7 +1351,7 @@ run in this project with two `Clients` rows present, and the pre-T5 code would h
 
 | Suite | Result |
 | --- | --- |
-| `tests/n8n/tenancy-pins/` | **20/20** (`19286`–`19305`) |
+| `tests/n8n/tenancy-pins/` | **21/21** after the defect fix (`19388`–`19404`) |
 | `tests/n8n/telegram-router-risky-pins/` | **10/10** (`19316`–`19325`) |
 | T3 routing invariants | `Get Alert Recipients` still reads `Client Members`; `Telegram Users` read by neither scheduler |
 | T3 routing, two real clients | house → `8677383067` only, `tenancy-b` → `9900000002` only, one row each |
@@ -1373,20 +1373,50 @@ Two fixtures had to change, and both changes are honest rather than cosmetic:
 
 Two fixtures were added: `track-missing-client-refusal` and `track-unknown-client-refusal`.
 
-### A defect this phase created, and did not fix
+### A defect this phase created, and then fixed
 
-**A blocked ownership takeover now also empties the target client's list, and still reports
-success.** `/track` means "replace this client's tracked accounts", so the client-scoped
-deactivate runs *before* the upsert. When the upsert is then refused by the ownership guard,
-the target client is left with nothing active and the caller is told it worked. Observed in
-execution `19263`: the takeover was correctly blocked, and `tenancybtest` — `tenancy-b`'s only
-account — went `is_active = false`.
+**Found:** `/track` means "replace this client's tracked accounts", and the deactivate ran
+*first* — before the X lookup and before the upsert. Any failure after it left the client with
+an empty active list and told the caller it worked. Two ways in: a blocked ownership takeover
+(the upsert's client guard refuses, zero rows) and a failed X user lookup, the latter
+pre-existing and already recorded in the router doc. Observed in execution `19263`:
+`tenancy-b`'s only account went `is_active = false` while the takeover was correctly refused.
 
-The "blocked takeover reports success" half is pre-existing and already recorded in the router
-doc. The "and empties the target client" half is new, and follows from re-keying the
-deactivate to the client. It is recorded rather than fixed because the fix is a real design
-question — deactivate after a successful lookup, or diff the list instead of replacing it —
-and belongs with the Action Executor rather than bolted onto this phase.
+**Fixed:** the deactivate now runs **last, and by difference**.
+
+```
+Upsert Tracked X User
+  -> Link Telegram User To X User
+  -> Build Track Outcome                 classify succeeded vs blocked
+  -> Deactivate Tracked Users For Chat   deactivate only rows NOT in the succeeded set
+  -> Build Track Result Message          report blocked accounts honestly
+  -> Send Tracking Success
+```
+
+Nothing is deactivated until at least one account has actually been written, so a wholly
+failed `/track` is now a no-op instead of a wipe. The statement carries an explicit
+`jsonb_array_length($2::jsonb) > 0` guard, which is load-bearing: with an empty succeeded set
+the `NOT EXISTS` matches every row and it would deactivate the lot.
+
+The node keeps the name `Deactivate Tracked Users For Chat` because three pinned fixtures
+reference it; its type changed from Supabase to Postgres, which needed a remove-and-add rather
+than a parameter edit.
+
+The caller is also finally told the truth. A blocked account used to be reported as success;
+it is now named, along with what was stopped:
+
+| Case | Execution | Result |
+| --- | --- | --- |
+| blocked takeover preserves the list | `19351` | `succeeded: []`, deactivate no-ops, `tenancybtest` still `is_active`; message reads "Nothing was changed" and names `lynnharfoush` as owned elsewhere |
+| replace semantics still work | `19352` | tracked `tenancybreplacement`, deactivated `tenancybtest`, and the reply names both — the drop used to be silent |
+
+Regression after the fix: `tenancy-pins` **21/21**, `telegram-router-risky-pins` **10/10**.
+The new fixture `track-blocked-takeover-preserves-list` pins the upsert to the blocked shape
+and asserts `succeeded_ids: []` and `deactivated_count: 0` through a new `expectJson`
+assertion in the runner — reachability alone cannot catch a node that runs and computes the
+wrong answer, which is exactly how this defect hid. The assertion was negative-tested (a
+deliberately wrong expectation produced
+`Build Track Result Message.deactivated_count = 0 != 99`) so it is known to be able to fail.
 
 ### `Moderation Queue.client_id` was proved without leaving a row
 
@@ -1414,11 +1444,20 @@ operator's T2 grant, not scaffolding.
 
 `Resolve Track Client` was auto-assigned the generic **`Postgres account`** credential when it
 was created, not `Supabase Staging Postgres` like every other Postgres node in the staging
-router. It was caught and rebound before the node ever ran. Worth knowing for the production
-promotion: production's `Upsert Tracked X User` *already* carries that same generic
-`Postgres account` credential while every other Postgres node there uses `Supabase Account` —
-a pre-existing inconsistency that should be reconciled, since under T5 the client is resolved
-through one credential and written through the other.
+router. It was caught and rebound before the node ever ran.
+
+Production's `Upsert Tracked X User` carries that same generic `Postgres account` credential
+while every other Postgres node there uses `Supabase Account`, so under T5 the client is
+resolved through one credential and written through the other. **This was checked rather than
+assumed, and it is safe.** A throwaway read-only probe workflow bound to `Postgres account`
+returned `posts 22`, `replies 929` and the usernames
+`michelhelou_lb, camille_mourani, lynnharfoush` — production `jxnzdxyhoakpfmkbjdeq`, not
+staging, which holds 4 and 184. The probe was archived immediately.
+
+So both credentials point at the same production database and `/track` has always written
+where it should. The inconsistency is cosmetic, not a data-routing bug, and rebinding it is
+optional tidy-up rather than a correctness fix — worth doing during promotion so a future edit
+to one credential cannot silently diverge from the other, but it fixes nothing today.
 
 ### What is still owed to production
 
@@ -1429,14 +1468,20 @@ production is exactly as T3 left it.
    already has `Moderation Queue.client_id` and `Tracked Users.client_id`; it is missing
    `"X Auth Sessions".client_id`, which is why the OAuth half must not ship before it.
 2. `node scripts/apply-t5-track-client.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
-3. `node scripts/apply-t5-client-admin.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
-4. `node scripts/apply-t5-queue-client.mjs cWczsttyDbTBbRAC`
-5. `node scripts/apply-t5-oauth-client.mjs router cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
+3. `node scripts/apply-t5-track-diff.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
+   — must run AFTER step 2; it moves the deactivate to the end of the branch and changes its
+   node type, so applying it to a router that has not had step 2 will not find its anchors.
+4. `node scripts/apply-t5-client-admin.mjs cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
+5. `node scripts/apply-t5-queue-client.mjs cWczsttyDbTBbRAC`
+6. `node scripts/apply-t5-oauth-client.mjs router cWczsttyDbTBbRAC Usl8p3UJw2s7aMMe "Supabase Account"`
    and `… callback JQ9KM3l1kRJQhWxb Usl8p3UJw2s7aMMe "Supabase Account"` — **only after step 1**
-6. Publish both, then re-read and confirm `versionId == activeVersionId` on each. This is the
+7. Publish both, then re-read and confirm `versionId == activeVersionId` on each. This is the
    check the project has skipped three times.
-7. `scripts/set-telegram-bot-commands.ps1 -TokenVariable TELEGRAM_BOT_TOKEN -StaffChatIds 8372903693`
-8. Re-run both pinned suites against `cWczsttyDbTBbRAC`.
+8. `scripts/set-telegram-bot-commands.ps1 -TokenVariable TELEGRAM_BOT_TOKEN -StaffChatIds 8372903693`
+9. Re-run both pinned suites against `cWczsttyDbTBbRAC`.
+10. Optional tidy-up, not a correctness fix: rebind `Upsert Tracked X User` from `Postgres
+    account` to `Supabase Account`. Both point at the same production database (proved by
+    probe, see above), so this only stops the two drifting apart later.
 
 Every script is idempotent and anchored on node names, so it can be re-applied to a freshly
 pulled live graph; re-running the track script against staging left the node count at 145 and
@@ -1455,9 +1500,10 @@ call.
   pair proves the logic and nothing else — wiring, credentials and publish state need the
   pinned run.
 - **Tenancy isolation** is the new test class. `tests/n8n/tenancy-pins/` exists as of T2 and
-  holds **20 fixtures** as of T5 — six cross-tenant refusals, an unknown chat, a staff-only
+  holds **21 fixtures** as of T5 — six cross-tenant refusals, an unknown chat, a staff-only
   `/track`, the not-found/cross-tenant message-identity check, authorized controls for chat A
-  and the staff chat, and T5's two `/track` client refusals (missing client, unknown client).
+  and the staff chat, T5's two `/track` client refusals (missing client, unknown client), and the
+  blocked-takeover regression guard.
   Every fixture pins `Resolve Caller Authorization`, so it is self-contained and runs against
   either router. The `Action Log` row each denial should write arrives with the executor;
   until then the denial is recorded in execution data and the developer alert.

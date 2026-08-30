@@ -452,16 +452,28 @@ State check 2026-08-29 (verified against live n8n and both Supabase projects):
   ownership key. `/track` stops writing it, existing values are left as historical record,
   removal scheduled for T6. The upsert guard was re-keyed from chat to client — it compared
   chats, which stopped meaning anything when T2 made `/track` staff-only.
-- **T5 created a defect it did not fix:** a blocked ownership takeover now also empties the
-  target client's active list and still reports success, because the client-scoped deactivate
-  runs before the refused upsert (staging `19263`). The "reports success" half is
-  pre-existing. The fix — deactivate after a successful lookup, or diff rather than replace —
-  belongs with the Action Executor.
-- **Pre-existing inconsistency worth reconciling during promotion:** production's
-  `Upsert Tracked X User` uses the generic `Postgres account` credential while every other
-  Postgres node uses `Supabase Account`. Under T5 the client is resolved through one and
-  written through the other. The same generic credential was auto-assigned to a new staging
-  node and had to be rebound before it ran.
+- **T5 created a defect and then fixed it (2026-08-30).** A blocked ownership takeover emptied
+  the target client's active list and still reported success, because the client-scoped
+  deactivate ran before the refused upsert (staging `19263`). Fixed by moving the deactivate
+  to the END of the branch and making it a difference: it deactivates only rows not in the set
+  of accounts actually written, guarded by `jsonb_array_length($2::jsonb) > 0` so an empty set
+  is a no-op rather than a wipe. This also closes the pre-existing "a failed X lookup leaves
+  the accounts deactivated" gap, and blocked accounts are now named to the caller instead of
+  being reported as success. Proved by `19351` (blocked takeover changes nothing,
+  `tenancybtest` survives) and `19352` (replace still deactivates the dropped account and
+  says so). `scripts/apply-t5-track-diff.mjs`; staging router now 147 nodes, published
+  `4b436194-a5a0-4a4e-a69a-29252e3f38bd`. New fixture
+  `track-blocked-takeover-preserves-list` guards it, using a new `expectJson` assertion in
+  the runner that was negative-tested to confirm it can fail.
+- **The generic `Postgres account` credential was checked, and it is benign.** Production's
+  `Upsert Tracked X User` uses it while every other Postgres node uses `Supabase Account`, so
+  under T5 the client is resolved through one credential and written through the other. A
+  throwaway read-only probe workflow bound to `Postgres account` returned `posts 22`,
+  `replies 929` and usernames `michelhelou_lb, camille_mourani, lynnharfoush` — production
+  `jxnzdxyhoakpfmkbjdeq`, not staging (4 and 184). The probe was archived. Both credentials
+  point at the same database, `/track` has always written where it should, and rebinding is
+  optional tidy-up (promotion step 10) rather than a correctness fix. The same generic
+  credential was auto-assigned to a new staging node and was rebound before it ran.
 - Order of work was T2 (authorization) before T3 (alert routing): a broadcast alert is
   embarrassing, unauthorized spending on another client's post is worse.
 - The design call before T1 is settled: **`Clients`**, chosen 2026-08-28 on edit count rather
@@ -482,7 +494,7 @@ Design:
 
 Validation:
 
-- Per phase, per §12 gate column. `tests/n8n/tenancy-pins/` holds 20 fixtures as of T5 (
+- Per phase, per §12 gate column. `tests/n8n/tenancy-pins/` holds 21 fixtures as of T5 (
   self-contained, runnable against either router via `run-tenancy-pins.mjs`); RLS asserted as `authenticated`, never as
   `postgres`.
 - Existing `tests/n8n/telegram-router-risky-pins/` fixtures must pass unchanged after the

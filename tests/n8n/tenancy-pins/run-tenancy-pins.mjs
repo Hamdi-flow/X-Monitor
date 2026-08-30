@@ -58,6 +58,23 @@ for (const fx of manifest.fixtures) {
   for (const n of fx.expected?.reaches || []) if (!executed.has(n)) problems.push(`did not reach ${n}`);
   for (const n of fx.expected?.doesNotReach || []) if (executed.has(n)) problems.push(`REACHED ${n}`);
 
+  // expectJson: { "<node name>": { "<field>": <value> } } on the node's first
+  // output item. Reachability alone cannot catch a node that runs but computes
+  // the wrong answer — which is exactly how the blocked-takeover defect hid.
+  for (const [nodeName, expected] of Object.entries(fx.expected?.expectJson || {})) {
+    const actual = runData[nodeName]?.[0]?.data?.main?.[0]?.[0]?.json;
+    if (!actual) {
+      problems.push(`${nodeName} produced no output`);
+      continue;
+    }
+    for (const [field, want] of Object.entries(expected)) {
+      const got = actual[field];
+      if (JSON.stringify(got) !== JSON.stringify(want)) {
+        problems.push(`${nodeName}.${field} = ${JSON.stringify(got)} != ${JSON.stringify(want)}`);
+      }
+    }
+  }
+
   if (fx.expected?.refusalReason) {
     const refusal = runData['Build Access Refusal']?.[0]?.data?.main?.[0]?.[0]?.json;
     if (!refusal) problems.push('Build Access Refusal produced nothing');

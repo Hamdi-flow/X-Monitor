@@ -10,8 +10,8 @@ Staging copy of the production Telegram router. This is the preferred workflow f
 - Environment: staging
 - Active: yes
 - Local export: `workflows/staging/xmonitor-codex-staging.json`
-- Node count: `145`
-- Last observed live update: `2026-08-30T07:49Z` (T5, published `c4623bc9-9a80-4893-90cd-374b6bfbdce6`)
+- Node count: `147`
+- Last observed live update: `2026-08-30T08:2xZ` (T5 + deactivate fix, published `4b436194-a5a0-4a4e-a69a-29252e3f38bd`)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 - Main trigger node: `Telegram Trigger`
 
@@ -88,7 +88,18 @@ WHERE "Tracked Users".telegram_chat_id IS NULL
 
 which stopped meaning anything once `/track` became staff-only — a staff chat matches no client's rows, so any staff caller could have moved an account between clients. It now reads `"Tracked Users".client_id = EXCLUDED.client_id`: **one X account belongs to one client**. `Deactivate Tracked Users For Chat` was re-keyed the same way; its name is kept because three pinned fixtures reference it.
 
-> **Known defect, recorded not fixed.** A blocked takeover still reports success *and* now leaves the target client with an empty active list, because the client-scoped deactivate runs before the refused upsert. Observed in staging execution `19263`. The fix belongs with the Action Executor — see `docs/architecture/multi-tenant-and-web-ui.md` §12e.
+### Deactivation happens last, and by difference
+
+`/track` replaces a client's list, so accounts the caller did not name are deactivated. That deactivate runs **after** the upserts and takes the set of accounts actually written:
+
+```
+Upsert Tracked X User -> Link Telegram User To X User -> Build Track Outcome
+  -> Deactivate Tracked Users For Chat -> Build Track Result Message -> Send Tracking Success
+```
+
+It used to run first, which meant any later failure — a blocked ownership takeover, or a failed X lookup — emptied the client's list and still reported success (staging execution `19263`). Nothing is deactivated now until at least one account has been written, so a wholly failed `/track` is a no-op. The `jsonb_array_length($2::jsonb) > 0` guard in the statement is load-bearing: with an empty succeeded set the `NOT EXISTS` would match every row.
+
+`Build Track Result Message` reports all three outcomes — tracked, stopped, and blocked. A blocked account is named rather than being folded into a success message, because "already tracked by another client" is something only staff can resolve. Proved by `19351` (blocked takeover changes nothing) and `19352` (replace still deactivates the dropped account, and says so).
 
 ## Client Administration (Phase T5)
 
