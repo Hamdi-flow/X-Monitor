@@ -615,6 +615,12 @@ re-enter the backfill path; the fix does not retroactively collect replies for a
 already has stored rows. All four were `status = 'New'` with no moderation, so nothing an
 operator had done was lost. `Replies` went 933 → 929.
 
+The next scheduled pass, execution `21628` at 2026-09-04 12:00 UTC, re-collected the post:
+`is_backfill true` with `start_time 2026-09-03T14:16:33.000Z`, 13 new replies over 2 pages,
+and alert message 1305 reading `Analyzed replies: 13` against `Total replies: 13`. The
+previous alert on the same post, message 1304, read `Analyzed replies: 4`. `Replies` went
+929 → 942 and the watermark advanced normally.
+
 Notes:
 
 - `Build Truncation Alert` still advises nulling the run state watermark to force a backfill.

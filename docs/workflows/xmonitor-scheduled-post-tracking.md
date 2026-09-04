@@ -161,6 +161,25 @@ post with stored replies takes the incremental path. The four stored `Replies` r
 path on the next pass. All four were `status = 'New'` with `moderated_at`, `moderated_by` and
 `counter_reply_text` NULL, so no operator action was lost. `Replies` went from 933 rows to 929.
 
+**Confirmed on a real scheduled pass.** Execution `21628`, 2026-09-04 12:00 UTC, the first
+hourly trigger after the promotion and the reply delete:
+
+| Node | Output |
+| --- | --- |
+| `Get Backfilled Post Ids` | empty set — the post had no stored replies |
+| `Build Replies Query` | `is_backfill: true`, `start_time: 2026-09-03T14:16:33.000Z`, the post's own `created_at` minus a minute |
+| `Attach replies to posts` | `new_reply_count: 13` from `fetched_reply_count: 14` over 2 pages, `fetch_truncated: false` — the duplicate is the overlap window, deduped by `reply_id` |
+| `Send Negative Alert Notification` | message 1305: total replies 13, **analyzed replies 13**, negative 13, visible negative 13 |
+
+The previous alert on the same post, message 1304, read `Analyzed replies: 4` against the same
+`Total replies: 13`. Stored state afterwards: 13 rows for the post, all with a sentiment and a
+non-null `analyzed_at`, `Posts.comment_count` 13, `analyzed_count` 13. Production `Replies` went
+929 → 942. The watermark advanced normally to `2026-09-04 12:00:12.274+00`, as it should on a
+complete pass.
+
+The 100% negative reading turned out to be accurate — all 13 replies really are negative. The
+defect was never that the verdict was wrong, but that it was being asserted on 4 of 13 replies.
+
 **Not covered.** The alert text in `Build Truncation Alert` still advises nulling the run state
 watermark to force a backfill. With per-post backfill the narrower recovery is deleting the
 affected post's stored replies. Stale advice, not a defect.
