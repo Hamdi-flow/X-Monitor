@@ -1,0 +1,26 @@
+{
+  "Schedule Trigger": [{ "json": { "timestamp": "2026-08-24T15:00:00.000Z" } }],
+  "Advance Post Suppression State": [{ "json": { "blocked_post_ids": [] } }],
+  "Get Run State": [{ "json": { "key": "scheduled_post_tracking", "last_successful_run_at": "2026-08-24T14:00:00.000Z", "run_started_at": "2026-08-24T15:00:00.000Z" } }],
+  "Get Tracked Users": [{ "json": { "user_id": "951803761", "created_at": "2026-06-01T00:00:00.000Z", "username": "RebelHam_", "display_name": "Rebel Ham", "is_active": true, "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89", "client_slug": "house", "client_name": "House Account", "client_min_replies": 10, "client_negative_threshold": 0.5, "client_lookback_days": 7 } }],
+  "Get posts of tracked users": [{ "json": { "data": [{ "id": "2060604129798496703", "author_id": "951803761", "conversation_id": "2060604129798496703", "created_at": "2026-08-24T10:00:00.000Z", "text": "post that only just crossed min_replies", "public_metrics": { "reply_count": 13, "like_count": 0, "retweet_count": 0, "quote_count": 0, "bookmark_count": 0, "impression_count": 0 } }], "meta": { "result_count": 1 } } }],
+  "Get Replies": [{ "json": { "data": [
+    { "id": "B1001", "conversation_id": "2060604129798496703", "created_at": "2026-08-24T10:30:00.000Z", "text": "pre-watermark reply one" },
+    { "id": "B1002", "conversation_id": "2060604129798496703", "created_at": "2026-08-24T11:45:00.000Z", "text": "pre-watermark reply two" },
+    { "id": "B1003", "conversation_id": "2060604129798496703", "created_at": "2026-08-24T13:00:00.000Z", "text": "pre-watermark reply three" },
+    { "id": "B1004", "conversation_id": "2060604129798496703", "created_at": "2026-08-24T14:20:00.000Z", "text": "post-watermark reply" }
+  ], "meta": { "result_count": 4 } } }],
+  "Get Analyzed Reply Ids": [{ "json": { "analyzed_reply_ids": [] } }],
+  "Get Backfilled Post Ids": [{ "json": { "collected_post_ids": [] } }],
+  "Analyze Sentiment with ChatGPT": [{ "json": { "text": "{\"results\":[{\"postId\":\"2060604129798496703\",\"postText\":\"post that only just crossed min_replies\",\"userId\":\"951803761\",\"replies\":[{\"id\":\"B1001\",\"sentiment\":\"Negative\",\"text\":\"pre-watermark reply one\"},{\"id\":\"B1002\",\"sentiment\":\"Negative\",\"text\":\"pre-watermark reply two\"},{\"id\":\"B1003\",\"sentiment\":\"Neutral\",\"text\":\"pre-watermark reply three\"},{\"id\":\"B1004\",\"sentiment\":\"Negative\",\"text\":\"post-watermark reply\"}]}]}" } }],
+  "Get Stored Post Counts": [{ "json": { "post_id": "2060604129798496703", "stored_analyzed": 0, "stored_negative": 0, "stored_positive": 0, "stored_neutral": 0 } }],
+  "Insert or update posts": [{ "json": { "post_id": "2060604129798496703" } }],
+  "Insert or update replies": [{ "json": { "reply_id": "B1001" } }],
+  "Get Reply Status Counts": [{ "json": { "post_id": "2060604129798496703", "hidden_negative_replies_count": 0, "non_hidden_negative_replies_count": 3 } }],
+  "Get Alert Recipients": [{ "json": { "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89", "client_name": "House Account", "client_slug": "house", "chat_id": "8677383067", "label": "Operator", "role": "operator" } }],
+  "Send Negative Alert Notification": [{ "json": { "ok": true, "result": { "message_id": 1 } } }],
+  "Send Scheduler Developer Alert": [{ "json": { "ok": true, "result": { "message_id": 2 } } }],
+  "Probe OpenAI Error Reason": [{ "json": {} }],
+  "Advance Run State": [{ "json": { "key": "scheduled_post_tracking" } }],
+  "Advance Run State (Quiet Pass)": [{ "json": { "key": "scheduled_post_tracking" } }]
+}

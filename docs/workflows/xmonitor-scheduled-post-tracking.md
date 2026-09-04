@@ -12,7 +12,7 @@ Production workflow that periodically scans X posts from tracked users, finds po
 - Local export: `workflows/active/xmonitor-scheduled-post-tracking.json`
 - Live description: `Production scheduled post tracking workflow using production Supabase/Postgres/Telegram credentials and shared X/OpenAI credentials.`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-08-29T10:12:36.190Z` (published version `f155fb3d-61b3-45fa-81dd-37703a2f6522`)
+- Last observed live update: `2026-09-04T11:27:17.257Z` (published version `401b14d9-679b-4d74-b69b-3e52afbb490a`, confirmed `versionId == activeVersionId`)
 
 > **Phase 1 promoted 2026-08-25.** This workflow now fetches replies incrementally
 > (`start_time` from a persisted `Run State` watermark), stores per-reply sentiment,
@@ -46,7 +46,7 @@ Production workflow that periodically scans X posts from tracked users, finds po
 4. `Build X API Query` builds an X query like `from:user1 OR from:user2`, using a 7-day start time. If no usernames exist, it emits a handled scheduler alert instead of calling X.
 5. `Get posts of tracked users` calls X API `https://api.x.com/2/tweets/search/all`.
 6. `Split Out Posts`, `Filter Suppressed Posts`, and `Keep Posts With 10+ Replies` reduce the candidates to unsuppressed posts at or above **their own client's** `min_replies`. `Filter Suppressed Posts` is where a post acquires its `client_id` and thresholds, by matching `author_id` against the tracked users loaded in step 3.
-7. `Build Replies Query`, `Wait`, and `Get Replies` fetch replies for the remaining conversations.
+7. `Get Backfilled Post Ids`, `Build Replies Query`, `Wait`, and `Get Replies` fetch replies for the remaining conversations. The lookup decides each post's search window: posts that already have stored replies use the run watermark, and posts being fetched for the first time are windowed from their own `created_at`, because on the pass where a post first crosses `min_replies` every reply it already holds is older than the watermark. See [Per-post reply backfill](#per-post-reply-backfill--promoted-2026-09-04).
 8. `Attach replies to posts` groups replies under their source post and carries post author plus X total reply count forward. It also emits `post_client_map` — post id to client and thresholds — **outside** the `text` field, so the OpenAI prompt payload is unchanged by T3.
 9. `Analyze Sentiment with ChatGPT` labels replies.
 10. `Calculate/Filter Sentiment Counts` calculates positive, neutral, negative, total analyzed, and total X reply counts, then sets `alert_now` per post against that post's own client threshold, read from `post_client_map`. It also stamps `client_id` onto each post so the fan-out can route without re-querying.
@@ -99,6 +99,71 @@ These callbacks make this workflow coupled to the Telegram router command parsin
 | A post whose owning client did not resolve | Treated as the case above with an unresolved client, never broadcast to some other client's chat. Its thresholds fall back to the pre-T3 `10` / `0.5`. |
 | OpenAI sentiment call fails | `Analyze Sentiment with ChatGPT` runs with `onError: continueErrorOutput`. Output 1 goes to `Probe OpenAI Error Reason` → `Build Sentiment Failure Alert` → developer alert. See below. |
 | Reply or post search hit the page cap | `Attach replies to posts` sets `fetch_truncated`; `If Fetch Truncated` raises `SEARCH_PAGE_CAP_REACHED` on the developer-alert path **and** the watermark is held. See below. |
+
+## Per-post reply backfill — promoted 2026-09-04
+
+Before this, `Build Replies Query` applied one `start_time` to every conversation in the pass:
+the run watermark minus a 10-minute overlap. A post is not a reply-fetch candidate until its X
+`reply_count` crosses its client's `min_replies`, so on the pass where it first qualified it
+already held roughly `min_replies` replies, every one of them older than that one-hour window.
+Those replies were never requested, and because the watermark only moves forward they were
+never requested again. The gap was systematic, and its size was roughly `min_replies` for every
+post that ever alerted.
+
+**How it surfaced.** Post `2095516553672380450` (@michelhelou_lb, House Account):
+
+| | |
+| --- | --- |
+| Post created | 2026-09-03 14:17 UTC |
+| Replies 1 to 9 arrive | 2026-09-03 15:05 to 21:20 |
+| First pass where it cleared 10 replies | execution `21420`, 2026-09-04 00:00 |
+| `start_time` that pass requested | 2026-09-03 22:50 |
+| Stored replies | 4, one per hourly pass at 00:00, 06:00, 07:00, 08:00 |
+| Alert sent | execution `21552`, message 1304: total replies 13, analyzed 4, negative sentiment 100% |
+
+None of the nine had aged out of X: a live `conversation_id:` search over the full window
+returns `result_count: 13`. The workflow simply never asked.
+
+It stayed invisible because incremental reply fetching shipped 2026-08-25 and
+`2095516553672380450` was the only row in `Posts` created since. Every earlier post was
+collected under the old full 7-day lookback, which is why their `analyzed_count` equals their
+`comment_count`.
+
+**The change.**
+
+| Node | Change |
+| --- | --- |
+| `Get Backfilled Post Ids` | **New.** Returns the candidate posts that already have an analyzed reply stored, with the candidate ids supplied the same way `Get Analyzed Reply Ids` supplies its own. `executeOnce`, read-only, bound to `Supabase Account` (`Usl8p3UJw2s7aMMe`). Sits between `If Any Post Qualified` and `Build Replies Query`. |
+| `Build Replies Query` | Reads its posts from `Keep Posts With 10+ Replies` instead of its own input, which is now a single aggregate row. Splits conversations into an incremental group (watermark window, unchanged) and a backfill group windowed from the post's own `created_at` minus a minute, floored at the 7-day post-search window. Chunks each group independently and stamps `is_backfill` per chunk. |
+
+Splitting was chosen over simply widening the shared window. Widening would re-read every
+already-tracked conversation from the oldest new post's creation date and give back most of the
+Phase 1 saving; splitting pays a full-history read only for posts never read at all.
+Over-reading inside a backfill chunk is harmless, since `Attach replies to posts` dedupes by
+`reply_id` and `Get Analyzed Reply Ids` keeps anything already scored out of the OpenAI call.
+
+**Promotion evidence.** Draft `401b14d9-679b-4d74-b69b-3e52afbb490a` published 2026-09-04
+11:27 UTC, and `get_workflow_details` re-read afterwards confirms
+`versionId == activeVersionId == 401b14d9-679b-4d74-b69b-3e52afbb490a` on a workflow that is
+`active: true`, 43 nodes. This is the check that silently shipped nothing twice before.
+
+| Execution | Fixture | Result |
+| --- | --- | --- |
+| `21617` | `backfill-new-post-full-window` | `is_backfill true`, `start_time 2026-08-24T09:59:00.000Z`, `new_reply_count 4`, `analyzed_count 4`, `alert_now true`; pre-watermark reply `B1001` reached `Prepare Reply Data` |
+| `21618` | `pagination-page-cap-truncated` | `replies_truncated true`, `fetch_truncated true`, `SEARCH_PAGE_CAP_REACHED`, `new_reply_count 3`; incremental window unchanged at `13:50:00` |
+
+Staging evidence for the same code is in the
+[staging doc](./xmonitor-scheduled-post-tracking-staging.md#per-post-backfill--2026-09-04).
+
+**Recovery of the post that exposed it.** The fix does not retroactively collect replies: a
+post with stored replies takes the incremental path. The four stored `Replies` rows for
+`2095516553672380450` were therefore deleted 2026-09-04 so the post would re-enter the backfill
+path on the next pass. All four were `status = 'New'` with `moderated_at`, `moderated_by` and
+`counter_reply_text` NULL, so no operator action was lost. `Replies` went from 933 rows to 929.
+
+**Not covered.** The alert text in `Build Truncation Alert` still advises nulling the run state
+watermark to force a backfill. With per-post backfill the narrower recovery is deleting the
+affected post's stored replies. Stale advice, not a defect.
 
 ## Incremental Watermark
 

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-29T10:12:36.190Z",
+  "updatedAt": "2026-09-04T11:27:17.257Z",
   "createdAt": "2026-04-10T14:43:43.686Z",
   "id": "Emb26wP77eFXgnVi",
   "name": "XMonitor - Scheduled Post Tracking",
@@ -48,14 +48,7 @@
       }
     },
     {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "-- T3: tracked users carry their client's alert thresholds, so every downstream\n-- decision is made per client instead of against a constant.\n--\n-- \"Clients\" is JOINed but NOT filtered on c.is_active: deactivating a client must\n-- not silently stop collecting its posts. An inactive client is dropped at delivery\n-- instead -- see Get Alert Recipients -- so the data keeps flowing and only the\n-- Telegram fan-out stops.\n--\n-- Both Supabase projects are shared with the sibling FB Monitor project, so every\n-- table is named explicitly.\nSELECT\n  tu.user_id,\n  tu.username,\n  tu.display_name,\n  tu.telegram_chat_id,\n  tu.is_active,\n  tu.client_id::text            AS client_id,\n  c.slug                        AS client_slug,\n  c.name                        AS client_name,\n  c.min_replies::int            AS client_min_replies,\n  -- numeric would arrive as the string '0.50' and break a strict-typed compare.\n  c.negative_threshold::float8  AS client_negative_threshold,\n  c.lookback_days::int          AS client_lookback_days\nFROM public.\"Tracked Users\" tu\nJOIN public.\"Clients\" c ON c.id = tu.client_id\nWHERE tu.is_active\nORDER BY tu.user_id;",
-        "options": {
-          "queryBatching": "single"
-        }
-      },
-      "id": "88048edd-0325-4fee-8ed0-1210eacedaf0",
+      "id": "30a88307-4ff9-4c55-ba60-4386a21c810d",
       "name": "Get Tracked Users",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -63,14 +56,21 @@
         -1552,
         576
       ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T3: tracked users carry their client's alert thresholds, so every downstream\n-- decision is made per client instead of against a constant.\n--\n-- \"Clients\" is JOINed but NOT filtered on c.is_active: deactivating a client must\n-- not silently stop collecting its posts. An inactive client is dropped at delivery\n-- instead -- see Get Alert Recipients -- so the data keeps flowing and only the\n-- Telegram fan-out stops.\n--\n-- Both Supabase projects are shared with the sibling FB Monitor project, so every\n-- table is named explicitly.\nSELECT\n  tu.user_id,\n  tu.username,\n  tu.display_name,\n  tu.telegram_chat_id,\n  tu.is_active,\n  tu.client_id::text            AS client_id,\n  c.slug                        AS client_slug,\n  c.name                        AS client_name,\n  c.min_replies::int            AS client_min_replies,\n  -- numeric would arrive as the string '0.50' and break a strict-typed compare.\n  c.negative_threshold::float8  AS client_negative_threshold,\n  c.lookback_days::int          AS client_lookback_days\nFROM public.\"Tracked Users\" tu\nJOIN public.\"Clients\" c ON c.id = tu.client_id\nWHERE tu.is_active\nORDER BY tu.user_id;",
+        "options": {
+          "queryBatching": "single"
+        }
+      },
+      "notes": "T3: joins \"Clients\" so each tracked user carries its client thresholds.",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "Usl8p3UJw2s7aMMe",
           "name": "Supabase Account"
         }
-      },
-      "notes": "T3: joins \"Clients\" so each tracked user carries its client thresholds."
+      }
     },
     {
       "parameters": {
@@ -114,7 +114,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const LOOKBACK_DAYS = 7;\nconst MAX_QUERY_CHARS = 1000;              // X caps search/all queries at 1024\nconst MAX_CONVERSATIONS_PER_CHUNK = 15;    // limits-and-capacity.md 7.1\nconst OVERLAP_MINUTES = 10;                // tolerate X indexing lag; reply_id dedupes\n\nconst conversationIds = [...new Set(\n  $input.all()\n    .map(item => String(item.json.conversation_id || '').trim())\n    .filter(Boolean)\n)];\n\nif (conversationIds.length === 0) {\n  return [];\n}\n\nconst runState = $('Get Run State').first()?.json || {};\nconst runStartedAt = runState.run_started_at ? new Date(runState.run_started_at) : new Date();\nconst lastRun = runState.last_successful_run_at ? new Date(runState.last_successful_run_at) : null;\n\nlet startTime;\nlet isBackfill = false;\nif (lastRun && !Number.isNaN(lastRun.getTime())) {\n  startTime = new Date(lastRun.getTime() - OVERLAP_MINUTES * 60000);\n} else {\n  // First run after deploy: one full-window pass backfills the stored counts.\n  isBackfill = true;\n  startTime = new Date(runStartedAt.getTime() - LOOKBACK_DAYS * 86400000);\n}\n\n// X rejects a start_time that is too close to now.\nconst newestAllowed = new Date(Date.now() - 30000);\nif (startTime.getTime() > newestAllowed.getTime()) {\n  startTime = newestAllowed;\n}\n\nconst clause = id => `(conversation_id:${id} is:reply)`;\n\n// Chunk by measuring the assembled string, not by counting items.\nconst chunks = [];\nlet current = [];\nfor (const id of conversationIds) {\n  const candidate = [...current, id];\n  const assembled = candidate.map(clause).join(' OR ');\n  const tooLong = assembled.length > MAX_QUERY_CHARS;\n  const tooMany = candidate.length > MAX_CONVERSATIONS_PER_CHUNK;\n  if (current.length > 0 && (tooLong || tooMany)) {\n    chunks.push(current);\n    current = [id];\n  } else {\n    current = candidate;\n  }\n}\nif (current.length > 0) {\n  chunks.push(current);\n}\n\nreturn chunks.map((ids, index) => ({\n  json: {\n    query: ids.map(clause).join(' OR '),\n    start_time: startTime.toISOString(),\n    run_started_at: runStartedAt.toISOString(),\n    is_backfill: isBackfill,\n    conversation_ids: ids,\n    conversation_count: ids.length,\n    chunk_index: index,\n    chunk_count: chunks.length,\n  },\n}));"
+        "jsCode": "const LOOKBACK_DAYS = 7;\nconst MAX_QUERY_CHARS = 1000;              // X caps search/all queries at 1024\nconst MAX_CONVERSATIONS_PER_CHUNK = 15;    // limits-and-capacity.md 7.1\nconst OVERLAP_MINUTES = 10;                // tolerate X indexing lag; reply_id dedupes\nconst BACKFILL_LEAD_MINUTES = 1;           // start just before the post itself\n\n// Posts come from the filter, not from $input: this node's input is now\n// Get Backfilled Post Ids, a single aggregate row carrying no conversation_id.\n// Same reference Get Analyzed Reply Ids already uses, so the placeholder item\n// that alwaysOutputData injects on a no-qualifying-posts pass is filtered out here.\nconst createdAtByConversation = new Map();\nfor (const item of $('Keep Posts With 10+ Replies').all()) {\n  const post = item.json || {};\n  const id = String(post.conversation_id || '').trim();\n  if (!id) continue;\n  const parsed = post.created_at ? new Date(post.created_at) : null;\n  const createdAt = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;\n  if (!createdAtByConversation.has(id) || (createdAt && !createdAtByConversation.get(id))) {\n    createdAtByConversation.set(id, createdAt);\n  }\n}\n\nconst conversationIds = [...createdAtByConversation.keys()];\nif (conversationIds.length === 0) {\n  return [];\n}\n\nconst runState = $('Get Run State').first()?.json || {};\nconst runStartedAt = runState.run_started_at ? new Date(runState.run_started_at) : new Date();\nconst lastRun = runState.last_successful_run_at ? new Date(runState.last_successful_run_at) : null;\nconst hasWatermark = Boolean(lastRun && !Number.isNaN(lastRun.getTime()));\n\n// Nothing older than the posts search window can be a candidate, so that is the floor\n// for any window. X also rejects a start_time too close to now.\nconst windowFloor = new Date(runStartedAt.getTime() - LOOKBACK_DAYS * 86400000);\nconst newestAllowed = new Date(Date.now() - 30000);\nconst clampWindow = (date) => {\n  let value = date.getTime();\n  if (value < windowFloor.getTime()) value = windowFloor.getTime();\n  if (value > newestAllowed.getTime()) value = newestAllowed.getTime();\n  return new Date(value);\n};\n\n// Which of this pass's posts already had replies collected. A post that is NOT in\n// this set is being fetched for the first time: it only became a candidate once its\n// X reply_count crossed the client's min_replies, so by then every reply it already\n// had is older than the watermark window. Searching from the watermark would skip\n// all of them permanently -- they are never requested again. Such a post gets a\n// window starting at its own created_at instead.\nconst collectedRow = $('Get Backfilled Post Ids').first()?.json || {};\nlet collectedIds = collectedRow.collected_post_ids || [];\nif (typeof collectedIds === 'string') {\n  // Postgres text[] can arrive as a literal '{a,b,c}'.\n  collectedIds = collectedIds\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\nconst alreadyCollected = new Set((Array.isArray(collectedIds) ? collectedIds : []).map(String));\n\nconst incrementalIds = [];\nconst backfillIds = [];\nfor (const id of conversationIds) {\n  if (hasWatermark && alreadyCollected.has(id)) {\n    incrementalIds.push(id);\n  } else {\n    backfillIds.push(id);\n  }\n}\n\nconst clause = id => `(conversation_id:${id} is:reply)`;\n\n// Chunk by measuring the assembled string, not by counting items.\nconst chunkIds = (ids) => {\n  const chunks = [];\n  let current = [];\n  for (const id of ids) {\n    const candidate = [...current, id];\n    const assembled = candidate.map(clause).join(' OR ');\n    const tooLong = assembled.length > MAX_QUERY_CHARS;\n    const tooMany = candidate.length > MAX_CONVERSATIONS_PER_CHUNK;\n    if (current.length > 0 && (tooLong || tooMany)) {\n      chunks.push(current);\n      current = [id];\n    } else {\n      current = candidate;\n    }\n  }\n  if (current.length > 0) {\n    chunks.push(current);\n  }\n  return chunks;\n};\n\nconst groups = [];\n\n// Already-collected posts keep the cheap incremental window.\nif (incrementalIds.length > 0) {\n  const startTime = clampWindow(new Date(lastRun.getTime() - OVERLAP_MINUTES * 60000));\n  for (const ids of chunkIds(incrementalIds)) {\n    groups.push({ ids, startTime, isBackfill: false });\n  }\n}\n\n// A backfill chunk starts at the OLDEST post in it, so every post in the chunk is\n// covered from its own creation. Over-reading a newer post in the same chunk is\n// harmless: reply ids dedupe in Attach replies to posts and Get Analyzed Reply Ids\n// keeps anything already scored out of the OpenAI call.\nfor (const ids of chunkIds(backfillIds)) {\n  let oldest = null;\n  for (const id of ids) {\n    const createdAt = createdAtByConversation.get(id);\n    if (createdAt && (!oldest || createdAt.getTime() < oldest.getTime())) {\n      oldest = createdAt;\n    }\n  }\n  const base = oldest\n    ? new Date(oldest.getTime() - BACKFILL_LEAD_MINUTES * 60000)\n    : windowFloor;\n  groups.push({ ids, startTime: clampWindow(base), isBackfill: true });\n}\n\nreturn groups.map((group, index) => ({\n  json: {\n    query: group.ids.map(clause).join(' OR '),\n    start_time: group.startTime.toISOString(),\n    run_started_at: runStartedAt.toISOString(),\n    is_backfill: group.isBackfill,\n    conversation_ids: group.ids,\n    conversation_count: group.ids.length,\n    chunk_index: index,\n    chunk_count: groups.length,\n  },\n}));\n"
       },
       "id": "3602a7d8-1c89-438a-80f1-41e9238efeb5",
       "name": "Build Replies Query",
@@ -475,6 +475,14 @@
       }
     },
     {
+      "id": "2f31fecf-f2a8-4554-9e2c-9f70550ebcd5",
+      "name": "Get Alert Recipients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3280,
+        496
+      ],
       "parameters": {
         "operation": "executeQuery",
         "query": "-- T3: recipients resolved per post owner. This replaces the unfiltered read of\n-- \"Telegram Users\", which handed every recipient every client's post text and\n-- reply counts the moment a second chat existed.\n--\n-- A chat receives a post only when it is an active, alert-receiving member of the\n-- client that owns that post.\n--\n-- LEFT JOIN, not INNER, on purpose: a client that has alerting posts but no\n-- eligible member must still produce a row, so Build Negative Alert Notification\n-- can raise a developer alert naming it rather than dropping the alert in silence.\n-- c.is_active is applied here, so a deactivated client stops receiving Telegram\n-- alerts while its posts continue to be collected and stored.\n--\n-- \"Telegram Users\" is deliberately no longer read. The Telegram router still\n-- writes it, so the table stays in place; retiring it is a later cleanup.\nWITH requested AS (\n  SELECT DISTINCT unnest($1::uuid[]) AS client_id\n)\nSELECT\n  requested.client_id::text AS client_id,\n  c.name                    AS client_name,\n  c.slug                    AS client_slug,\n  cm.chat_id,\n  cm.label,\n  cm.role\nFROM requested\nLEFT JOIN public.\"Clients\" c\n  ON c.id = requested.client_id\n AND c.is_active\nLEFT JOIN public.\"Client Members\" cm\n  ON cm.client_id = c.id\n AND cm.is_active\n AND cm.receives_alerts\nORDER BY requested.client_id, cm.chat_id;",
@@ -483,23 +491,15 @@
           "queryReplacement": "={{ [[...new Set($('Split Out Reply Analysis').all().filter(item => item.json.alert_now).map(item => String(item.json.client_id || \"\")).filter(value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)))]] }}"
         }
       },
-      "id": "5a504821-0f54-4bea-bedb-27ed688d5d09",
-      "name": "Get Alert Recipients",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        3280,
-        496
-      ],
+      "notes": "T3: replaces the unfiltered \"Telegram Users\" read. The router still writes that table; it is simply no longer a routing source.",
       "alwaysOutputData": true,
+      "executeOnce": true,
       "credentials": {
         "postgres": {
           "id": "Usl8p3UJw2s7aMMe",
           "name": "Supabase Account"
         }
-      },
-      "executeOnce": true,
-      "notes": "T3: replaces the unfiltered \"Telegram Users\" read. The router still writes that table; it is simply no longer a routing source."
+      }
     },
     {
       "parameters": {
@@ -513,7 +513,7 @@
         3504,
         496
       ],
-      "notes": "T3: one alert per recipient per post, grouped by the post owner. Per-client NO_TELEGRAM_RECIPIENTS."
+      "executeOnce": false
     },
     {
       "parameters": {
@@ -626,8 +626,7 @@
         -208,
         496
       ],
-      "alwaysOutputData": true,
-      "notes": "T3: the threshold is the post's own client min_replies, not a constant. Name kept for the $() references and pinned fixtures."
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -884,13 +883,13 @@
         3056,
         496
       ],
+      "executeOnce": true,
       "credentials": {
         "postgres": {
           "id": "Usl8p3UJw2s7aMMe",
           "name": "Supabase Account"
         }
-      },
-      "executeOnce": true
+      }
     },
     {
       "id": "c9a3d7e1-4b62-4f80-a1d5-7e3c2b9f6a48",
@@ -1260,6 +1259,32 @@
           "combinator": "and"
         },
         "options": {}
+      }
+    },
+    {
+      "id": "ef60aad9-8ecb-4a75-898d-aa9973af095e",
+      "name": "Get Backfilled Post Ids",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -96,
+        336
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Posts whose replies were already collected in an earlier pass.\n--\n-- A post NOT in this list is a first-time fetch: it only became a candidate once its\n-- X reply_count crossed the client's min_replies, so every reply it already had is\n-- older than the watermark window. Build Replies Query gives those posts a backfill\n-- window starting at the post's own created_at instead.\nSELECT COALESCE(array_agg(DISTINCT post_id), ARRAY[]::text[]) AS collected_post_ids\nFROM public.\"Replies\"\nWHERE analyzed_at IS NOT NULL\n  AND post_id = ANY($1::text[]);",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$('Keep Posts With 10+ Replies').all().map(item => String(item.json.id || ''))] }}"
+        }
+      },
+      "notes": "Which of this pass's candidate posts already have replies stored. Anything missing here is being fetched for the first time and needs a window starting at the post's own created_at, not the run watermark.",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
       }
     }
   ],
@@ -1669,7 +1694,7 @@
       "main": [
         [
           {
-            "node": "Build Replies Query",
+            "node": "Get Backfilled Post Ids",
             "type": "main",
             "index": 0
           }
@@ -1744,6 +1769,17 @@
           }
         ]
       ]
+    },
+    "Get Backfilled Post Ids": {
+      "main": [
+        [
+          {
+            "node": "Build Replies Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1766,8 +1802,8 @@
   },
   "nodeGroups": [],
   "pinData": {},
-  "versionId": "f155fb3d-61b3-45fa-81dd-37703a2f6522",
-  "activeVersionId": "f155fb3d-61b3-45fa-81dd-37703a2f6522",
+  "versionId": "401b14d9-679b-4d74-b69b-3e52afbb490a",
+  "activeVersionId": "401b14d9-679b-4d74-b69b-3e52afbb490a",
   "versionCounter": 1705,
   "triggerCount": 1,
   "sourceWorkflowId": null,

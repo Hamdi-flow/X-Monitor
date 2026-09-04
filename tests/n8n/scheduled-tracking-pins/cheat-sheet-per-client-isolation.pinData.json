@@ -15,7 +15,7 @@
       { "id": "R_B_1", "conversation_id": "P_B_1", "author_id": "555000222", "created_at": "2026-08-29T08:31:00.000Z", "text": "great work keep it up" }
     ], "includes": {}, "meta": { "result_count": 2 } } }
   ],
-  "Get Analyzed Reply Ids": [{ "json": { "analyzed_reply_ids": [] } }],
+  "Get Analyzed Reply Ids": [{ "json": { "analyzed_reply_ids": [] } }],"Get Backfilled Post Ids":[{"json":{"collected_post_ids":["P_A_1","P_B_1"]}}],
   "Get Active Cheat Sheets": [
     { "json": { "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89", "version": 3, "rules_text": "CANARY_ALPHA rules for client A only." } },
     { "json": { "client_id": "11111111-2222-3333-4444-555555555555", "version": 5, "rules_text": "CANARY_BRAVO rules for client B only." } }

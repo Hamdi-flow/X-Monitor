@@ -571,6 +571,58 @@ Its guidance was folded into the merged task and still holds:
   the larger of the two.
 
 ## Completed Tasks
+### Per-post reply backfill — replies before a post qualifies were never fetched
+
+- Status: done — promoted to production 2026-09-04
+- Priority: high
+- Complexity: `L`
+- Source: production alert on post `2095516553672380450`, 2026-09-04 — 13 replies on X, 4 analyzed
+
+What it was:
+
+`Build Replies Query` applied one `start_time` to every conversation in the pass, the run
+watermark minus a 10-minute overlap. A post is not a reply-fetch candidate until its X
+`reply_count` crosses `min_replies`, so on the pass where it first qualified every reply it
+already held was older than that one-hour window. Those replies were never requested, and
+because the watermark only moves forward they were never requested again. Gap size was roughly
+`min_replies` per alerting post. Latent since incremental fetching shipped 2026-08-25;
+`2095516553672380450` was the first post to qualify under it and exposed it immediately.
+
+What shipped:
+
+1. New node `Get Backfilled Post Ids` — read-only, `executeOnce`, between `If Any Post
+   Qualified` and `Build Replies Query`. Returns the candidate posts that already have an
+   analyzed reply stored.
+2. `Build Replies Query` splits conversations into an incremental group (watermark window,
+   unchanged) and a backfill group windowed from the post's own `created_at`. Each group is
+   chunked independently; a backfill chunk starts at its oldest post.
+
+Evidence:
+
+- Staging `l4eKZucUZXzfz0H8`, draft `e04f9e2f-8cc7-4dea-9edb-e850cc95a73f`: executions `21593`,
+  `21594`, `21596`, `21597`, `21602`, `21603`, `21619`. Live X search over a backfill window
+  returned all 13 replies for the post that exposed the defect.
+- Production `Emb26wP77eFXgnVi`: published `401b14d9-679b-4d74-b69b-3e52afbb490a` at 11:27 UTC,
+  `versionId == activeVersionId` confirmed by re-read on an `active: true` workflow. Fixtures
+  `21617` (backfill) and `21618` (page-cap truncation) green.
+- New fixture `backfill-new-post-full-window`, environment-neutral, plus the new node pinned in
+  the 15 existing fixtures that reach it.
+
+Recovery:
+
+The four stored `Replies` rows for `2095516553672380450` were deleted so the post would
+re-enter the backfill path; the fix does not retroactively collect replies for a post that
+already has stored rows. All four were `status = 'New'` with no moderation, so nothing an
+operator had done was lost. `Replies` went 933 → 929.
+
+Notes:
+
+- `Build Truncation Alert` still advises nulling the run state watermark to force a backfill.
+  With per-post backfill the narrower recovery is deleting the affected post's stored replies.
+  Stale advice rather than a defect; worth a follow-up edit.
+- `Posts.comment_count` stores the analyzed count, not X's reply count, so the table carried
+  `4` while X reported `13`. Not addressed here.
+
 ### Stop re-reading every reply every hour (X read cost + OpenAI)
 
 - Status: **done — promoted to production and verified 2026-08-25.** Reopened the same day for

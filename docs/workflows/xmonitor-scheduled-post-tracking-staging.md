@@ -14,7 +14,7 @@ production.
 - Environment: staging
 - Active: no
 - Local export: `workflows/staging/xmonitor-scheduled-post-tracking-staging.json`
-- Last observed live update: `2026-08-24T13:44Z`
+- Last observed live update: `2026-09-04T10:26Z` (draft `e04f9e2f-8cc7-4dea-9edb-e850cc95a73f`; inactive by design, so there is no active version to match)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 
 > **In parity with production as of 2026-08-25.** The Phase 1 incremental-replies rebuild
@@ -60,7 +60,8 @@ The pass is now bounded by a persisted watermark.
 | Node | Role |
 | --- | --- |
 | `Get Run State` | Upserts the `scheduled_post_tracking` marker row and returns `last_successful_run_at` plus this run's `run_started_at`. |
-| `Build Replies Query` | Sets `start_time = last_successful_run_at - 10 min`, and splits conversations into chunks of at most 15 ids / 1000 chars. Emits one item per chunk. |
+| `Get Backfilled Post Ids` | Which of this pass's candidate posts already have an analyzed reply stored. Added 2026-09-04; `executeOnce`, read-only. |
+| `Build Replies Query` | Splits conversations into an **incremental** group (`start_time = last_successful_run_at - 10 min`) and a **backfill** group for posts not yet collected (`start_time = the post's own created_at - 1 min`, floored at the 7-day window). Each group is chunked at 15 ids / 1000 chars. Emits one item per chunk. |
 | `Get Analyzed Reply Ids` | Reads `Replies.reply_id where analyzed_at is not null` for the candidate posts. |
 | `Attach replies to posts` | Drops replies already scored in an earlier pass, and duplicates arriving across chunks or the overlap window. Emits `has_new_replies`. |
 | `If Has New Replies` | If nothing is new, OpenAI is skipped entirely and the run ends at `Advance Run State (Quiet Pass)`. |
@@ -188,16 +189,85 @@ whereas now the watermark advances past unread replies and they are never reques
 
 ### Backfill
 
-There is no separate backfill script. When `Run State.last_successful_run_at` is null,
-`Build Replies Query` falls back to the full 7-day window and marks the item
-`is_backfill: true`. That one pass populates the stored counts, after which the incremental
-path takes over.
+There is no separate backfill script. Two situations produce a backfill window, and both mark
+the emitted chunk `is_backfill: true`.
+
+**A post being fetched for the first time.** `Get Backfilled Post Ids` returns the candidate
+posts that already have a stored analyzed reply; anything missing from that list gets a window
+starting one minute before its own `created_at` rather than at the watermark. This is not an
+optimisation, it is the only way those replies are ever read. A post is invisible to the reply
+fetcher until its X `reply_count` crosses its client's `min_replies`, so at the moment it first
+qualifies it already holds roughly `min_replies` replies, all of them older than the one-hour
+watermark window. A watermark-anchored search skips every one of them, and because the
+watermark only moves forward they are never requested again.
+
+That is not hypothetical. Production post `2095516553672380450` was created 2026-09-03 14:17
+UTC, crossed 10 replies at the 00:00 pass on 2026-09-04, and was searched from 22:50 the
+previous evening. Nine of its thirteen replies were never requested. The 08:00 alert
+(execution `21552`) reported 100% negative sentiment measured on 4 of 13 replies. A live X
+search over the full window returns all 13, so nothing had aged out of the index — the
+workflow simply never asked. Fixed on staging 2026-09-04.
+
+**A null watermark.** When `Run State.last_successful_run_at` is null every post takes the
+backfill path regardless of what is stored, since there is no incremental window to fall back
+on. Posts carrying a `created_at` start from the post itself; the rest start at the 7-day floor.
 
 Rows written before per-reply sentiment existed were marked by migration
 `xmonitor_phase1_backfill_legacy_reply_sentiment`: under the old pipeline `Filter Negative
 Replies` ran before the upsert, so every stored reply was `Negative` by construction. Posts
 still inside the lookback window do not depend on that migration, because their replies have
 `analyzed_at is null` and the backfill pass re-scores them exactly.
+
+### Per-post backfill — 2026-09-04
+
+`Build Replies Query` used one `start_time` for every conversation in the pass: the run
+watermark. Since a post only becomes a candidate once it crosses `min_replies`, that window
+never covered the replies it accumulated on the way to the threshold.
+
+The fix splits the pass in two rather than widening the window for everyone. Widening would
+have re-read every already-tracked conversation from the oldest new post's creation date and
+given back most of the Phase 1 saving; splitting pays a full-history read only for posts that
+have never been read at all.
+
+| Node | Change |
+| --- | --- |
+| `Get Backfilled Post Ids` | **New.** Returns the candidate posts that already have an analyzed reply stored, with the candidate ids supplied the same way `Get Analyzed Reply Ids` supplies its own. `executeOnce`, read-only. Sits between `If Any Post Qualified` and `Build Replies Query`. |
+| `Build Replies Query` | Reads its posts from `Keep Posts With 10+ Replies` instead of its own input, because that input is now a single aggregate row. Partitions conversations into incremental and backfill groups, chunks each group independently, and stamps `is_backfill` per chunk. A backfill chunk starts at the **oldest** post in it. |
+
+Over-reading inside a backfill chunk is harmless: `Attach replies to posts` dedupes by
+`reply_id` and `Get Analyzed Reply Ids` keeps anything already scored out of the OpenAI
+call. The cost is X reads, and only for posts that have never been read.
+
+**Validation, staging `l4eKZucUZXzfz0H8`, 2026-09-04.** Draft
+`e04f9e2f-8cc7-4dea-9edb-e850cc95a73f`; the workflow is inactive by design, so there is no
+publish step and no draft/active gap to close.
+
+| Execution | What ran | Result |
+| --- | --- | --- |
+| `21593` | New post; `Get Backfilled Post Ids` and `Get Replies` both **live** | Lookup returned an empty set; window `2026-09-03T14:16:33Z`; X returned `result_count: 13` |
+| `21594` | One collected post plus one new post, lookup live | Lookup returned only the collected id; chunk 0 incremental from `08:50:12`, chunk 1 backfill from `14:16:33` |
+| `21596` | Fixture `backfill-new-post-full-window` | `is_backfill true`, `start_time 09:59:00`, `new_reply_count 4`, `analyzed_count 4`, `alert_now true`; pre-watermark reply `B1001` reached `Prepare Reply Data` |
+| `21597` | Fixture `chunking-25-conversations` | `chunk_count 2`, sizes 15 and 10, `is_backfill false`, `start_time 13:50:00` — unchanged from before |
+| `21602` | Fixture `pagination-page-cap-truncated` | `replies_truncated true`, `fetch_truncated true`, `SEARCH_PAGE_CAP_REACHED`, `new_reply_count 3` |
+| `21603` | Fixture `watermark-analyzed-advances`, `Advance Run State` **unpinned** | Watermark advanced to `2026-08-25 09:55:00+00`, then restored to `2026-08-29 11:19:05.611+00` |
+
+Staging finished at its starting totals: `Replies` 184 rows, `Posts` 4 rows, no fixture
+residue, and both `Run State` columns byte-identical to the snapshot.
+
+`21619` re-ran `backfill-new-post-full-window` after two staging-only pins were dropped from
+it (`Get Active Cheat Sheets`, `Classify Media Replies`) so the fixture could also run against
+production, where those nodes do not exist. Same result, with the cheat-sheet lookup executing
+live as a read-only SELECT.
+
+**Promoted to production 2026-09-04**, published version
+`401b14d9-679b-4d74-b69b-3e52afbb490a`, with `versionId == activeVersionId` confirmed by a
+re-read. See the
+[production doc](./xmonitor-scheduled-post-tracking.md#per-post-reply-backfill--promoted-2026-09-04).
+
+**Not covered.** The alert text in `Build Truncation Alert` still tells the reader to re-run a
+backfill by nulling the run state watermark. With per-post backfill the narrower recovery is to
+delete the affected post's stored replies so it re-enters the backfill path. The message was
+left alone; it is stale advice, not a defect.
 
 ## Storage Versus Alerting
 

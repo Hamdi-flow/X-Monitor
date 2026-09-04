@@ -10,7 +10,10 @@ on any failure. Each `*.pinData.json` can also be passed directly as the `pinDat
 if you prefer to drive it by hand.
 
 Every fixture pins the trigger, all credentialed nodes, and all HTTP Request nodes, so a run
-touches **no** live X, OpenAI, Supabase or Telegram surface. Code, Set, Filter and If nodes
+touches **no** live X, OpenAI, Supabase or Telegram surface. `Get Backfilled Post Ids`, added
+2026-09-04, is a credentialed Postgres node and is pinned in every fixture that reaches it —
+leaving it out would let a fixture read the live staging database and silently reclassify its
+posts as first-time fetches. Code, Set, Filter and If nodes
 execute for real — which is the point, since that is where the Phase 1 logic lives.
 
 The one deliberate exception is the `watermark-*` group, which leaves the two `Run State`
@@ -49,6 +52,22 @@ An unreadable `active` flag, or an active workflow with an unreadable or absent
   negative with 2 new (1 negative) to reach `12` and `0.5833…` and alert; post B lands at
   `0.1`, is stored, and must **not** alert. Also asserts a non-negative sentiment is
   persisted, which the pre-Phase-1 `Filter Negative Replies` node discarded.
+- `backfill-new-post-full-window.pinData.json` — a post created at 10:00 that only now crossed
+  `min_replies`, against a 14:00 watermark, with three of its four replies predating that
+  watermark. `Get Backfilled Post Ids` reports it as uncollected, so the window must start at
+  `09:59` (the post's own `created_at` minus a minute) rather than at `13:50`. Asserts
+  `is_backfill`, the exact `start_time`, that all four replies count as new, that a
+  pre-watermark reply reaches storage, and that the alert denominator is the full fetched set.
+  This is the fixture the 2026-09-04 production defect would have failed: post
+  `2095516553672380450` lost 9 of its 13 replies because the watermark window never reached
+  back past the moment it qualified, and a watermark only moves forward, so they were never
+  requested again.
+  It deliberately pins neither `Get Active Cheat Sheets` nor `Classify Media Replies`, which
+  exist only in staging: pin data naming an absent node is a hard error, and a fixture for a
+  **production** defect must not be staging-only. Unpinned, the cheat-sheet lookup is a
+  read-only SELECT (the same exception `ratio-from-stored-rows` makes) and the media
+  classifier is unreachable, since none of the four replies carries an attachment. Verified
+  green in both: production `21617`, staging `21619`.
 - `no-post-crosses-threshold.pinData.json` — new replies arrive and are stored with their
   sentiment, but nothing crosses `0.5`, so no alert is built. This exercises the
   empty-alert chain (`Get Reply Status Counts` receives an empty post-id array) which is the

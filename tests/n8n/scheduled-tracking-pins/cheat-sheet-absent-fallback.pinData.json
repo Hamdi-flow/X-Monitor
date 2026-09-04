@@ -15,7 +15,7 @@
       { "id": "R_X_1", "conversation_id": "P_X_1", "author_id": "555000333", "created_at": "2026-08-29T08:32:00.000Z", "text": "orphan reply" }
     ], "includes": {}, "meta": { "result_count": 2 } } }
   ],
-  "Get Analyzed Reply Ids": [{ "json": { "analyzed_reply_ids": [] } }],
+  "Get Analyzed Reply Ids": [{ "json": { "analyzed_reply_ids": [] } }],"Get Backfilled Post Ids":[{"json":{"collected_post_ids":["P_A_1","P_X_1"]}}],
   "Get Active Cheat Sheets": [{ "json": {} }],
   "Analyze Sentiment with ChatGPT": [
     { "json": { "text": "{\"results\":[{\"postId\":\"P_A_1\",\"postText\":\"Client A post text\",\"userId\":\"1062472974\",\"replies\":[{\"id\":\"R_A_1\",\"sentiment\":\"Negative\",\"text\":\"shu hal haki el tafeh\"}]}]}" } }

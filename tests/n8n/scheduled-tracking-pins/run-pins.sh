@@ -98,6 +98,19 @@ expectations() {
       echo 'ratio stays below the alert gate|"alert_now":false'
       echo 'ratio is stored plus new|"negative_ratio":0.1'
       ;;
+    backfill-new-post-full-window)
+      # A post is invisible to the reply fetcher until its X reply_count crosses
+      # min_replies. By then every reply it already has is older than the watermark
+      # window, so searching from the watermark skips them and never asks again.
+      # This post was created at 10:00 and the watermark is 14:00, so the window
+      # must start from the post itself, not from 13:50.
+      echo 'first-time post takes the backfill window|"is_backfill":true'
+      echo 'window starts at the post, not the watermark|"start_time":"2026-08-24T09:59:00.000Z"'
+      echo 'all four replies are new, three of them pre-watermark|"new_reply_count":4'
+      echo 'a pre-watermark reply reaches storage|"reply_id":"B1001"'
+      echo 'denominator is the full fetched set|"analyzed_count":4'
+      echo 'alert fires on the complete sample|"alert_now":true'
+      ;;
     ratio-from-stored-rows)
       echo 'already-scored reply skipped|"new_reply_count":4'
       echo 'post A denominator is stored plus new|"analyzed_count":12'
