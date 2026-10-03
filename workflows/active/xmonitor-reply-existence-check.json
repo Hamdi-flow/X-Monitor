@@ -1,0 +1,208 @@
+{
+  "id": "dgC7UqaGAzYpZGbL",
+  "name": "XMonitor - Reply Existence Check",
+  "description": "Production. Daily 04:00: asks X which stored replies still exist and stamps Replies.deleted_on_x_at for ones X no longer serves. Max 200 replies/run, 30-day re-check. Promoted from staging Tb1RiS7cDTCYFJJs.",
+  "active": true,
+  "isArchived": false,
+  "versionId": "281124cd-9c53-4844-a9f1-0c137177dfe3",
+  "activeVersionId": "281124cd-9c53-4844-a9f1-0c137177dfe3",
+  "createdAt": "2026-10-03T09:40:52.872Z",
+  "updatedAt": "2026-10-03T09:41:09.108Z",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "tags": [
+    {
+      "name": "Main"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "a973d661-aacb-4738-9a93-23ef9927d75e",
+      "name": "Daily Existence Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d498d230-395e-4310-8363-eab46f7e41cd",
+      "name": "Get Replies To Check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Live replies never checked, then the least recently checked, re-checked every\n-- 30 days. Capped at 200 per run to bound X API reads (2 lookup calls).\nSELECT reply_id\nFROM public.\"Replies\"\nWHERE deleted_on_x_at IS NULL\n  AND (existence_checked_at IS NULL OR existence_checked_at < now() - interval '30 days')\nORDER BY existence_checked_at NULLS FIRST, created_at\nLIMIT 200;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "id": "ddd3c3ae-fcfe-427d-bdba-8bb398a3a053",
+      "name": "Chunk Reply Ids",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// X's GET /2/tweets accepts up to 100 ids per call.\nconst ids = $input.all().map((item) => String(item.json.reply_id || '')).filter(Boolean);\nconst chunks = [];\nfor (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));\nreturn chunks.map((chunk) => ({ json: { ids: chunk.join(','), id_list: chunk } }));"
+      }
+    },
+    {
+      "id": "95921c10-e114-43b4-9555-43ab2f135284",
+      "name": "Look Up Replies On X",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.x.com/2/tweets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "={{ $json.ids }}"
+            },
+            {
+              "name": "tweet.fields",
+              "value": "id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "GVFVtsc16enrOS6k",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "id": "e1bf68b0-a49b-45df-aab6-f436915afb7c",
+      "name": "Classify Lookup Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// One lookup response per chunk, in chunk order. A reply X answers with\n// data[] is live. A resource-not-found error means it no longer exists on X\n// (deleted, or its account is gone): that is the only case marked deleted.\n// Any other error (e.g. a protected account) is recorded as checked, not deleted.\nconst chunks = $('Chunk Reply Ids').all();\nconst checked = [];\nconst deleted = [];\nconst otherErrors = [];\n$input.all().forEach((item, index) => {\n  const asked = (chunks[index] && chunks[index].json.id_list) || [];\n  const errors = Array.isArray(item.json.errors) ? item.json.errors : [];\n  for (const id of asked) checked.push(String(id));\n  for (const err of errors) {\n    const id = String(err.resource_id || err.value || '');\n    if (!id) continue;\n    if (String(err.type || '').endsWith('resource-not-found')) deleted.push(id);\n    else otherErrors.push({ id, title: err.title || '', type: err.type || '' });\n  }\n});\nreturn [{ json: { checked_ids: checked, deleted_ids: deleted, checked_count: checked.length, deleted_count: deleted.length, other_errors: otherErrors } }];"
+      }
+    },
+    {
+      "id": "c481f844-c267-4a5e-8ec1-8d9f0045c6cd",
+      "name": "Mark Existence Results",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- deleted_on_x_at is set once and never cleared here.\nWITH updated AS (\n  UPDATE public.\"Replies\"\n  SET existence_checked_at = now(),\n      deleted_on_x_at = CASE\n        WHEN deleted_on_x_at IS NULL AND reply_id = ANY($2::text[]) THEN now()\n        ELSE deleted_on_x_at\n      END\n  WHERE reply_id = ANY($1::text[])\n  RETURNING reply_id, deleted_on_x_at\n)\nSELECT count(*)::int AS checked,\n       count(*) FILTER (WHERE deleted_on_x_at IS NOT NULL)::int AS marked_deleted\nFROM updated;",
+        "options": {
+          "queryReplacement": "={{ [$json.checked_ids, $json.deleted_ids] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Existence Check": {
+      "main": [
+        [
+          {
+            "node": "Get Replies To Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Replies To Check": {
+      "main": [
+        [
+          {
+            "node": "Chunk Reply Ids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Reply Ids": {
+      "main": [
+        [
+          {
+            "node": "Look Up Replies On X",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look Up Replies On X": {
+      "main": [
+        [
+          {
+            "node": "Classify Lookup Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Lookup Results": {
+      "main": [
+        [
+          {
+            "node": "Mark Existence Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

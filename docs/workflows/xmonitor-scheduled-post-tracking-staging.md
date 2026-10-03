@@ -643,3 +643,26 @@ execute against the real database with real credentials. Execution 18865 then re
 acceptance table with `Get Alert Recipients` **unpinned** against three real synthetic clients,
 so the recipient query itself is proved, not just the fan-out that consumes it. Production's
 first pass under T3 is 18854. See §12d of `docs/architecture/multi-tenant-and-web-ui.md`.
+
+## Real reply totals, refreshed suppressed posts, deleted replies — 2026-10-03
+
+Found by a full database-versus-X validation of all 29 production posts (only 7 matched
+X's reply count). Three scheduler changes, live in this staging workflow and **promoted to production 2026-10-03** (`Emb26wP77eFXgnVi`, published
+`079357cb-ffde-437f-a8bc-0803ae4b3f3d`):
+
+| Change | Node(s) | Why |
+| --- | --- | --- |
+| `Posts.comment_count` stores X's total | `Prepare Post Data` (`comment_count = total_reply_count ?? comments_count`) | It stored `comments_count`, which `Calculate/Filter Sentiment Counts` sets to `analyzed_count`. X's `total_reply_count` was computed and used in the alert text but never stored, so every row had `comment_count = analyzed_count`. |
+| Reply total + engagement refreshed for every searched post | new `Build Post Metrics Refresh` → `Refresh Post Metrics`, branching off `Split Out Posts` | `Filter Suppressed Posts` drops Ignored/Snoozed posts and a row is only upserted when it has new replies, so suppressed posts froze at the moment they were suppressed (one production post read 159 vs 370 on X). The branch runs on data the search already returned — **no extra X API calls** — updates only rows that already exist, writes `comment_count`, `like_count`, `retweet_count`, `quote_count`, `bookmark_count`, `impression_count`, `metrics_updated_at`, and never touches `status` or the sentiment counters. Deduplicates by post id (search returned one post twice in execution `41028`). |
+| Deleted-on-X replies leave the stored counts | `Get Stored Post Counts`, `Get Reply Status Counts` gain `AND r.deleted_on_x_at IS NULL` | Stored replies deleted on X were never flagged and inflated stored totals and the ratio denominator. Flagged by [Reply Existence Check](./xmonitor-reply-existence-check-staging.md); column added by `db/migrations/2026-10-03-replies-deleted-on-x.sql`. |
+
+Posts older than the 7-day search window are not re-fetched, so their totals stay at the last
+refresh; `metrics_updated_at` says when that was (NULL = never since first tracked, i.e. a legacy
+analysed count). The console labels both cases.
+
+Verification (all manual, staging):
+
+| Execution | Result |
+| --- | --- |
+| `41028` | Success. `Insert or update posts` wrote `comment_count` 13 from `total_reply_count`; `Refresh Post Metrics` wrote 13 replies / 88 likes / 8 reposts / 6,066 impressions; `Get Stored Post Counts` ran with the deleted filter. One staging alert (message `211`) to the staging operator chat. |
+| `41029` | Post `2105960434691960848` set to `Ignored` first (snapshot: `New`, snooze 0). It was excluded from analysis and alerting, **and** `Refresh Post Metrics` still refreshed it (`metrics_updated_at` 09:10:59). Restored to `New`, snooze 0, afterwards. |

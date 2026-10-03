@@ -829,7 +829,7 @@ exactly one row per environment, copied from `Telegram Users`, labelled `Operato
 | ~~Authorization on any action~~ | **Closed by T2 on 2026-08-29.** All four lookups are now gated on the post's owner, and `Staff` is read on every update |
 | `Action Log` | no audit of who did what; the queue's `action_id` points at nothing |
 | `Moderation Queue.client_id` | still a free-floating uuid with no FK — populated at T5 |
-| `Posts.status` split, `snoozed_until` | still one overloaded column, decoded in SQL by `console_posts` |
+| `Posts.status` split, `snoozed_until` | still one overloaded column, decoded in SQL by `console_posts`. Since 2026-10-03 (`db/migrations/2026-10-03-console-posts-order-state.sql`, both environments) the view's `order_state` comes from the newest `Order Info` row, falling back to `Posts.status` only when a post has no order — so a finished order no longer vanishes when the post is later ignored or snoozed. `suppression_state` is still overwritten by an order and reads `unknown`; only the split fixes that |
 
 **T2 closed authorization on 2026-08-29.** No chat can now act on another client's post, and
 an unknown chat is turned away before the route switch.

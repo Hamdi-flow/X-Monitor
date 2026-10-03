@@ -592,6 +592,21 @@ acceptance table with `Get Alert Recipients` **unpinned** against three real syn
 so the recipient query itself is proved, not just the fan-out that consumes it. Production's
 first pass under T3 is 18854. See §12d of `docs/architecture/multi-tenant-and-web-ui.md`.
 
+## Real reply totals, refreshed suppressed posts, deleted replies — 2026-10-03
+
+Promoted from staging (`l4eKZucUZXzfz0H8`, executions `41028`/`41029`) and published as
+`079357cb-ffde-437f-a8bc-0803ae4b3f3d` with `activeVersionId` matching. Full rationale and
+evidence: the same-named section of
+[the staging doc](./xmonitor-scheduled-post-tracking-staging.md#real-reply-totals-refreshed-suppressed-posts-deleted-replies--2026-10-03).
+
+- `Prepare Post Data` writes X's `total_reply_count` to `Posts.comment_count` (it stored the
+  analysed count before).
+- New `Build Post Metrics Refresh` → `Refresh Post Metrics` (credential `Supabase Account`), off
+  `Split Out Posts`: refreshes reply total, engagement and `metrics_updated_at` for every stored post
+  the search returned, Ignored/Snoozed included. No extra X calls; never touches `status`.
+- `Get Stored Post Counts` and `Get Reply Status Counts` skip `Replies.deleted_on_x_at IS NOT NULL`,
+  set by [XMonitor - Reply Existence Check](./xmonitor-reply-existence-check-staging.md#production).
+
 ## Agent Change Guidance
 
 - Prefer making changes in `XMonitor - Scheduled Post Tracking Staging` first, then mirror to production after validation.

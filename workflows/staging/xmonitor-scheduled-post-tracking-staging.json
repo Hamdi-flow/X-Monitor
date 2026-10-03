@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-04T10:23:18.992Z",
+  "updatedAt": "2026-10-03T09:10:35.022Z",
   "createdAt": "2026-06-16T13:09:20.860Z",
   "id": "l4eKZucUZXzfz0H8",
   "name": "XMonitor - Scheduled Post Tracking Staging",
@@ -40,31 +40,6 @@
         -1552,
         736
       ],
-      "credentials": {
-        "postgres": {
-          "id": "CyXakOvvENeDwRue",
-          "name": "Supabase Staging Postgres"
-        }
-      }
-    },
-    {
-      "id": "b85eb998-6e0b-47f8-b90d-cbb185cc5a6a",
-      "name": "Get Tracked Users",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -1328,
-        736
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "-- T3: tracked users carry their client's alert thresholds, so every downstream\n-- decision is made per client instead of against a constant.\n--\n-- \"Clients\" is JOINed but NOT filtered on c.is_active: deactivating a client must\n-- not silently stop collecting its posts. An inactive client is dropped at delivery\n-- instead -- see Get Alert Recipients -- so the data keeps flowing and only the\n-- Telegram fan-out stops.\n--\n-- Both Supabase projects are shared with the sibling FB Monitor project, so every\n-- table is named explicitly.\nSELECT\n  tu.user_id,\n  tu.username,\n  tu.display_name,\n  tu.telegram_chat_id,\n  tu.is_active,\n  tu.client_id::text            AS client_id,\n  c.slug                        AS client_slug,\n  c.name                        AS client_name,\n  c.min_replies::int            AS client_min_replies,\n  -- numeric would arrive as the string '0.50' and break a strict-typed compare.\n  c.negative_threshold::float8  AS client_negative_threshold,\n  c.lookback_days::int          AS client_lookback_days\nFROM public.\"Tracked Users\" tu\nJOIN public.\"Clients\" c ON c.id = tu.client_id\nWHERE tu.is_active\nORDER BY tu.user_id;",
-        "options": {
-          "queryBatching": "single"
-        }
-      },
-      "notes": "T3: joins \"Clients\" so each tracked user carries its client thresholds.",
-      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "CyXakOvvENeDwRue",
@@ -244,7 +219,7 @@
             {
               "id": "3",
               "name": "comment_count",
-              "value": "={{ $json.comments_count }}",
+              "value": "={{ $json.total_reply_count ?? $json.comments_count }}",
               "type": "number"
             },
             {
@@ -471,33 +446,6 @@
         5072,
         336
       ],
-      "credentials": {
-        "postgres": {
-          "id": "CyXakOvvENeDwRue",
-          "name": "Supabase Staging Postgres"
-        }
-      }
-    },
-    {
-      "id": "7aeec40c-67f4-49be-b2d0-38f2ead02a94",
-      "name": "Get Alert Recipients",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        5968,
-        336
-      ],
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "-- T3: recipients resolved per post owner. This replaces the unfiltered read of\n-- \"Telegram Users\", which handed every recipient every client's post text and\n-- reply counts the moment a second chat existed.\n--\n-- A chat receives a post only when it is an active, alert-receiving member of the\n-- client that owns that post.\n--\n-- LEFT JOIN, not INNER, on purpose: a client that has alerting posts but no\n-- eligible member must still produce a row, so Build Negative Alert Notification\n-- can raise a developer alert naming it rather than dropping the alert in silence.\n-- c.is_active is applied here, so a deactivated client stops receiving Telegram\n-- alerts while its posts continue to be collected and stored.\n--\n-- \"Telegram Users\" is deliberately no longer read. The Telegram router still\n-- writes it, so the table stays in place; retiring it is a later cleanup.\nWITH requested AS (\n  SELECT DISTINCT unnest($1::uuid[]) AS client_id\n)\nSELECT\n  requested.client_id::text AS client_id,\n  c.name                    AS client_name,\n  c.slug                    AS client_slug,\n  cm.chat_id,\n  cm.label,\n  cm.role\nFROM requested\nLEFT JOIN public.\"Clients\" c\n  ON c.id = requested.client_id\n AND c.is_active\nLEFT JOIN public.\"Client Members\" cm\n  ON cm.client_id = c.id\n AND cm.is_active\n AND cm.receives_alerts\nORDER BY requested.client_id, cm.chat_id;",
-        "options": {
-          "queryBatching": "single",
-          "queryReplacement": "={{ [[...new Set($('Split Out Reply Analysis').all().filter(item => item.json.alert_now).map(item => String(item.json.client_id || \"\")).filter(value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)))]] }}"
-        }
-      },
-      "notes": "T3: replaces the unfiltered \"Telegram Users\" read. The router still writes that table; it is simply no longer a routing source.",
-      "alwaysOutputData": true,
-      "executeOnce": true,
       "credentials": {
         "postgres": {
           "id": "CyXakOvvENeDwRue",
@@ -877,7 +825,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Hidden vs visible counts over ALL stored negative replies for the post,\n-- not just the ones fetched this run. Matches the denominator convention in\n-- CLAUDE.md: stored analyzed negative replies.\nWITH requested AS (\n  SELECT unnest($1::text[]) AS post_id\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE r.reply_id IS NOT NULL AND lower(COALESCE(r.status, 'New')) =  'hidden')::int AS hidden_negative_replies_count,\n  COUNT(*) FILTER (WHERE r.reply_id IS NOT NULL AND lower(COALESCE(r.status, 'New')) <> 'hidden')::int AS non_hidden_negative_replies_count\nFROM requested\nLEFT JOIN public.\"Replies\" r\n  ON r.post_id = requested.post_id\n AND r.sentiment = 'Negative'\n AND r.analyzed_at IS NOT NULL\nGROUP BY requested.post_id;",
+        "query": "-- Hidden vs visible counts over ALL stored negative replies for the post,\n-- not just the ones fetched this run. Matches the denominator convention in\n-- CLAUDE.md: stored analyzed negative replies.\nWITH requested AS (\n  SELECT unnest($1::text[]) AS post_id\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE r.reply_id IS NOT NULL AND lower(COALESCE(r.status, 'New')) =  'hidden')::int AS hidden_negative_replies_count,\n  COUNT(*) FILTER (WHERE r.reply_id IS NOT NULL AND lower(COALESCE(r.status, 'New')) <> 'hidden')::int AS non_hidden_negative_replies_count\nFROM requested\nLEFT JOIN public.\"Replies\" r\n  ON r.post_id = requested.post_id\n AND r.sentiment = 'Negative'\n AND r.analyzed_at IS NOT NULL\n AND r.deleted_on_x_at IS NULL\nGROUP BY requested.post_id;",
         "options": {
           "queryBatching": "single",
           "queryReplacement": "={{ [$('Split Out Reply Analysis').all().filter(item => item.json.alert_now).map(item => String(item.json.postId || ''))] }}"
@@ -1033,7 +981,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Running per-post totals from replies scored in earlier passes.\n-- The new replies from this run are added on top in Calculate/Filter Sentiment Counts.\nWITH requested AS (\n  SELECT unnest($1::text[]) AS post_id\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL)::int                                AS stored_analyzed,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Negative')::int    AS stored_negative,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Positive')::int    AS stored_positive,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Neutral')::int     AS stored_neutral\nFROM requested\nLEFT JOIN public.\"Replies\" r ON r.post_id = requested.post_id\nGROUP BY requested.post_id;",
+        "query": "-- Running per-post totals from replies scored in earlier passes.\n-- The new replies from this run are added on top in Calculate/Filter Sentiment Counts.\nWITH requested AS (\n  SELECT unnest($1::text[]) AS post_id\n)\nSELECT\n  requested.post_id,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL)::int                                AS stored_analyzed,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Negative')::int    AS stored_negative,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Positive')::int    AS stored_positive,\n  COUNT(*) FILTER (WHERE r.analyzed_at IS NOT NULL AND r.sentiment = 'Neutral')::int     AS stored_neutral\nFROM requested\nLEFT JOIN public.\"Replies\" r ON r.post_id = requested.post_id\n -- Replies deleted on X are kept for history but are no longer part of the conversation.\n AND r.deleted_on_x_at IS NULL\nGROUP BY requested.post_id;",
         "options": {
           "queryBatching": "single",
           "queryReplacement": "={{ [$('Attach replies to posts').first().json.candidate_post_ids] }}"
@@ -1412,6 +1360,58 @@
       "notes": "Groups posts by client so each OpenAI call carries only that client's cheat sheet."
     },
     {
+      "id": "b85eb998-6e0b-47f8-b90d-cbb185cc5a6a",
+      "name": "Get Tracked Users",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1328,
+        736
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T3: tracked users carry their client's alert thresholds, so every downstream\n-- decision is made per client instead of against a constant.\n--\n-- \"Clients\" is JOINed but NOT filtered on c.is_active: deactivating a client must\n-- not silently stop collecting its posts. An inactive client is dropped at delivery\n-- instead -- see Get Alert Recipients -- so the data keeps flowing and only the\n-- Telegram fan-out stops.\n--\n-- Both Supabase projects are shared with the sibling FB Monitor project, so every\n-- table is named explicitly.\nSELECT\n  tu.user_id,\n  tu.username,\n  tu.display_name,\n  tu.telegram_chat_id,\n  tu.is_active,\n  tu.client_id::text            AS client_id,\n  c.slug                        AS client_slug,\n  c.name                        AS client_name,\n  c.min_replies::int            AS client_min_replies,\n  -- numeric would arrive as the string '0.50' and break a strict-typed compare.\n  c.negative_threshold::float8  AS client_negative_threshold,\n  c.lookback_days::int          AS client_lookback_days\nFROM public.\"Tracked Users\" tu\nJOIN public.\"Clients\" c ON c.id = tu.client_id\nWHERE tu.is_active\nORDER BY tu.user_id;",
+        "options": {
+          "queryBatching": "single"
+        }
+      },
+      "notes": "T3: joins \"Clients\" so each tracked user carries its client thresholds.",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
+      "id": "7aeec40c-67f4-49be-b2d0-38f2ead02a94",
+      "name": "Get Alert Recipients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5968,
+        336
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- T3: recipients resolved per post owner. This replaces the unfiltered read of\n-- \"Telegram Users\", which handed every recipient every client's post text and\n-- reply counts the moment a second chat existed.\n--\n-- A chat receives a post only when it is an active, alert-receiving member of the\n-- client that owns that post.\n--\n-- LEFT JOIN, not INNER, on purpose: a client that has alerting posts but no\n-- eligible member must still produce a row, so Build Negative Alert Notification\n-- can raise a developer alert naming it rather than dropping the alert in silence.\n-- c.is_active is applied here, so a deactivated client stops receiving Telegram\n-- alerts while its posts continue to be collected and stored.\n--\n-- \"Telegram Users\" is deliberately no longer read. The Telegram router still\n-- writes it, so the table stays in place; retiring it is a later cleanup.\nWITH requested AS (\n  SELECT DISTINCT unnest($1::uuid[]) AS client_id\n)\nSELECT\n  requested.client_id::text AS client_id,\n  c.name                    AS client_name,\n  c.slug                    AS client_slug,\n  cm.chat_id,\n  cm.label,\n  cm.role\nFROM requested\nLEFT JOIN public.\"Clients\" c\n  ON c.id = requested.client_id\n AND c.is_active\nLEFT JOIN public.\"Client Members\" cm\n  ON cm.client_id = c.id\n AND cm.is_active\n AND cm.receives_alerts\nORDER BY requested.client_id, cm.chat_id;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [[...new Set($('Split Out Reply Analysis').all().filter(item => item.json.alert_now).map(item => String(item.json.client_id || \"\")).filter(value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)))]] }}"
+        }
+      },
+      "notes": "T3: replaces the unfiltered \"Telegram Users\" read. The router still writes that table; it is simply no longer a routing source.",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
+    },
+    {
       "id": "7c7a288b-10d6-4908-8849-43519fafbbca",
       "name": "Get Backfilled Post Ids",
       "type": "n8n-nodes-base.postgres",
@@ -1436,36 +1436,55 @@
           "name": "Supabase Staging Postgres"
         }
       }
+    },
+    {
+      "id": "a43bee12-63ee-4c6e-be5c-1e686054c3b0",
+      "name": "Build Post Metrics Refresh",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        432
+      ],
+      "parameters": {
+        "jsCode": "// Every post the X search returned this pass, before any suppression or\n// reply-count filter. Posts that are Ignored or Snoozed are dropped from the\n// analysis path downstream, which used to freeze their counts forever; this\n// branch keeps their reply total and engagement current at no extra API cost.\n// One row per post: search can return the same post twice (execution 41028),\n// and UPDATE ... FROM with duplicate source rows is ambiguous.\nconst byId = new Map();\nfor (const item of $input.all()) {\n  const id = String(item.json.id || '');\n  if (!id) continue;\n  const m = item.json.public_metrics || {};\n  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);\n  byId.set(id, {\n    post_id: id,\n    reply_count: n(m.reply_count),\n    like_count: n(m.like_count),\n    retweet_count: n(m.retweet_count),\n    quote_count: n(m.quote_count),\n    bookmark_count: n(m.bookmark_count),\n    impression_count: n(m.impression_count),\n  });\n}\nconst rows = [...byId.values()];\nreturn [{ json: { metrics: JSON.stringify(rows), post_count: rows.length } }];"
+      }
+    },
+    {
+      "id": "53c62530-ebcc-4824-b5c3-539b1b2a1e4b",
+      "name": "Refresh Post Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16,
+        432
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Refreshes only posts already stored; never inserts. status, snooze state and\n-- the sentiment counters are deliberately untouched.\nWITH m AS (\n  SELECT * FROM json_to_recordset($1::json) AS x(\n    post_id text, reply_count int, like_count int, retweet_count int,\n    quote_count int, bookmark_count int, impression_count int)\n)\nUPDATE public.\"Posts\" p\nSET comment_count      = COALESCE(m.reply_count, p.comment_count),\n    like_count         = COALESCE(m.like_count, p.like_count),\n    retweet_count      = COALESCE(m.retweet_count, p.retweet_count),\n    quote_count        = COALESCE(m.quote_count, p.quote_count),\n    bookmark_count     = COALESCE(m.bookmark_count, p.bookmark_count),\n    impression_count   = COALESCE(m.impression_count, p.impression_count),\n    metrics_updated_at = now()\nFROM m\nWHERE p.post_id = m.post_id\nRETURNING p.post_id, p.status, p.comment_count, p.like_count, p.metrics_updated_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.metrics] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      }
     }
   ],
   "connections": {
-    "Advance Post Suppression State": {
-      "main": [
-        [
-          {
-            "node": "Get Tracked Users",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Tracked Users": {
-      "main": [
-        [
-          {
-            "node": "Build X API Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Split Out Posts": {
       "main": [
         [
           {
             "node": "Filter Suppressed Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Post Metrics Refresh",
             "type": "main",
             "index": 0
           }
@@ -1657,17 +1676,6 @@
         [
           {
             "node": "Send Scheduler Developer Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Reply Status Counts": {
-      "main": [
-        [
-          {
-            "node": "Get Alert Recipients",
             "type": "main",
             "index": 0
           }
@@ -1982,6 +1990,39 @@
         ]
       ]
     },
+    "Advance Post Suppression State": {
+      "main": [
+        [
+          {
+            "node": "Get Tracked Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tracked Users": {
+      "main": [
+        [
+          {
+            "node": "Build X API Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Reply Status Counts": {
+      "main": [
+        [
+          {
+            "node": "Get Alert Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Get Alert Recipients": {
       "main": [
         [
@@ -2003,6 +2044,17 @@
           }
         ]
       ]
+    },
+    "Build Post Metrics Refresh": {
+      "main": [
+        [
+          {
+            "node": "Refresh Post Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -2018,7 +2070,7 @@
   },
   "nodeGroups": [],
   "pinData": {},
-  "versionId": "e04f9e2f-8cc7-4dea-9edb-e850cc95a73f",
+  "versionId": "56e50490-bdb8-479d-b528-0c08ca78887b",
   "activeVersionId": null,
   "versionCounter": 13,
   "triggerCount": 0,
