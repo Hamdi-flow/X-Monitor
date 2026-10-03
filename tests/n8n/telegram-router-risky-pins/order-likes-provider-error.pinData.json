@@ -30,6 +30,14 @@
       }
     }
   ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
+      }
+    }
+  ],
   "Get Post For Likes Order": [
     {
       "json": {

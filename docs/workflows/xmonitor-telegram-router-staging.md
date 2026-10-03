@@ -10,8 +10,8 @@ Staging copy of the production Telegram router. This is the preferred workflow f
 - Environment: staging
 - Active: yes
 - Local export: `workflows/staging/xmonitor-codex-staging.json`
-- Node count: `127`
-- Last observed live update: `2026-07-11T09:33:28Z`
+- Node count: `155`
+- Published version: `66db1fd5-59ab-4f65-9373-0a2148658a88` (2026-10-03, `versionId` = `activeVersionId`)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 - Main trigger node: `Telegram Trigger`
 
@@ -31,6 +31,34 @@ Important staging deltas:
 | Credentials | Staging Supabase/Postgres/Telegram where configured | Production credentials |
 | Hide replies | **Enqueues into `Moderation Queue`**; hiding and failure alerts belong to the drain workflow | Same since the 2026-08-27 promotion |
 | Order placement retry | `retryOnFail: false` explicit on `Place Comment Order` and `Place Likes Order` | Same, set in the same change on 2026-08-25 |
+| SMM API key | n8n credential (`httpTemplatedCustomAuth`) on both order nodes; no `apiKey` in any Set node | Still a plain-text `apiKey` in `Set Comment Service Config` / `Set Likes Service Config`; not promoted |
+
+## SMM API Key Lives In A Credential
+
+Changed 2026-10-03. The SMMWiz key used to be a plain-text `apiKey` assignment in
+`Set Comment Service Config` and `Set Likes Service Config`. It was copied forward through
+`Prepare Comment Order Request` / `Prepare Likes Order Request` and sent as the `key` form
+field. That put it in every export, in git history, and in the stored item data of every
+order execution.
+
+Now:
+
+- None of the four Set nodes has an `apiKey` assignment.
+- `Place Comment Order` and `Place Likes Order` use `authentication: genericCredentialType`,
+  `genericAuthType: httpTemplatedCustomAuth`, and no longer list `key` in their body
+  parameters. The credential injects `key` into the same form-urlencoded body, so SMMWiz
+  should still receive `key`, `action=add`, `service`, `link`, `comments`/`quantity`.
+- The credential has to be created and bound **in the n8n UI**, because the n8n MCP cannot
+  create credentials. Template: `{"body":{"key":"{{api_key}}"}}`, with the key in the
+  secret field. Suggested name: `SMMWiz API (Staging)`.
+- **Until a credential is bound, a live staging `/order_comments` or `/order_likes` fails at
+  the order node and places no order.** It fails closed, but the steps before it on that
+  path (post lookup, comment generation, `Store … Order Post`) will already have run.
+
+The pinned fixtures pin both order nodes. They prove the graph is intact and that no
+`apiKey` appears in item data. They do **not** prove the credential lands in the request
+body. Prove that once with a non-SMM echo before the first live staging order (see
+`TASK_TODOLIST.md`).
 
 ## Order Placement Must Never Retry
 

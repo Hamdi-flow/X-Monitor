@@ -53,6 +53,53 @@ Notes:
 
 ## Open Tasks
 
+### Move the SMMWiz API key out of workflow parameters and rotate it
+
+- Status: in progress (staging router done 2026-10-03; production and polling pending)
+- Priority: high
+- Complexity: `M`
+- Source: n8n MCP validator `SET_CREDENTIAL_FIELD`, 2026-10-03
+
+Design:
+
+1. Staging router `oLwwjO05IcRjtF8E`, **done**: removed `apiKey` from `Set Comment Service Config`,
+   `Set Likes Service Config`, `Prepare Comment Order Request`, `Prepare Likes Order Request`.
+   Removed the `key` body param from `Place Comment Order` / `Place Likes Order`. Both now use
+   `genericCredentialType` / `httpTemplatedCustomAuth`. Published as `66db1fd5-…`.
+2. User: create the credential in the n8n UI (template `{"body":{"key":"{{api_key}}"}}`, key in
+   the secret field, name e.g. `SMMWiz API (Staging)`) and bind it to both order nodes. Use the
+   **rotated** key, not the leaked one.
+3. Prove injection without touching SMMWiz: a temporary inactive workflow whose HTTP Request node
+   uses the same credential and content type, posting to a temporary in-instance webhook that
+   returns only `has_key` and `key_length`. Delete both afterwards.
+4. Production router `cWczsttyDbTBbRAC`: same six-node change, bound to a production
+   credential. Needs explicit approval.
+5. Order status polling (staging `Attach SMM Status Config` + `Check Provider Order Status`,
+   and production): the same key, same pattern. Not in the original scope.
+6. Rotate the key in the SMMWiz panel. It is in git history (3 commits) and in stored
+   execution data of every order and pinned run on both routers (e.g. staging 41002–41007).
+
+Validation:
+
+- Pinned order fixtures (6) on staging: 41008–41013 all pass, and no `apiKey` in item data.
+- `tests/n8n/telegram-router-retry-guard.test.mjs`: 4/4 pass after the change.
+- Injection proof (step 3) before the first live staging order.
+
+Open Questions:
+
+- Rotate first, or promote first? Recommendation: create the credentials with the new key,
+  promote, then revoke the old key, so production never runs on a revoked key.
+- Rewrite git history (`git filter-repo`) or rely on rotation? Recommendation: rotation alone,
+  since a rewrite does not reach existing clones or n8n execution data.
+
+Notes:
+
+- The local exports for the prod router and both polling workflows now carry
+  `REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL` in place of the value, so they intentionally
+  differ from live in that one field. Do not re-import them as-is.
+- Until a staging credential is bound, live staging orders fail at the order node, closed and
+  with no charge.
+
 ### Fix the scheduler alert chain: only the first recipient is alerted, and lookups fan out per reply
 
 - Status: open — found 2026-08-29 during live staging verification, not yet fixed
