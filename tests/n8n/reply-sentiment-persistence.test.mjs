@@ -61,7 +61,9 @@ const TEST_REPLY_IDS = REPLIES.map((r) => r.id);
 // data cannot address a multi-output node's other outputs, so the labelled items are
 // pinned on the Merge node and Classify Sentiment is pinned only to keep the model
 // from being called.
-const PER_REPLY_SENTIMENT = WORKFLOW_ID !== 'Emb26wP77eFXgnVi';
+// Production was promoted to the same per-reply graph on 2026-10-10, so both targets
+// take the per-reply pins now. The batched branch is kept for an older export only.
+const PER_REPLY_SENTIMENT = true;
 function analyzerPins(replies) {
   if (!PER_REPLY_SENTIMENT) {
     return {

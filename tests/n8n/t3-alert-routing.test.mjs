@@ -132,19 +132,14 @@ for (const [envName, path] of EXPORTS) {
     assert.equal(quiet, 'Advance Run State (Quiet Pass)');
     const active = workflow.connections['If Safe To Advance Watermark (Analyzed)'].main[0][0].node;
     assert.equal(active, 'Advance Run State');
-    // The sentiment failure path reaches only the dev alert. Production: the batched
-    // analyzer's error output (1) goes to the probe. Staging classifies per reply
-    // (2026-10-10): Collect Sentiment Labels -> If Any Classification Failed -> probe,
-    // and the analyzed watermark gate also holds on classification_failed_count.
-    if (envName === 'staging') {
-      const failedBranch = workflow.connections['If Any Classification Failed'].main[0][0].node;
-      assert.equal(failedBranch, 'Probe OpenAI Error Reason');
-      const gate = node('If Safe To Advance Watermark (Analyzed)').parameters.conditions.conditions;
-      assert.ok(JSON.stringify(gate).includes('classification_failed_count'), 'a failed reply must hold the watermark');
-    } else {
-      const errorBranch = workflow.connections['Analyze Sentiment with ChatGPT'].main[1][0].node;
-      assert.equal(errorBranch, 'Probe OpenAI Error Reason');
-    }
+    // The sentiment failure path reaches only the dev alert. Both environments classify
+    // per reply since 2026-10-10 (production promoted the same day): Collect Sentiment
+    // Labels -> If Any Classification Failed -> probe, and the analyzed watermark gate
+    // also holds on classification_failed_count.
+    const failedBranch = workflow.connections['If Any Classification Failed'].main[0][0].node;
+    assert.equal(failedBranch, 'Probe OpenAI Error Reason');
+    const gate = node('If Safe To Advance Watermark (Analyzed)').parameters.conditions.conditions;
+    assert.ok(JSON.stringify(gate).includes('classification_failed_count'), 'a failed reply must hold the watermark');
   });
 
   check(label('incremental replies query and 15-conversation chunking untouched'), () => {
@@ -286,7 +281,7 @@ for (const [envName, path] of EXPORTS) {
 
   check(label('case 6: each post is judged by its own client negative_threshold'), () => {
     const sentimentCode = node('Calculate/Filter Sentiment Counts').parameters.jsCode;
-    const modelNode = envName === 'staging' ? 'Apply Media Sentiment' : 'Analyze Sentiment with ChatGPT';
+    const modelNode = envName === 'staging' ? 'Apply Media Sentiment' : 'Collect Sentiment Labels';
 
     // A ratio of 0.4: below client A's 0.5, above client B's 0.3.
     const replies = (negatives, total) => [
@@ -334,7 +329,7 @@ for (const [envName, path] of EXPORTS) {
 
   check(label('an unresolved client falls back to the pre-T3 0.5, not to alerting on everything'), () => {
     const sentimentCode = node('Calculate/Filter Sentiment Counts').parameters.jsCode;
-    const modelNode = envName === 'staging' ? 'Apply Media Sentiment' : 'Analyze Sentiment with ChatGPT';
+    const modelNode = envName === 'staging' ? 'Apply Media Sentiment' : 'Collect Sentiment Labels';
     const out = runCode(sentimentCode, {
       lookup: {
         [modelNode]: [{

@@ -12,7 +12,16 @@ Production workflow that periodically scans X posts from tracked users, finds po
 - Local export: `workflows/active/xmonitor-scheduled-post-tracking.json`
 - Live description: `Production scheduled post tracking workflow using production Supabase/Postgres/Telegram credentials and shared X/OpenAI credentials.`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-09-04T11:27:17.257Z` (published version `401b14d9-679b-4d74-b69b-3e52afbb490a`, confirmed `versionId == activeVersionId`)
+- Last observed live update: `2026-10-10T09:07:33.260Z` (published version `8669273d-0fac-44cf-8e35-053df306a956`, confirmed `versionId == activeVersionId` by re-read after `publish_workflow`)
+
+> **Per-reply sentiment promoted 2026-10-10.** Every new reply is now classified by its own
+> Sentiment Analysis call (`Classify Sentiment`, `gpt-5.4-mini`, IG - Monitor's prompt adapted
+> to X) instead of one batched JSON call; labels are regrouped by `Collect Sentiment Labels`
+> so everything downstream is unchanged. Design, failure semantics, cost and the staging
+> evidence are in the
+> [staging doc](./xmonitor-scheduled-post-tracking-staging.md#per-reply-sentiment-classification---2026-10-10);
+> the production specifics are in
+> [Per-reply sentiment classification — promoted 2026-10-10](#per-reply-sentiment-classification--promoted-2026-10-10).
 
 > **Phase 1 promoted 2026-08-25.** This workflow now fetches replies incrementally
 > (`start_time` from a persisted `Run State` watermark), stores per-reply sentiment,
@@ -35,7 +44,8 @@ Production workflow that periodically scans X posts from tracked users, finds po
 | Minimum replies | `Keep Posts With 10+ Replies` | `public_metrics.reply_count >= {{ $json.client_min_replies }}` | Posts below their **own client's** `Clients.min_replies` do not get reply sentiment analysis. Was a hardcoded `10` until T3; `10` survives only as the fallback for a post whose client did not resolve. The node name is kept deliberately — `Attach replies to posts` and every pinned fixture reference it by name. |
 | X reply search limit | `Get Replies` | `max_results=500` | Fetches up to 500 replies for the collected conversations. |
 | Negative threshold | `Calculate/Filter Sentiment Counts` | `negative_ratio >=` the post's `Clients.negative_threshold` | Only posts crossing **their own client's** threshold are alerted. Was a hardcoded `0.5` until T3, which survives as `DEFAULT_ALERT_THRESHOLD` for an unresolved client. The per-post value is read from `post_client_map`, emitted by `Attach replies to posts` and deliberately kept out of the OpenAI payload. |
-| OpenAI model | `Analyze Sentiment with ChatGPT` | `gpt-5.4-mini` | Labels every reply as `Positive`, `Negative`, or `Neutral` in **one batched JSON call** per client. Switched from `gpt-5.4` on 2026-08-24 to cut cost; same model generation, so Lebanese-Arabic handling is far closer to `gpt-5.4` than an older mini model would be. **Staging no longer works this way**: since 2026-10-10 it classifies one reply per call with the Sentiment Analysis node and the IG - Monitor prompt (see the [staging doc](./xmonitor-scheduled-post-tracking-staging.md#per-reply-sentiment-classification---2026-10-10)); promotion is pending. |
+| OpenAI model | `OpenAI Sentiment Model` (feeds `Classify Sentiment`) | `gpt-5.4-mini`, `temperature 0` | Labels every reply as `Positive`, `Negative`, or `Neutral`, **one call per reply** since 2026-10-10 (was one batched JSON call per client in `Analyze Sentiment with ChatGPT`). Switched from `gpt-5.4` on 2026-08-24 to cut cost; same model generation, so Lebanese-Arabic handling is far closer to `gpt-5.4` than an older mini model would be. Must stay identical to staging. |
+| Classification shape | `Build Analysis Plan` → `Classify Sentiment` | batches of `5`, `1000 ms` apart, `retryOnFail` ×3, auto-fixing on, post text cut at `1000` chars | Same as staging. About 1,030 tokens per reply versus about 180 batched; see the staging doc's cost section. |
 | Developer alert recipient | `Build Scheduler Developer Alert` | hard-coded chat ID | Used when scheduler validation fails or a client has alerting posts but no eligible recipient. **T3:** `NO_TELEGRAM_RECIPIENTS` is raised per client and the alert names it, because a bare count is unactionable past one client. |
 
 ## Main Flow
@@ -48,7 +58,7 @@ Production workflow that periodically scans X posts from tracked users, finds po
 6. `Split Out Posts`, `Filter Suppressed Posts`, and `Keep Posts With 10+ Replies` reduce the candidates to unsuppressed posts at or above **their own client's** `min_replies`. `Filter Suppressed Posts` is where a post acquires its `client_id` and thresholds, by matching `author_id` against the tracked users loaded in step 3.
 7. `Get Backfilled Post Ids`, `Build Replies Query`, `Wait`, and `Get Replies` fetch replies for the remaining conversations. The lookup decides each post's search window: posts that already have stored replies use the run watermark, and posts being fetched for the first time are windowed from their own `created_at`, because on the pass where a post first crosses `min_replies` every reply it already holds is older than the watermark. See [Per-post reply backfill](#per-post-reply-backfill--promoted-2026-09-04).
 8. `Attach replies to posts` groups replies under their source post and carries post author plus X total reply count forward. It also emits `post_client_map` — post id to client and thresholds — **outside** the `text` field, so the OpenAI prompt payload is unchanged by T3.
-9. `Analyze Sentiment with ChatGPT` labels replies.
+9. `Get Active Cheat Sheets` (read-only, `alwaysOutputData`), `Build Analysis Plan` (one item per new reply with its `classifier_input`), `Classify Sentiment` with `OpenAI Sentiment Model` (one call per reply), `Tag Positive` / `Tag Neutral` / `Tag Negative` / `Tag Failed`, `Merge Sentiment Results` and `Collect Sentiment Labels` label the replies and regroup them by post. Replaced `Analyze Sentiment with ChatGPT` on 2026-10-10.
 10. `Calculate/Filter Sentiment Counts` calculates positive, neutral, negative, total analyzed, and total X reply counts, then sets `alert_now` per post against that post's own client threshold, read from `post_client_map`. It also stamps `client_id` onto each post so the fan-out can route without re-querying.
 11. `Prepare Post Data` and `Insert or update posts` upsert matching posts into `Posts`.
 12. `Flatten All Replies`, `Prepare Reply Data`, and `Insert or update replies` upsert **every** analyzed reply into `Replies` — positive, neutral and negative alike — each with its `sentiment` and `analyzed_at`. `Filter Negative Replies` was removed when Phase 1 shipped on 2026-08-25; the stored non-negative rows are what make the cross-pass ratio in step 10 correct. See [Per-reply sentiment persistence](#per-reply-sentiment-persistence).
@@ -97,7 +107,7 @@ These callbacks make this workflow coupled to the Telegram router command parsin
 | No tracked users | `Build X API Query` emits `scheduler_alert_type: NO_TRACKED_USERS`; `If Scheduler Should Continue` routes to developer alert. |
 | A client has negative posts but no eligible recipient | `Build Negative Alert Notification` emits one `scheduler_alert_type: NO_TELEGRAM_RECIPIENTS` item **for that client**, naming it; `If Notifications Ready` routes that item to the developer alert while every other client's alerts still send on the true branch. |
 | A post whose owning client did not resolve | Treated as the case above with an unresolved client, never broadcast to some other client's chat. Its thresholds fall back to the pre-T3 `10` / `0.5`. |
-| OpenAI sentiment call fails | `Analyze Sentiment with ChatGPT` runs with `onError: continueErrorOutput`. Output 1 goes to `Probe OpenAI Error Reason` → `Build Sentiment Failure Alert` → developer alert. See below. |
+| A reply's sentiment call fails | `Classify Sentiment` runs with `onError: continueErrorOutput` and retry ×3. The reply is left out of `results` (not stored, not counted), `If Any Classification Failed` sends `Probe OpenAI Error Reason` → `Build Sentiment Failure Alert` → developer alert, and `If Safe To Advance Watermark (Analyzed)` holds the watermark so the reply is re-scored next pass. Replies that did classify are stored and alerted on. See below. |
 | Reply or post search hit the page cap | `Attach replies to posts` sets `fetch_truncated`; `If Fetch Truncated` raises `SEARCH_PAGE_CAP_REACHED` on the developer-alert path **and** the watermark is held. See below. |
 
 ## Per-post reply backfill — promoted 2026-09-04
@@ -455,10 +465,19 @@ onward because the OpenAI account ran out of credits.
 Now the run **aborts cleanly**: the entire main branch (sentiment counts, DB upserts, reply
 status counts, negative-sentiment alert) is skipped and the error is reported instead.
 
+*Since 2026-10-10 the abort is per reply, not per pass.* `Classify Sentiment` retries each
+reply ×3 and then routes it to its error output; `Collect Sentiment Labels` leaves it out of
+`results` and counts it, the replies that did classify are stored and alerted on, the
+watermark is held (`If Safe To Advance Watermark (Analyzed)` also requires
+`classification_failed_count == 0`) so the failed reply is re-scored next pass, and
+`If Any Classification Failed` runs the probe below **once** per pass. When every reply fails
+the main branch stores nothing, which is the same clean abort as before.
+
 | Node | Role |
 | --- | --- |
-| `Probe OpenAI Error Reason` | HTTP Request on output index 1 of the sentiment node. One minimal `chat/completions` call with `fullResponse` + `neverError`. |
-| `Build Sentiment Failure Alert` | Classifies the probe result into a `scheduler_alert_type` and shapes it for `Build Scheduler Developer Alert`. |
+| `If Any Classification Failed` | `classification_failed_count > 0` on the single `Collect Sentiment Labels` item. |
+| `Probe OpenAI Error Reason` | HTTP Request. One minimal `chat/completions` call with `fullResponse` + `neverError`. |
+| `Build Sentiment Failure Alert` | Classifies the probe result into a `scheduler_alert_type`, adds planned / classified / failed counts and failed reply ids, and shapes it for `Build Scheduler Developer Alert`. |
 
 **Why the probe exists.** n8n's `continueErrorOutput` propagates only its own generic
 message (`The service is receiving too many requests from you`) — OpenAI's `description`
@@ -475,12 +494,49 @@ API key. "Is there enough credit?" can only be answered by attempting a call.
 | `SENTIMENT_RATE_LIMITED` | `rate_limit_exceeded`, or an HTTP 429 that is not a credit condition |
 | `SENTIMENT_API_FAILED` | Anything else, including a probe that succeeds (OpenAI healthy → original failure was a timeout or malformed model response) |
 
-A pass lost this way is not permanent data loss: `Build X API Query` uses a 7-day lookback,
-so the next scheduled pass re-fetches the same posts and replies.
+A pass lost this way is not permanent data loss: the watermark is held, so the next
+scheduled pass re-reads the same window and only the unscored replies go back to the model.
 
 The probe body uses `max_completion_tokens` (required by the gpt-5 family, and accepted by
 older models too). Staging uses the identical body. Keep that param aligned with whatever
 model the probe targets.
+
+## Per-reply sentiment classification — promoted 2026-10-10
+
+Promoted from staging the same day it was validated there
+([staging doc](./xmonitor-scheduled-post-tracking-staging.md#per-reply-sentiment-classification---2026-10-10)
+has the design, the failure semantics, the cost table and the old-versus-new label
+comparison). Production received the same operations with production credentials:
+
+| Node | Production specifics |
+| --- | --- |
+| `Get Active Cheat Sheets` | **New**, `Supabase Account`, `alwaysOutputData`. Read-only `SELECT` on `"Sentiment Cheat Sheets"` (table exists in `jxnzdxyhoakpfmkbjdeq` since the manual-labels migration was applied on 2026-10-10; it holds no active sheet, so the prompt gets the "no client-specific rules" fallback). `Build Analysis Plan` depends on it, which is why it came along; the cheat-sheet generator workflow itself is still staging-only. |
+| `Build Analysis Plan`, `Classify Sentiment`, `Tag *`, `Merge Sentiment Results`, `Collect Sentiment Labels`, `If Any Classification Failed` | Parameters byte-identical to staging (asserted by re-reading the saved draft). |
+| `OpenAI Sentiment Model` | `OpenAi account 2`, the credential the batched call used. |
+| `Analyze Sentiment with ChatGPT` | **Removed.** |
+| `Calculate/Filter Sentiment Counts` | Reads `$('Collect Sentiment Labels')`. Production has no media-sentiment hop, so unlike staging it reads the collector directly. |
+| `Attach replies to posts`, `Get Replies` | `author_id` carried / requested, as in staging. Production's `Get Replies` still does **not** request `attachments` — reply media sentiment is not promoted. |
+| `Build Sentiment Failure Alert`, `If Safe To Advance Watermark (Analyzed)` | Staging versions. |
+
+Not promoted, deliberately: reply media sentiment (Option C) and the per-client cheat sheet
+generator. Production and staging differ by exactly those nodes plus the pre-existing
+`Get posts of tracked users` pagination-parameter drift.
+
+**Validation.** Pinned simulations against the production *draft* before publishing
+(`test_workflow`, watermark writers pinned, no live X / OpenAI / Telegram): `44801`
+`ratio-from-stored-rows`, `44802` `no-post-crosses-threshold`, `44803`
+`backfill-new-post-full-window`, `44804` `pagination-page-cap-truncated`, all `success` with
+every assertion matching. Published version `8669273d-0fac-44cf-8e35-053df306a956`,
+`versionId == activeVersionId` confirmed by re-read. The full pinned suite was then run
+against the published workflow (`XMONITOR_WORKFLOW_ID=Emb26wP77eFXgnVi ./run-pins.sh`);
+see the suite README for which fixtures skip on production.
+
+Result on the published version: **13 passed, 0 failed, 8 skipped** (executions `44814`-`44826`).
+The eight skips are the fixtures that pin `Classify Media Replies` / `Apply Media Sentiment`,
+which production does not have. The five `watermark-*` fixtures that ran wrote and restored
+production `Run State` for real: three advanced to their pinned run start and were restored to
+`2026-10-10 09:00:11.258+00`, the two truncated ones held. First scheduled pass on the new
+graph: the 10:00 UTC run of 2026-10-10.
 
 ## Per-client alert routing — T3, 2026-08-29
 

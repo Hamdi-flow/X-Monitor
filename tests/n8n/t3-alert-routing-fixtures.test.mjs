@@ -40,17 +40,19 @@ function replay(fixture) {
   const lookup = { ...fixture };
 
   // Since 2026-10-10 the fixtures pin the per-reply labels on Merge Sentiment
-  // Results (staging classifies one reply per call). The production export still
-  // reads the batched {results:[...]} shape from the analyzer, so fold the per-reply
-  // items back into it - the same regrouping Collect Sentiment Labels does live.
-  if (fixture['Merge Sentiment Results'] && !fixture['Analyze Sentiment with ChatGPT']) {
+  // Results (one model call per reply). Calculate/Filter Sentiment Counts reads the
+  // regrouped {results:[...]} shape from Collect Sentiment Labels, so do the same
+  // regrouping here. Production used to read it from Analyze Sentiment with ChatGPT.
+  if (fixture['Merge Sentiment Results']) {
     const byPost = new Map();
     for (const item of fixture['Merge Sentiment Results']) {
       const j = item.json;
       if (!byPost.has(j.post_id)) byPost.set(j.post_id, { postId: j.post_id, postText: j.post_text, userId: j.user_id, replies: [] });
       byPost.get(j.post_id).replies.push({ id: j.reply_id, sentiment: j.sentiment, text: j.reply_text });
     }
-    lookup['Analyze Sentiment with ChatGPT'] = [{ json: { text: JSON.stringify({ results: [...byPost.values()] }) } }];
+    const regrouped = [{ json: { text: JSON.stringify({ results: [...byPost.values()] }) } }];
+    lookup['Collect Sentiment Labels'] = regrouped;
+    lookup['Analyze Sentiment with ChatGPT'] = regrouped;
   }
 
   // Split Out Posts: fans `data` out of the X search response.

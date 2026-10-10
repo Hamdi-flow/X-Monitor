@@ -269,16 +269,18 @@ for f in "$HERE"/*.pinData.json; do
     case "$name" in *"$filter"*) ;; *) continue ;; esac
   fi
 
-  # The two analyzed watermark fixtures pin Apply Media Sentiment / Classify Media
-  # Replies, which exist only in staging. Pin data naming an absent node is a hard error.
-  if [ "$WORKFLOW_ID" = "Emb26wP77eFXgnVi" ]; then
-    case "$name" in
-      watermark-analyzed-advances|watermark-truncated-replies-analyzed-holds|watermark-classification-failed-holds)
-        printf '\n=== %s ===\n  SKIP: staging-only (pins the media-sentiment nodes)\n' "$name"
-        skipped_names="$skipped_names $name"
-        continue
-        ;;
-    esac
+  # Pin data naming a node the target workflow does not have is a hard error, not a
+  # warning. Some fixtures pin staging-only nodes (reply media sentiment), so compare the
+  # fixture's top-level keys against the live node list and skip on any miss.
+  absent=""
+  while IFS= read -r key; do
+    [ -n "$key" ] || continue
+    grep -qF "\"name\":\"$key\"" "$TMP/wf-details.json" || absent="$absent [$key]"
+  done < <(grep -oE '^  "[^"]+"' "$f" | sed 's/^  "//; s/"$//')
+  if [ -n "$absent" ]; then
+    printf '\n=== %s ===\n  SKIP: pins nodes absent from %s:%s\n' "$name" "$WORKFLOW_ID" "$absent"
+    skipped_names="$skipped_names $name"
+    continue
   fi
 
   printf '\n=== %s ===\n' "$name"

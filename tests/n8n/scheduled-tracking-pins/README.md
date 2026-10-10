@@ -158,15 +158,16 @@ execution data, which proves the alert was *built* without a message being sent.
 version of these fixtures omitted that pin and did send real staging developer alerts —
 if you add a fixture that reaches an alert branch, pin the send.)
 
-The two `*-analyzed-*` fixtures and `watermark-classification-failed-holds` pin
-`Apply Media Sentiment`, `Classify Media Replies` and the per-reply sentiment nodes, which
-exist only in staging, so `run-pins.sh` skips them when `XMONITOR_WORKFLOW_ID` targets
-production — pin data naming an absent node is a hard error, not a warning. Every other
-fixture that reaches the model now pins `Classify Sentiment` / `Merge Sentiment Results`
-(staging) rather than `Analyze Sentiment with ChatGPT` (production), so **the suite as a
-whole no longer runs against production** until production is promoted to the per-reply
-graph; `tests/n8n/t3-alert-routing-fixtures.test.mjs` folds the Merge pins back into the
-batched shape to keep exercising the production export offline.
+Pin data naming a node the target workflow does not have is a hard error, not a warning, so
+`run-pins.sh` now compares every fixture's pinned node names against the live node list and
+skips the fixture on any miss, printing which names were absent. Against production
+(`XMONITOR_WORKFLOW_ID=Emb26wP77eFXgnVi`) that currently skips the fixtures that pin the
+reply media sentiment nodes (`Apply Media Sentiment`, `Classify Media Replies`): the two
+`*-analyzed-*` watermark fixtures, `watermark-classification-failed-holds`, the three
+`tenancy-*` fixtures and the two `cheat-sheet-*` fixtures. The per-reply sentiment nodes
+exist in both environments since the 2026-10-10 promotion, so everything else runs against
+production unchanged. `tests/n8n/t3-alert-routing-fixtures.test.mjs` regroups the Merge pins
+the way `Collect Sentiment Labels` does to exercise the production export offline.
 
 ## What these fixtures cannot prove
 

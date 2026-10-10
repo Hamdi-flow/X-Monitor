@@ -9,10 +9,17 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
-- **Scheduled Post Tracking Staging — per-reply sentiment classification. STAGING ONLY,
-  2026-10-10** (`l4eKZucUZXzfz0H8`, draft `1a3baa1f-b081-47d8-a04c-ab09837f6a5c`; inactive by
-  design, manual execution only, so there is no publish step). Production
-  `Emb26wP77eFXgnVi` is **unchanged** and still runs the batched JSON call.
+- **Scheduled Post Tracking — per-reply sentiment classification. Published to PRODUCTION
+  2026-10-10** (`Emb26wP77eFXgnVi`, `activeVersionId` `8669273d-0fac-44cf-8e35-053df306a956`,
+  confirmed equal to `versionId` by re-read) after validation on **STAGING** the same day
+  (`l4eKZucUZXzfz0H8`, draft `1a3baa1f-b081-47d8-a04c-ab09837f6a5c`; inactive by design,
+  manual execution only, so no publish step there). The production edit was generated from
+  the staging graph with production credentials (`Supabase Account`, `OpenAi account 2`),
+  asserted node-for-node equal to staging on re-read, simulated with four pinned fixtures
+  against the production draft (`44801`–`44804`, all green), then published. Production
+  also gained `Get Active Cheat Sheets` (read-only, `Build Analysis Plan` depends on it);
+  reply media sentiment stays staging-only. Export `workflows/active/...` re-synced from
+  the published version.
   Replaces `Build Analyzer Batches` + `Analyze Sentiment with ChatGPT` (one OpenAI call per
   client carrying every post and reply, parsed back from a `{"results":[...]}` blob) with the
   shape IG - Monitor uses: `Build Analysis Plan` (one item per new reply with a

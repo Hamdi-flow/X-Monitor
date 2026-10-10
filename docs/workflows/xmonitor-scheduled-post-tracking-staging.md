@@ -17,13 +17,13 @@ production.
 - Last observed live update: `2026-10-10T08:46Z` (draft `449eabf2-c73e-43f5-8270-61161b4d4839`; inactive by design, so there is no active version to match)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 
-> **Staging is ahead of production.** The Phase 1 incremental-replies rebuild was promoted
-> on 2026-08-25 and per-post backfill on 2026-09-04, but staging has since gained reply media
-> sentiment, the per-client cheat sheet, and — as of 2026-10-10 — **per-reply sentiment
-> classification** (see [Per-Reply Sentiment Classification](#per-reply-sentiment-classification---2026-10-10)),
-> none of which is in `Emb26wP77eFXgnVi`. Validate changes here first, then promote, and
-> remember production runs a **published version** - saving a draft there does not change
-> live behaviour until it is published.
+> **Staging is slightly ahead of production.** Per-reply sentiment classification (see
+> [Per-Reply Sentiment Classification](#per-reply-sentiment-classification---2026-10-10))
+> was validated here and promoted to `Emb26wP77eFXgnVi` on 2026-10-10, together with
+> `Get Active Cheat Sheets`. What remains staging-only is reply media sentiment and the
+> cheat-sheet generator workflow. Validate changes here first, then promote, and remember
+> production runs a **published version** - saving a draft there does not change live
+> behaviour until it is published.
 >
 > The local export was re-synced from live on 2026-10-10. Before that it had drifted: live
 > carried `Build Post Metrics Refresh` / `Refresh Post Metrics` and newer `Prepare Post Data`,
@@ -804,12 +804,9 @@ without a single auto-fix retry, so that workflow and its benchmark remain parke
 
 ### Not yet done
 
-- **Production promotion.** `Emb26wP77eFXgnVi` still runs the batched call. Promotion is the
-  node list above plus the staging-only nodes production also lacks (reply media sentiment,
-  `Get Active Cheat Sheets`), with production credentials, `errorWorkflow`
-  `UmKr9JkZ3ec3GDH5`, the `author_id` field on `Get Replies`, and a **publish** after the
-  draft is written. The pinned suite now targets the per-reply graph, so run it against
-  production only after promotion; until then `tests/n8n/t3-alert-routing-fixtures.test.mjs`
-  keeps the production export covered offline.
+- ~~Production promotion.~~ Done 2026-10-10, published version
+  `8669273d-0fac-44cf-8e35-053df306a956`; see the
+  [production doc](./xmonitor-scheduled-post-tracking.md#per-reply-sentiment-classification--promoted-2026-10-10).
+  Reply media sentiment was **not** promoted with it.
 - The shared Supabase-held prompt and the X image analyzer are separate pieces of work; this
   change only put X on the same per-item shape as Instagram.
