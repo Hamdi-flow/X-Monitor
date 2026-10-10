@@ -20,6 +20,36 @@ The one deliberate exception is the `watermark-*` group, which leaves the two `R
 writers unpinned so the UPDATE actually runs. `run-pins.sh` snapshots and restores that row
 around them. See [The `watermark-*` fixtures](#the-watermark-fixtures) below.
 
+## How the sentiment labels are pinned (since 2026-10-10)
+
+Staging classifies **one reply per model call**: `Build Analysis Plan` emits one item per new
+reply, `Classify Sentiment` (the LangChain Sentiment Analysis node, `gpt-5.4-mini` through
+`OpenAI Sentiment Model`) routes each item to `Tag Positive` / `Tag Neutral` / `Tag Negative`
+or, on failure, `Tag Failed`; `Merge Sentiment Results` appends the four streams and
+`Collect Sentiment Labels` regroups them into the `{results:[...]}` shape the rest of the
+graph has always read. Production still runs the batched `Analyze Sentiment with ChatGPT`
+call.
+
+Two pins replace the old `Analyze Sentiment with ChatGPT` pin in every fixture that reaches
+the model:
+
+- `Classify Sentiment` is pinned so the model is never called. Pin data cannot address a
+  multi-output node's other outputs — everything pinned here lands on output 0 (Positive) —
+  so its content is irrelevant beyond making `Tag Positive` run and `Merge Sentiment Results`
+  execute.
+- `Merge Sentiment Results` carries the **labelled** per-reply items (`post_id`, `reply_id`,
+  `reply_text`, `sentiment`, …). This is what `Collect Sentiment Labels` reads, so it is the
+  fixture's real statement about which reply got which label.
+
+The two must agree with the planned set: every reply in `Get Replies` for a qualifying post
+that is not in `Get Analyzed Reply Ids` is planned, and a planned reply missing from the
+Merge pin counts as a classification **failure** — the run takes the probe path, holds the
+watermark and raises `SENTIMENT_API_FAILED`. `watermark-classification-failed-holds` does
+that on purpose; no other fixture should.
+
+`OpenAI Sentiment Model` is a credentialed sub-node, so `prepare_workflow_pin_data` lists it.
+It is deliberately left unpinned: with `Classify Sentiment` pinned it is never invoked.
+
 ## The publish check
 
 Before running anything, `run-pins.sh` reads the target workflow and — if it is **active** —
@@ -112,6 +142,7 @@ on a pass that left anything unread.
 | `watermark-truncated-posts-holds` | **hold** — posts search hit the page cap |
 | `watermark-truncated-replies-quiet-holds` | **hold** — replies search hit the page cap |
 | `watermark-truncated-replies-analyzed-holds` | **hold** — same, with scoring. **Staging only** |
+| `watermark-classification-failed-holds` | **hold** — one of two new replies came back on `Classify Sentiment`'s error output. The labelled reply is still stored and alerted on; the failed one is not, keeps `analyzed_at` null, and must be re-scored next pass — which only happens if the marker does not move past it. Also asserts `SENTIMENT_API_FAILED` is built through a pinned probe. **Staging only** |
 
 **Every other fixture here pins `Advance Run State` and `Advance Run State (Quiet Pass)`, so
 the UPDATE never executes and its reachability is never tested. That is exactly why the
@@ -127,9 +158,15 @@ execution data, which proves the alert was *built* without a message being sent.
 version of these fixtures omitted that pin and did send real staging developer alerts —
 if you add a fixture that reaches an alert branch, pin the send.)
 
-The two `*-analyzed-*` fixtures pin `Apply Media Sentiment` and `Classify Media Replies`,
-which exist only in staging, so `run-pins.sh` skips them when `XMONITOR_WORKFLOW_ID` targets
-production — pin data naming an absent node is a hard error, not a warning.
+The two `*-analyzed-*` fixtures and `watermark-classification-failed-holds` pin
+`Apply Media Sentiment`, `Classify Media Replies` and the per-reply sentiment nodes, which
+exist only in staging, so `run-pins.sh` skips them when `XMONITOR_WORKFLOW_ID` targets
+production — pin data naming an absent node is a hard error, not a warning. Every other
+fixture that reaches the model now pins `Classify Sentiment` / `Merge Sentiment Results`
+(staging) rather than `Analyze Sentiment with ChatGPT` (production), so **the suite as a
+whole no longer runs against production** until production is promoted to the per-reply
+graph; `tests/n8n/t3-alert-routing-fixtures.test.mjs` folds the Merge pins back into the
+batched shape to keep exercising the production export offline.
 
 ## What these fixtures cannot prove
 

@@ -160,6 +160,15 @@ expectations() {
       echo 'developer alert raised|SEARCH_PAGE_CAP_REACHED'
       echo 'nothing new to score|"has_new_replies":false'
       ;;
+    watermark-classification-failed-holds)
+      # One of two new replies came back on Classify Sentiment's error output. The
+      # labelled reply is still stored; the failed one is not, so the marker must not
+      # move past it or it is never re-scored.
+      echo 'one reply failed classification|"classification_failed_count":1'
+      echo 'the failed reply is named|"failed_reply_ids":\["9003"\]'
+      echo 'the labelled reply is still stored|"reply_id":"9002"'
+      echo 'developer alert raised|SENTIMENT_API_FAILED'
+      ;;
     watermark-truncated-replies-analyzed-holds)
       echo 'replies search hit the page cap|"replies_truncated":true'
       echo 'developer alert raised|SEARCH_PAGE_CAP_REACHED'
@@ -173,7 +182,7 @@ expectations() {
       echo 'client B batched with its own sheet|"client_id":"11111111-2222-3333-4444-555555555555","cheat_sheet_version":5'
       echo "client A's rules reached the prompt|CANARY_ALPHA"
       echo "client B's rules reached the prompt|CANARY_BRAVO"
-      echo 'each batch carries only its own post|"post_count":1,"reply_count":1'
+      echo 'one classification item per reply, none merged across clients|"planned_reply_count":2'
       ;;
     cheat-sheet-absent-fallback)
       echo 'no active sheet degrades instead of stalling|"cheat_sheet_version":0'
@@ -197,6 +206,7 @@ watermark_expectation() {
     watermark-truncated-posts-holds)            echo 'hold' ;;
     watermark-truncated-replies-quiet-holds)    echo 'hold' ;;
     watermark-truncated-replies-analyzed-holds) echo 'hold' ;;
+    watermark-classification-failed-holds)      echo 'hold' ;;
   esac
 }
 
@@ -263,7 +273,7 @@ for f in "$HERE"/*.pinData.json; do
   # Replies, which exist only in staging. Pin data naming an absent node is a hard error.
   if [ "$WORKFLOW_ID" = "Emb26wP77eFXgnVi" ]; then
     case "$name" in
-      watermark-analyzed-advances|watermark-truncated-replies-analyzed-holds)
+      watermark-analyzed-advances|watermark-truncated-replies-analyzed-holds|watermark-classification-failed-holds)
         printf '\n=== %s ===\n  SKIP: staging-only (pins the media-sentiment nodes)\n' "$name"
         skipped_names="$skipped_names $name"
         continue

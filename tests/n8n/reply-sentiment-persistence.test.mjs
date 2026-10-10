@@ -55,6 +55,49 @@ const REPLIES = [
 ];
 const TEST_REPLY_IDS = REPLIES.map((r) => r.id);
 
+// Staging classifies one reply per model call since 2026-10-10 (Classify Sentiment
+// -> Tag * -> Merge Sentiment Results -> Collect Sentiment Labels), while production
+// still runs the batched call. Pin whichever shape the target workflow has. Pin
+// data cannot address a multi-output node's other outputs, so the labelled items are
+// pinned on the Merge node and Classify Sentiment is pinned only to keep the model
+// from being called.
+const PER_REPLY_SENTIMENT = WORKFLOW_ID !== 'Emb26wP77eFXgnVi';
+function analyzerPins(replies) {
+  if (!PER_REPLY_SENTIMENT) {
+    return {
+      'Analyze Sentiment with ChatGPT': [{
+        json: {
+          text: JSON.stringify({
+            results: [{
+              postId: POST_ID,
+              postText: 'sentiment persistence probe post',
+              userId: AUTHOR_ID,
+              replies: replies.map((r) => ({ id: r.id, sentiment: r.sentiment, text: r.text })),
+            }],
+          }),
+        },
+      }],
+    };
+  }
+  const items = (withLabel) => replies.map((r) => ({
+    json: {
+      post_id: POST_ID,
+      post_text: 'sentiment persistence probe post',
+      user_id: AUTHOR_ID,
+      post_author: '',
+      author_username: '',
+      author_name: '',
+      reply_id: r.id,
+      reply_text: r.text,
+      reply_author_id: '',
+      is_owner_reply: false,
+      classifier_input: r.text,
+      ...(withLabel ? { sentiment: r.sentiment } : {}),
+    },
+  }));
+  return { 'Classify Sentiment': items(false), 'Merge Sentiment Results': items(true) };
+}
+
 // ---------------------------------------------------------------------------
 // transport
 // ---------------------------------------------------------------------------
@@ -172,18 +215,7 @@ function basePins({ storedCounts, pinReplyUpsert }) {
     // Pinned: live OpenAI call. This is where the mixed sentiments come from --
     // a negatives-only fixture could not have caught the regression, because
     // every stored row already happened to be Negative.
-    'Analyze Sentiment with ChatGPT': [{
-      json: {
-        text: JSON.stringify({
-          results: [{
-            postId: POST_ID,
-            postText: 'sentiment persistence probe post',
-            userId: AUTHOR_ID,
-            replies: REPLIES.map((r) => ({ id: r.id, sentiment: r.sentiment, text: r.text })),
-          }],
-        }),
-      },
-    }],
+    ...analyzerPins(REPLIES),
     // Pinned: writes to Posts. Keeps the blast radius to the Replies table.
     'Insert or update posts': [{ json: { post_id: POST_ID, status: 'New' } }],
     // Pinned: both watermark writers, so the production Run State never moves.
@@ -340,18 +372,7 @@ async function main() {
       meta: { result_count: crossReplies.length },
     },
   }];
-  crossPins['Analyze Sentiment with ChatGPT'] = [{
-    json: {
-      text: JSON.stringify({
-        results: [{
-          postId: POST_ID,
-          postText: 'sentiment persistence probe post',
-          userId: AUTHOR_ID,
-          replies: crossReplies.map((r) => ({ id: r.id, sentiment: r.sentiment, text: r.text })),
-        }],
-      }),
-    },
-  }];
+  Object.assign(crossPins, analyzerPins(crossReplies));
 
   const second = await runPinned('cross-pass run', crossPins);
 

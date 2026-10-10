@@ -132,9 +132,19 @@ for (const [envName, path] of EXPORTS) {
     assert.equal(quiet, 'Advance Run State (Quiet Pass)');
     const active = workflow.connections['If Safe To Advance Watermark (Analyzed)'].main[0][0].node;
     assert.equal(active, 'Advance Run State');
-    // OpenAI failure output 1 goes to the probe, which reaches only the dev alert.
-    const errorBranch = workflow.connections['Analyze Sentiment with ChatGPT'].main[1][0].node;
-    assert.equal(errorBranch, 'Probe OpenAI Error Reason');
+    // The sentiment failure path reaches only the dev alert. Production: the batched
+    // analyzer's error output (1) goes to the probe. Staging classifies per reply
+    // (2026-10-10): Collect Sentiment Labels -> If Any Classification Failed -> probe,
+    // and the analyzed watermark gate also holds on classification_failed_count.
+    if (envName === 'staging') {
+      const failedBranch = workflow.connections['If Any Classification Failed'].main[0][0].node;
+      assert.equal(failedBranch, 'Probe OpenAI Error Reason');
+      const gate = node('If Safe To Advance Watermark (Analyzed)').parameters.conditions.conditions;
+      assert.ok(JSON.stringify(gate).includes('classification_failed_count'), 'a failed reply must hold the watermark');
+    } else {
+      const errorBranch = workflow.connections['Analyze Sentiment with ChatGPT'].main[1][0].node;
+      assert.equal(errorBranch, 'Probe OpenAI Error Reason');
+    }
   });
 
   check(label('incremental replies query and 15-conversation chunking untouched'), () => {

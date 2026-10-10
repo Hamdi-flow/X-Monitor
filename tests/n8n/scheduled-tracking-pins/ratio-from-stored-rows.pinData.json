@@ -1,11 +1,388 @@
-{"Schedule Trigger":[{"json":{"timestamp":"2026-08-24T15:00:00.000Z","Readable date":"August 24th 2026, 3:00:00 pm","Readable time":"3:00:00 pm","Day of week":"Monday","Year":"2026","Month":"August","Day of month":"24","Hour":"15","Minute":"00","Second":"00","Timezone":"UTC"}}],"Get Run State":[{"json":{"key":"scheduled_post_tracking","last_successful_run_at":"2026-08-24T14:00:00.000Z","run_started_at":"2026-08-24T15:00:00.000Z"}}],"Advance Post Suppression State":[{"json":{"blocked_post_ids":[]}}],"Get Tracked Users":[{"json":{"user_id":"951803761","created_at":"2026-06-01T00:00:00.000Z","username":"RebelHam_","display_name":"Rebel Ham","is_active":true,"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_slug":"house","client_name":"House Account","client_min_replies":10,"client_negative_threshold":0.5,"client_lookback_days":7}}],
-"Get posts of tracked users":[{"json":{"data":[{"id":"2060604129798496701","author_id":"951803761","conversation_id":"2060604129798496701","created_at":"2026-08-20T10:00:00.000Z","text":"post A above threshold","public_metrics":{"reply_count":40,"like_count":0,"retweet_count":0,"quote_count":0,"bookmark_count":0,"impression_count":0}},{"id":"2060604129798496702","author_id":"951803761","conversation_id":"2060604129798496702","created_at":"2026-08-20T10:00:00.000Z","text":"post B healthy","public_metrics":{"reply_count":22,"like_count":0,"retweet_count":0,"quote_count":0,"bookmark_count":0,"impression_count":0}}],"meta":{"result_count":2}}}],
-"Get Replies":[{"json":{"data":[{"id":"3000","conversation_id":"2060604129798496701","created_at":"2026-08-24T13:55:00.000Z","text":"already scored earlier"},{"id":"3001","conversation_id":"2060604129798496701","created_at":"2026-08-24T14:20:00.000Z","text":"new negative"},{"id":"3002","conversation_id":"2060604129798496701","created_at":"2026-08-24T14:30:00.000Z","text":"new neutral"},{"id":"3003","conversation_id":"2060604129798496702","created_at":"2026-08-24T14:35:00.000Z","text":"new positive b1"},{"id":"3004","conversation_id":"2060604129798496702","created_at":"2026-08-24T14:40:00.000Z","text":"new positive b2"}],"meta":{"result_count":5}}}],
-"Get Analyzed Reply Ids":[{"json":{"analyzed_reply_ids":["3000"]}}],
-"Get Backfilled Post Ids":[{"json":{"collected_post_ids":["2060604129798496701","2060604129798496702"]}}],
-"Analyze Sentiment with ChatGPT":[{"json":{"text":"{\"results\":[{\"postId\":\"2060604129798496701\",\"postText\":\"post A above threshold\",\"userId\":\"951803761\",\"replies\":[{\"id\":\"3001\",\"sentiment\":\"Negative\",\"text\":\"new negative\"},{\"id\":\"3002\",\"sentiment\":\"Neutral\",\"text\":\"new neutral\"}]},{\"postId\":\"2060604129798496702\",\"postText\":\"post B healthy\",\"userId\":\"951803761\",\"replies\":[{\"id\":\"3003\",\"sentiment\":\"Positive\",\"text\":\"new positive b1\"},{\"id\":\"3004\",\"sentiment\":\"Positive\",\"text\":\"new positive b2\"}]}]}"}}],
-"Get Stored Post Counts":[{"json":{"post_id":"2060604129798496701","stored_analyzed":10,"stored_negative":6,"stored_positive":2,"stored_neutral":2}},{"json":{"post_id":"2060604129798496702","stored_analyzed":8,"stored_negative":1,"stored_positive":5,"stored_neutral":2}}],
-"Insert or update posts":[{"json":{"post_id":"2060604129798496701","status":"New"}},{"json":{"post_id":"2060604129798496702","status":"New"}}],
-"Insert or update replies":[{"json":{"reply_id":"3001"}},{"json":{"reply_id":"3002"}},{"json":{"reply_id":"3003"}},{"json":{"reply_id":"3004"}}],
-"Get Reply Status Counts":[{"json":{"post_id":"2060604129798496701","hidden_negative_replies_count":3,"non_hidden_negative_replies_count":4}}],
-"Advance Run State":[{"json":{"key":"scheduled_post_tracking","last_successful_run_at":"2026-08-24T15:00:00.000Z"}}],"Advance Run State (Quiet Pass)":[{"json":{"key":"scheduled_post_tracking","last_successful_run_at":"2026-08-24T15:00:00.000Z"}}],"Get Alert Recipients":[{"json":{"client_id":"f7317adc-eea5-49db-81bf-8b2393a93c89","client_name":"House Account","client_slug":"house","chat_id":"8677383067","label":"Operator","role":"operator"}}],"Send Negative Alert Notification":[{"json":{"ok":true}}],"Send Scheduler Developer Alert":[{"json":{"ok":true}}]}
+{
+  "Schedule Trigger": [
+    {
+      "json": {
+        "timestamp": "2026-08-24T15:00:00.000Z",
+        "Readable date": "August 24th 2026, 3:00:00 pm",
+        "Readable time": "3:00:00 pm",
+        "Day of week": "Monday",
+        "Year": "2026",
+        "Month": "August",
+        "Day of month": "24",
+        "Hour": "15",
+        "Minute": "00",
+        "Second": "00",
+        "Timezone": "UTC"
+      }
+    }
+  ],
+  "Get Run State": [
+    {
+      "json": {
+        "key": "scheduled_post_tracking",
+        "last_successful_run_at": "2026-08-24T14:00:00.000Z",
+        "run_started_at": "2026-08-24T15:00:00.000Z"
+      }
+    }
+  ],
+  "Advance Post Suppression State": [
+    {
+      "json": {
+        "blocked_post_ids": []
+      }
+    }
+  ],
+  "Get Tracked Users": [
+    {
+      "json": {
+        "user_id": "951803761",
+        "created_at": "2026-06-01T00:00:00.000Z",
+        "username": "RebelHam_",
+        "display_name": "Rebel Ham",
+        "is_active": true,
+        "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89",
+        "client_slug": "house",
+        "client_name": "House Account",
+        "client_min_replies": 10,
+        "client_negative_threshold": 0.5,
+        "client_lookback_days": 7
+      }
+    }
+  ],
+  "Get posts of tracked users": [
+    {
+      "json": {
+        "data": [
+          {
+            "id": "2060604129798496701",
+            "author_id": "951803761",
+            "conversation_id": "2060604129798496701",
+            "created_at": "2026-08-20T10:00:00.000Z",
+            "text": "post A above threshold",
+            "public_metrics": {
+              "reply_count": 40,
+              "like_count": 0,
+              "retweet_count": 0,
+              "quote_count": 0,
+              "bookmark_count": 0,
+              "impression_count": 0
+            }
+          },
+          {
+            "id": "2060604129798496702",
+            "author_id": "951803761",
+            "conversation_id": "2060604129798496702",
+            "created_at": "2026-08-20T10:00:00.000Z",
+            "text": "post B healthy",
+            "public_metrics": {
+              "reply_count": 22,
+              "like_count": 0,
+              "retweet_count": 0,
+              "quote_count": 0,
+              "bookmark_count": 0,
+              "impression_count": 0
+            }
+          }
+        ],
+        "meta": {
+          "result_count": 2
+        }
+      }
+    }
+  ],
+  "Get Replies": [
+    {
+      "json": {
+        "data": [
+          {
+            "id": "3000",
+            "conversation_id": "2060604129798496701",
+            "created_at": "2026-08-24T13:55:00.000Z",
+            "text": "already scored earlier"
+          },
+          {
+            "id": "3001",
+            "conversation_id": "2060604129798496701",
+            "created_at": "2026-08-24T14:20:00.000Z",
+            "text": "new negative"
+          },
+          {
+            "id": "3002",
+            "conversation_id": "2060604129798496701",
+            "created_at": "2026-08-24T14:30:00.000Z",
+            "text": "new neutral"
+          },
+          {
+            "id": "3003",
+            "conversation_id": "2060604129798496702",
+            "created_at": "2026-08-24T14:35:00.000Z",
+            "text": "new positive b1"
+          },
+          {
+            "id": "3004",
+            "conversation_id": "2060604129798496702",
+            "created_at": "2026-08-24T14:40:00.000Z",
+            "text": "new positive b2"
+          }
+        ],
+        "meta": {
+          "result_count": 5
+        }
+      }
+    }
+  ],
+  "Get Analyzed Reply Ids": [
+    {
+      "json": {
+        "analyzed_reply_ids": [
+          "3000"
+        ]
+      }
+    }
+  ],
+  "Get Backfilled Post Ids": [
+    {
+      "json": {
+        "collected_post_ids": [
+          "2060604129798496701",
+          "2060604129798496702"
+        ]
+      }
+    }
+  ],
+  "Classify Sentiment": [
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "post_text": "post A above threshold",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3001",
+        "reply_text": "new negative",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost A above threshold\n</caption>\nReply:\n<comment>\nnew negative\n</comment>"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "post_text": "post A above threshold",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3002",
+        "reply_text": "new neutral",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost A above threshold\n</caption>\nReply:\n<comment>\nnew neutral\n</comment>"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "post_text": "post B healthy",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3003",
+        "reply_text": "new positive b1",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost B healthy\n</caption>\nReply:\n<comment>\nnew positive b1\n</comment>"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "post_text": "post B healthy",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3004",
+        "reply_text": "new positive b2",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost B healthy\n</caption>\nReply:\n<comment>\nnew positive b2\n</comment>"
+      }
+    }
+  ],
+  "Merge Sentiment Results": [
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "post_text": "post A above threshold",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3001",
+        "reply_text": "new negative",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost A above threshold\n</caption>\nReply:\n<comment>\nnew negative\n</comment>",
+        "sentiment": "Negative"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "post_text": "post A above threshold",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3002",
+        "reply_text": "new neutral",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost A above threshold\n</caption>\nReply:\n<comment>\nnew neutral\n</comment>",
+        "sentiment": "Neutral"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "post_text": "post B healthy",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3003",
+        "reply_text": "new positive b1",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost B healthy\n</caption>\nReply:\n<comment>\nnew positive b1\n</comment>",
+        "sentiment": "Positive"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "post_text": "post B healthy",
+        "user_id": "951803761",
+        "post_author": "",
+        "author_username": "",
+        "author_name": "",
+        "reply_id": "3004",
+        "reply_text": "new positive b2",
+        "reply_author_id": "",
+        "is_owner_reply": false,
+        "classifier_input": "Account owner: @unknown\nPost text:\n<caption>\npost B healthy\n</caption>\nReply:\n<comment>\nnew positive b2\n</comment>",
+        "sentiment": "Positive"
+      }
+    }
+  ],
+  "Get Stored Post Counts": [
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "stored_analyzed": 10,
+        "stored_negative": 6,
+        "stored_positive": 2,
+        "stored_neutral": 2
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "stored_analyzed": 8,
+        "stored_negative": 1,
+        "stored_positive": 5,
+        "stored_neutral": 2
+      }
+    }
+  ],
+  "Insert or update posts": [
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "status": "New"
+      }
+    },
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "status": "New"
+      }
+    }
+  ],
+  "Insert or update replies": [
+    {
+      "json": {
+        "reply_id": "3001"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "3002"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "3003"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "3004"
+      }
+    }
+  ],
+  "Get Reply Status Counts": [
+    {
+      "json": {
+        "post_id": "2060604129798496701",
+        "hidden_negative_replies_count": 3,
+        "non_hidden_negative_replies_count": 4
+      }
+    }
+  ],
+  "Advance Run State": [
+    {
+      "json": {
+        "key": "scheduled_post_tracking",
+        "last_successful_run_at": "2026-08-24T15:00:00.000Z"
+      }
+    }
+  ],
+  "Advance Run State (Quiet Pass)": [
+    {
+      "json": {
+        "key": "scheduled_post_tracking",
+        "last_successful_run_at": "2026-08-24T15:00:00.000Z"
+      }
+    }
+  ],
+  "Get Alert Recipients": [
+    {
+      "json": {
+        "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89",
+        "client_name": "House Account",
+        "client_slug": "house",
+        "chat_id": "8677383067",
+        "label": "Operator",
+        "role": "operator"
+      }
+    }
+  ],
+  "Send Negative Alert Notification": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ],
+  "Send Scheduler Developer Alert": [
+    {
+      "json": {
+        "ok": true
+      }
+    }
+  ]
+}

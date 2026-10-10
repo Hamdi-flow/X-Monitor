@@ -1,699 +1,742 @@
 {
-    "workflowId": "l4eKZucUZXzfz0H8",
-    "workflowName": "XMonitor - Scheduled Post Tracking Staging",
-    "runner": "run-pins.sh",
-    "watermarkFixtures": {
-        "note": "The watermark-* fixtures deliberately leave Advance Run State and Advance Run State (Quiet Pass) UNPINNED, so the UPDATE really executes. Every other fixture pins both, which is exactly why the 2026-08-25 defect survived staging validation. run-pins.sh snapshots Run State before each of these, asserts the stored value, and restores it afterwards.",
-        "rule": "Advance on every pass that genuinely finished, including the boring ones. Never advance on a pass that left anything unread: a stale marker only costs re-reads, an over-advanced marker loses replies permanently.",
-        "openaiAbortPath": "No fixture - forcing it needs a live failing model call. Proved by reachability against the live graph: from Analyze Sentiment with ChatGPT output 1 the reachable set ends at Send Scheduler Developer Alert and contains neither watermark writer."
+  "workflowId": "l4eKZucUZXzfz0H8",
+  "workflowName": "XMonitor - Scheduled Post Tracking Staging",
+  "runner": "run-pins.sh",
+  "watermarkFixtures": {
+    "note": "The watermark-* fixtures deliberately leave Advance Run State and Advance Run State (Quiet Pass) UNPINNED, so the UPDATE really executes. Every other fixture pins both, which is exactly why the 2026-08-25 defect survived staging validation. run-pins.sh snapshots Run State before each of these, asserts the stored value, and restores it afterwards.",
+    "rule": "Advance on every pass that genuinely finished, including the boring ones. Never advance on a pass that left anything unread: a stale marker only costs re-reads, an over-advanced marker loses replies permanently.",
+    "openaiAbortPath": "No fixture - forcing it needs a live failing model call. Proved by reachability against the live graph: from Classify Sentiment output 1 the reachable set ends at Send Scheduler Developer Alert and contains neither watermark writer."
+  },
+  "fixtures": [
+    {
+      "id": "chunking-25-conversations",
+      "file": "chunking-25-conversations.pinData.json",
+      "input": "25 qualifying conversations, 12 replies each, no new replies returned",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Advance Run State (Quiet Pass)",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "Build Replies Query",
+          "Advance Run State (Quiet Pass)"
+        ],
+        "asserts": {
+          "chunk_count": 2,
+          "conversation_count": [
+            15,
+            10
+          ],
+          "has_new_replies": false
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "regression": "Pre-Phase-1 this emitted one 1246-char query and X returned 400, killing the run."
     },
-    "fixtures": [
-        {
-            "id": "chunking-25-conversations",
-            "file": "chunking-25-conversations.pinData.json",
-            "input": "25 qualifying conversations, 12 replies each, no new replies returned",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Advance Run State (Quiet Pass)",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "Build Replies Query",
-                    "Advance Run State (Quiet Pass)"
-                ],
-                "asserts": {
-                    "chunk_count": 2,
-                    "conversation_count": [
-                        15,
-                        10
-                    ],
-                    "has_new_replies": false
-                },
-                "doesNotCallLive": [
-                    "X search",
-                    "OpenAI",
-                    "Supabase writes",
-                    "Telegram sendMessage"
-                ]
-            },
-            "regression": "Pre-Phase-1 this emitted one 1246-char query and X returned 400, killing the run."
-        },
-        {
-            "id": "ratio-from-stored-rows",
-            "file": "ratio-from-stored-rows.pinData.json",
-            "input": "2 posts; reply 3000 already analyzed; 4 new replies across both posts",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification"
-            ],
-            "expected": {
-                "reaches": [
-                    "Calculate/Filter Sentiment Counts",
-                    "Build Negative Alert Notification"
-                ],
-                "asserts": {
-                    "new_reply_count": 4,
-                    "postA.analyzed_count": 12,
-                    "postA.negative_ratio": 0.5833333333333334,
-                    "postA.alert_now": true,
-                    "postB.negative_ratio": 0.1,
-                    "postB.alert_now": false,
-                    "sentimentsPersisted": [
-                        "Negative",
-                        "Neutral",
-                        "Positive"
-                    ]
-                }
-            },
-            "regression": "Pre-Phase-1 the ratio came from the current run's fetch only, and only negatives were stored."
-        },
-        {
-            "id": "no-post-crosses-threshold",
-            "file": "no-post-crosses-threshold.pinData.json",
-            "input": "2 new replies, both non-negative; stored 8 analyzed / 1 negative",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification"
-            ],
-            "expected": {
-                "reaches": [
-                    "Insert or update replies",
-                    "Advance Run State"
-                ],
-                "asserts": {
-                    "negative_ratio": 0.1,
-                    "alert_now": false
-                },
-                "doesNotReach": [
-                    "Send Negative Alert Notification with a post payload"
-                ]
-            },
-            "regression": "Exercises the empty-alert chain created by storing every candidate post rather than only threshold crossers."
-        },
-        {
-            "id": "quiet-pass-no-new-replies",
-            "file": "quiet-pass-no-new-replies.pinData.json",
-            "input": "candidate post present, replies query returns nothing new",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Advance Run State (Quiet Pass)",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "If Has New Replies",
-                    "Advance Run State (Quiet Pass)"
-                ],
-                "asserts": {
-                    "new_reply_count": 0
-                },
-                "doesNotReach": [
-                    "Analyze Sentiment with ChatGPT"
-                ]
-            },
-            "regression": "A quiet pass must cost no OpenAI call while still advancing the watermark."
-        },
-        {
-            "id": "pagination-multi-page-complete",
-            "file": "pagination-multi-page-complete.pinData.json",
-            "input": "3 reply pages, final page carries no next_token",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification"
-            ],
-            "expected": {
-                "asserts": {
-                    "reply_page_count": 3,
-                    "replies_truncated": false,
-                    "new_reply_count": 3
-                }
-            },
-            "regression": "Every page must contribute replies, and an exhausted result set must not be flagged as truncated."
-        },
-        {
-            "id": "pagination-page-cap-truncated",
-            "file": "pagination-page-cap-truncated.pinData.json",
-            "input": "3 reply pages, final page still carries a next_token",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "If Fetch Truncated",
-                    "Build Truncation Alert",
-                    "Build Scheduler Developer Alert"
-                ],
-                "asserts": {
-                    "replies_truncated": true,
-                    "fetch_truncated": true,
-                    "scheduler_alert_type": "SEARCH_PAGE_CAP_REACHED",
-                    "new_reply_count": 3
-                }
-            },
-            "regression": "A page cap must never truncate silently; under incremental fetching the unread replies are never re-requested."
-        },
-        {
-            "id": "watermark-no-qualifying-posts",
-            "file": "watermark-no-qualifying-posts.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "The 2026-08-25 production defect. A Filter that passes zero items emits nothing, so the flow used to end at Keep Posts With 10+ Replies and neither watermark writer ran. About 35% of production runs look like this.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "If Any Post Qualified",
-                    "Assess Quiet Outcome",
-                    "If Safe To Advance Watermark",
-                    "Advance Run State (Quiet Pass)"
-                ],
-                "doesNotReach": [
-                    "Build Replies Query",
-                    "Get Replies"
-                ],
-                "runState": "advances to 2026-08-25 09:00:00+00"
-            }
-        },
-        {
-            "id": "watermark-all-posts-discarded",
-            "file": "watermark-all-posts-discarded.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "Production's exact live shape: three posts across two authors, every one below the 10-reply threshold, against a null watermark. Distinct from watermark-no-qualifying-posts in that it asserts a discarded post id appears in the execution data, so it cannot pass by accidentally exercising the empty-input path. Added 2026-08-27 after a diagnosis wrongly claimed alwaysOutputData does not inject a placeholder when the discard branch is populated - staging 16402 and 16418 show it does.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "Keep Posts With 10+ Replies",
-                    "If Any Post Qualified",
-                    "Assess Quiet Outcome",
-                    "If Safe To Advance Watermark",
-                    "Advance Run State (Quiet Pass)"
-                ],
-                "doesNotReach": [
-                    "Build Replies Query",
-                    "Get Replies",
-                    "Analyze Sentiment with ChatGPT"
-                ],
-                "asserts": {
-                    "quiet_reason": "NO_QUALIFYING_POSTS",
-                    "posts_truncated": false,
-                    "has_new_replies": false,
-                    "discardedPostVisible": "2092579307088490998"
-                },
-                "runState": "advances to 2026-08-25 09:20:00+00"
-            }
-        },
-        {
-            "id": "watermark-no-tracked-users",
-            "file": "watermark-no-tracked-users.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "NO_TRACKED_USERS used to dead-end at the developer alert. Still a successful pass that found no work.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "Build Scheduler Developer Alert",
-                    "Assess Quiet Outcome",
-                    "Advance Run State (Quiet Pass)"
-                ],
-                "doesNotReach": [
-                    "Get posts of tracked users"
-                ],
-                "runState": "advances to 2026-08-25 09:10:00+00"
-            }
-        },
-        {
-            "id": "watermark-quiet-replies-advances",
-            "file": "watermark-quiet-replies-advances.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "Control for the quiet branch: nothing was left unread, so the watermark must advance.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "If Has New Replies",
-                    "If Safe To Advance Watermark",
-                    "Advance Run State (Quiet Pass)"
-                ],
-                "doesNotReach": [
-                    "Analyze Sentiment with ChatGPT"
-                ],
-                "runState": "advances to 2026-08-25 09:35:00+00"
-            }
-        },
-        {
-            "id": "watermark-analyzed-advances",
-            "file": "watermark-analyzed-advances.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "Control for the analyzed branch. STAGING ONLY - pins Apply Media Sentiment / Classify Media Replies, which production does not have.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "Insert or update replies",
-                    "If Safe To Advance Watermark (Analyzed)",
-                    "Advance Run State",
-                    "Get Reply Status Counts"
-                ],
-                "runState": "advances to 2026-08-25 09:55:00+00",
-                "stagingOnly": true
-            }
-        },
-        {
-            "id": "watermark-truncated-posts-holds",
-            "file": "watermark-truncated-posts-holds.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "DANGEROUS DIRECTION. A qualifying post may sit on a page never read, so advancing would skip its replies permanently.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "Assess Quiet Outcome",
-                    "If Safe To Advance Watermark"
-                ],
-                "doesNotReach": [
-                    "Advance Run State (Quiet Pass)",
-                    "Advance Run State"
-                ],
-                "runState": "UNCHANGED"
-            }
-        },
-        {
-            "id": "watermark-truncated-replies-quiet-holds",
-            "file": "watermark-truncated-replies-quiet-holds.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "DANGEROUS DIRECTION, quiet branch. Truncation used to raise SEARCH_PAGE_CAP_REACHED in parallel with the watermark write, so the marker advanced anyway.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "If Fetch Truncated",
-                    "Build Truncation Alert",
-                    "If Safe To Advance Watermark"
-                ],
-                "doesNotReach": [
-                    "Advance Run State (Quiet Pass)",
-                    "Advance Run State"
-                ],
-                "runState": "UNCHANGED"
-            }
-        },
-        {
-            "id": "watermark-truncated-replies-analyzed-holds",
-            "file": "watermark-truncated-replies-analyzed-holds.pinData.json",
-            "input": {
-                "Current": null
-            },
-            "proves": "DANGEROUS DIRECTION, analyzed branch - the common shape, since truncation happens when a post is busy. Scoring, storage and alerting still happen; only the watermark write is skipped. STAGING ONLY.",
-            "watermarkWriterPinned": false,
-            "expected": {
-                "reaches": [
-                    "Insert or update replies",
-                    "If Safe To Advance Watermark (Analyzed)",
-                    "Get Reply Status Counts",
-                    "Build Truncation Alert"
-                ],
-                "doesNotReach": [
-                    "Advance Run State"
-                ],
-                "runState": "UNCHANGED",
-                "stagingOnly": true
-            }
-        },
-        {
-            "id": "cheat-sheet-per-client-isolation",
-            "file": "cheat-sheet-per-client-isolation.pinData.json",
-            "input": "2 tracked users on 2 different clients, 1 qualifying post and 1 new reply each, both clients holding a different active cheat sheet",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Get Active Cheat Sheets",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert",
-                "Advance Run State",
-                "Advance Run State (Quiet Pass)"
-            ],
-            "expected": {
-                "reaches": [
-                    "Get Active Cheat Sheets",
-                    "Build Analyzer Batches",
-                    "Analyze Sentiment with ChatGPT"
-                ],
-                "asserts": {
-                    "batch_count": 2,
-                    "client A": {
-                        "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89",
-                        "cheat_sheet_version": 3,
-                        "canary": "CANARY_ALPHA",
-                        "post_count": 1
-                    },
-                    "client B": {
-                        "client_id": "11111111-2222-3333-4444-555555555555",
-                        "cheat_sheet_version": 5,
-                        "canary": "CANARY_BRAVO",
-                        "post_count": 1
-                    }
-                },
-                "doesNotCallLive": [
-                    "X search",
-                    "OpenAI",
-                    "Supabase writes",
-                    "Telegram sendMessage"
-                ]
-            },
-            "proves": "Each client gets one OpenAI call carrying only its own posts and only its own rules. The two contiguous client_id+cheat_sheet_version pairings are the isolation proof: a merge, or a sheet handed to the wrong client, breaks both.",
-            "whyItMatters": "Stance rules are client-specific. Leaking one client’s rules into another client’s replies would actively degrade labelling rather than fail loudly."
-        },
-        {
-            "id": "cheat-sheet-absent-fallback",
-            "file": "cheat-sheet-absent-fallback.pinData.json",
-            "input": "1 tracked user with NO active cheat sheet (Get Active Cheat Sheets pinned to a single empty item, which is what alwaysOutputData emits for 0 rows), plus a post whose author is not in Tracked Users",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Get Active Cheat Sheets",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert",
-                "Advance Run State",
-                "Advance Run State (Quiet Pass)"
-            ],
-            "expected": {
-                "reaches": [
-                    "Build Analyzer Batches",
-                    "Analyze Sentiment with ChatGPT",
-                    "Insert or update replies"
-                ],
-                "asserts": {
-                    "cheat_sheet_version": 0,
-                    "fallback_text": "No client-specific labelling rules are configured",
-                    "untracked_author_client_id": "unknown"
-                },
-                "doesNotCallLive": [
-                    "X search",
-                    "OpenAI",
-                    "Supabase writes",
-                    "Telegram sendMessage"
-                ]
-            },
-            "proves": "An empty \"Sentiment Cheat Sheets\" table degrades to general judgement instead of stalling the analysis branch, and a post whose author is not in Tracked Users is still analyzed rather than silently dropped.",
-            "whyItMatters": "Get Active Cheat Sheets is a credentialed node in the main path. Without alwaysOutputData a 0-row result would emit no items and silently kill every downstream node, including storage and alerting."
-        },
-        {
-            "id": "tenancy-two-clients-one-pass",
-            "file": "tenancy-two-clients-one-pass.pinData.json",
-            "phase": "T3",
-            "input": "Two clients, one tracked account and one alerting post each (20 replies, 3 of 4 negative = 0.75), both crossing in the same pass. Both have an active Client Members chat with receives_alerts.",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Advance Run State (Quiet Pass)",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "Build Negative Alert Notification",
-                    "Send Negative Alert Notification"
-                ],
-                "asserts": {
-                    "telegram_item_count": 2,
-                    "chat 9900000001": [
-                        "9990000000000000101"
-                    ],
-                    "chat 9900000002": [
-                        "9990000000000000202"
-                    ],
-                    "developer_alerts": 0
-                },
-                "doesNotCallLive": [
-                    "X search",
-                    "OpenAI",
-                    "Supabase writes",
-                    "Telegram sendMessage"
-                ]
-            },
-            "proves": "Cases 1, 2 and 3 of the T3 table. Each chat receives exactly its own client's post, and neither message contains the other client's post id or post text.",
-            "whyItMatters": "Pre-T3 Get Telegram Users read the whole table and Build Negative Alert Notification emitted one alert per recipient per post, so this same input produced four alerts and each chat saw both clients' post text and reply counts."
-        },
-        {
-            "id": "tenancy-client-b-no-recipient",
-            "file": "tenancy-client-b-no-recipient.pinData.json",
-            "phase": "T3",
-            "input": "The same two clients and posts, but client B has no active Client Members row with receives_alerts. Get Alert Recipients LEFT JOINs, so B arrives as a row with a null chat_id.",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Advance Run State (Quiet Pass)",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "Send Negative Alert Notification",
-                    "Build Scheduler Developer Alert",
-                    "Send Scheduler Developer Alert"
-                ],
-                "asserts": {
-                    "telegram_item_count": 1,
-                    "chat 9900000001": [
-                        "9990000000000000101"
-                    ],
-                    "scheduler_alert_type": "NO_TELEGRAM_RECIPIENTS",
-                    "developer_alert_names": "Tenancy Test B"
-                },
-                "doesNotCallLive": [
-                    "X search",
-                    "OpenAI",
-                    "Supabase writes",
-                    "Telegram sendMessage"
-                ]
-            },
-            "proves": "Case 4. The NO_TELEGRAM_RECIPIENTS alert is raised per client and names the misconfigured one, while the other client's alert still sends in the same pass.",
-            "whyItMatters": "The pre-T3 alert was global and returned early, so one client with no recipients suppressed every other client's alerts for that pass."
-        },
-        {
-            "id": "tenancy-receives-alerts-false",
-            "file": "tenancy-receives-alerts-false.pinData.json",
-            "phase": "T3",
-            "input": "One client whose only member has receives_alerts = false. The recipient query filters on cm.receives_alerts, so the member never appears with a chat_id.",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Advance Run State (Quiet Pass)",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "Build Scheduler Developer Alert",
-                    "Send Scheduler Developer Alert"
-                ],
-                "asserts": {
-                    "telegram_item_count": 0,
-                    "scheduler_alert_type": "NO_TELEGRAM_RECIPIENTS"
-                },
-                "doesNotCallLive": [
-                    "X search",
-                    "OpenAI",
-                    "Supabase writes",
-                    "Telegram sendMessage"
-                ]
-            },
-            "proves": "Case 5. A member opted out of alerts receives nothing, and the silence is reported to the developer chat rather than being silent.",
-            "whyItMatters": "This is the fixture that will change behaviour the day the operator row flips receives_alerts to false. It pins what that flip does before anyone performs it."
-        },
-        {
-            "id": "backfill-new-post-full-window",
-            "file": "backfill-new-post-full-window.pinData.json",
-            "input": "One post created at 10:00 that only now crossed min_replies, watermark at 14:00, four replies of which three predate the watermark",
-            "riskPinned": [
-                "Schedule Trigger",
-                "Get Run State",
-                "Advance Post Suppression State",
-                "Get Tracked Users",
-                "Get posts of tracked users",
-                "Get Replies",
-                "Get Analyzed Reply Ids",
-                "Get Backfilled Post Ids",
-                "Analyze Sentiment with ChatGPT",
-                "Probe OpenAI Error Reason",
-                "Get Stored Post Counts",
-                "Insert or update posts",
-                "Insert or update replies",
-                "Get Reply Status Counts",
-                "Advance Run State",
-                "Advance Run State (Quiet Pass)",
-                "Get Alert Recipients",
-                "Send Negative Alert Notification",
-                "Send Scheduler Developer Alert"
-            ],
-            "expected": {
-                "reaches": [
-                    "Get Backfilled Post Ids",
-                    "Build Replies Query",
-                    "Send Negative Alert Notification"
-                ],
-                "asserts": {
-                    "is_backfill": true,
-                    "start_time": "2026-08-24T09:59:00.000Z",
-                    "new_reply_count": 4,
-                    "analyzed_count": 4,
-                    "alert_now": true
-                }
-            },
-            "why": "A post is invisible to the reply fetcher until its X reply_count crosses the client's min_replies. By then every reply it already has is older than the watermark window, so a watermark-anchored search skips them and never asks again -- the replies are lost, not merely delayed. Production post 2095516553672380450 lost 9 of 13 replies exactly this way on 2026-09-04. Get Backfilled Post Ids reports the post as uncollected, so the window must start one minute before the post's own created_at (09:59), not at 13:50.",
-            "environmentNeutral": "Runs against BOTH schedulers. Get Active Cheat Sheets and Classify Media Replies are deliberately NOT pinned because they exist only in staging and pin data naming an absent node is a hard error; the defect this covers is a production one, so the fixture must not be staging-only. Unpinned, the cheat-sheet lookup is a read-only SELECT and the media classifier is unreachable (no reply carries an attachment). Green in both: production 21617, staging 21619."
+    {
+      "id": "ratio-from-stored-rows",
+      "file": "ratio-from-stored-rows.pinData.json",
+      "input": "2 posts; reply 3000 already analyzed; 4 new replies across both posts",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification"
+      ],
+      "expected": {
+        "reaches": [
+          "Calculate/Filter Sentiment Counts",
+          "Build Negative Alert Notification"
+        ],
+        "asserts": {
+          "new_reply_count": 4,
+          "postA.analyzed_count": 12,
+          "postA.negative_ratio": 0.5833333333333334,
+          "postA.alert_now": true,
+          "postB.negative_ratio": 0.1,
+          "postB.alert_now": false,
+          "sentimentsPersisted": [
+            "Negative",
+            "Neutral",
+            "Positive"
+          ]
         }
-    ],
-    "tenancyFixtures": {
-        "note": "The tenancy-* fixtures are the T3 gate: per-client alert routing. Both ends of the routing are pinned -- Get Tracked Users supplies each account's client and thresholds, Get Alert Recipients supplies the resolved Client Members -- so they touch no database and run against either scheduler.",
-        "offlineEquivalent": "tests/n8n/t3-alert-routing-fixtures.test.mjs replays these three fixtures through the real Code-node bodies with no n8n access, and asserts the same table. It proves the logic, not the wiring or the publish state.",
-        "case6": "The per-client threshold case is exercised by mutating client_min_replies and client_negative_threshold in the offline replay rather than by a fourth fixture, because it needs two runs over the same input."
+      },
+      "regression": "Pre-Phase-1 the ratio came from the current run's fetch only, and only negatives were stored."
+    },
+    {
+      "id": "no-post-crosses-threshold",
+      "file": "no-post-crosses-threshold.pinData.json",
+      "input": "2 new replies, both non-negative; stored 8 analyzed / 1 negative",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification"
+      ],
+      "expected": {
+        "reaches": [
+          "Insert or update replies",
+          "Advance Run State"
+        ],
+        "asserts": {
+          "negative_ratio": 0.1,
+          "alert_now": false
+        },
+        "doesNotReach": [
+          "Send Negative Alert Notification with a post payload"
+        ]
+      },
+      "regression": "Exercises the empty-alert chain created by storing every candidate post rather than only threshold crossers."
+    },
+    {
+      "id": "quiet-pass-no-new-replies",
+      "file": "quiet-pass-no-new-replies.pinData.json",
+      "input": "candidate post present, replies query returns nothing new",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Advance Run State (Quiet Pass)",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "If Has New Replies",
+          "Advance Run State (Quiet Pass)"
+        ],
+        "asserts": {
+          "new_reply_count": 0
+        },
+        "doesNotReach": [
+          "Classify Sentiment",
+          "Merge Sentiment Results"
+        ]
+      },
+      "regression": "A quiet pass must cost no OpenAI call while still advancing the watermark."
+    },
+    {
+      "id": "pagination-multi-page-complete",
+      "file": "pagination-multi-page-complete.pinData.json",
+      "input": "3 reply pages, final page carries no next_token",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification"
+      ],
+      "expected": {
+        "asserts": {
+          "reply_page_count": 3,
+          "replies_truncated": false,
+          "new_reply_count": 3
+        }
+      },
+      "regression": "Every page must contribute replies, and an exhausted result set must not be flagged as truncated."
+    },
+    {
+      "id": "pagination-page-cap-truncated",
+      "file": "pagination-page-cap-truncated.pinData.json",
+      "input": "3 reply pages, final page still carries a next_token",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "If Fetch Truncated",
+          "Build Truncation Alert",
+          "Build Scheduler Developer Alert"
+        ],
+        "asserts": {
+          "replies_truncated": true,
+          "fetch_truncated": true,
+          "scheduler_alert_type": "SEARCH_PAGE_CAP_REACHED",
+          "new_reply_count": 3
+        }
+      },
+      "regression": "A page cap must never truncate silently; under incremental fetching the unread replies are never re-requested."
+    },
+    {
+      "id": "watermark-no-qualifying-posts",
+      "file": "watermark-no-qualifying-posts.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "The 2026-08-25 production defect. A Filter that passes zero items emits nothing, so the flow used to end at Keep Posts With 10+ Replies and neither watermark writer ran. About 35% of production runs look like this.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "If Any Post Qualified",
+          "Assess Quiet Outcome",
+          "If Safe To Advance Watermark",
+          "Advance Run State (Quiet Pass)"
+        ],
+        "doesNotReach": [
+          "Build Replies Query",
+          "Get Replies"
+        ],
+        "runState": "advances to 2026-08-25 09:00:00+00"
+      }
+    },
+    {
+      "id": "watermark-all-posts-discarded",
+      "file": "watermark-all-posts-discarded.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "Production's exact live shape: three posts across two authors, every one below the 10-reply threshold, against a null watermark. Distinct from watermark-no-qualifying-posts in that it asserts a discarded post id appears in the execution data, so it cannot pass by accidentally exercising the empty-input path. Added 2026-08-27 after a diagnosis wrongly claimed alwaysOutputData does not inject a placeholder when the discard branch is populated - staging 16402 and 16418 show it does.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "Keep Posts With 10+ Replies",
+          "If Any Post Qualified",
+          "Assess Quiet Outcome",
+          "If Safe To Advance Watermark",
+          "Advance Run State (Quiet Pass)"
+        ],
+        "doesNotReach": [
+          "Build Replies Query",
+          "Get Replies",
+          "Classify Sentiment",
+          "Merge Sentiment Results"
+        ],
+        "asserts": {
+          "quiet_reason": "NO_QUALIFYING_POSTS",
+          "posts_truncated": false,
+          "has_new_replies": false,
+          "discardedPostVisible": "2092579307088490998"
+        },
+        "runState": "advances to 2026-08-25 09:20:00+00"
+      }
+    },
+    {
+      "id": "watermark-no-tracked-users",
+      "file": "watermark-no-tracked-users.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "NO_TRACKED_USERS used to dead-end at the developer alert. Still a successful pass that found no work.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "Build Scheduler Developer Alert",
+          "Assess Quiet Outcome",
+          "Advance Run State (Quiet Pass)"
+        ],
+        "doesNotReach": [
+          "Get posts of tracked users"
+        ],
+        "runState": "advances to 2026-08-25 09:10:00+00"
+      }
+    },
+    {
+      "id": "watermark-quiet-replies-advances",
+      "file": "watermark-quiet-replies-advances.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "Control for the quiet branch: nothing was left unread, so the watermark must advance.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "If Has New Replies",
+          "If Safe To Advance Watermark",
+          "Advance Run State (Quiet Pass)"
+        ],
+        "doesNotReach": [
+          "Classify Sentiment",
+          "Merge Sentiment Results"
+        ],
+        "runState": "advances to 2026-08-25 09:35:00+00"
+      }
+    },
+    {
+      "id": "watermark-analyzed-advances",
+      "file": "watermark-analyzed-advances.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "Control for the analyzed branch. STAGING ONLY - pins Apply Media Sentiment / Classify Media Replies, which production does not have.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "Insert or update replies",
+          "If Safe To Advance Watermark (Analyzed)",
+          "Advance Run State",
+          "Get Reply Status Counts"
+        ],
+        "runState": "advances to 2026-08-25 09:55:00+00",
+        "stagingOnly": true
+      }
+    },
+    {
+      "id": "watermark-truncated-posts-holds",
+      "file": "watermark-truncated-posts-holds.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "DANGEROUS DIRECTION. A qualifying post may sit on a page never read, so advancing would skip its replies permanently.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "Assess Quiet Outcome",
+          "If Safe To Advance Watermark"
+        ],
+        "doesNotReach": [
+          "Advance Run State (Quiet Pass)",
+          "Advance Run State"
+        ],
+        "runState": "UNCHANGED"
+      }
+    },
+    {
+      "id": "watermark-truncated-replies-quiet-holds",
+      "file": "watermark-truncated-replies-quiet-holds.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "DANGEROUS DIRECTION, quiet branch. Truncation used to raise SEARCH_PAGE_CAP_REACHED in parallel with the watermark write, so the marker advanced anyway.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "If Fetch Truncated",
+          "Build Truncation Alert",
+          "If Safe To Advance Watermark"
+        ],
+        "doesNotReach": [
+          "Advance Run State (Quiet Pass)",
+          "Advance Run State"
+        ],
+        "runState": "UNCHANGED"
+      }
+    },
+    {
+      "id": "watermark-truncated-replies-analyzed-holds",
+      "file": "watermark-truncated-replies-analyzed-holds.pinData.json",
+      "input": {
+        "Current": null
+      },
+      "proves": "DANGEROUS DIRECTION, analyzed branch - the common shape, since truncation happens when a post is busy. Scoring, storage and alerting still happen; only the watermark write is skipped. STAGING ONLY.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "Insert or update replies",
+          "If Safe To Advance Watermark (Analyzed)",
+          "Get Reply Status Counts",
+          "Build Truncation Alert"
+        ],
+        "doesNotReach": [
+          "Advance Run State"
+        ],
+        "runState": "UNCHANGED",
+        "stagingOnly": true
+      }
+    },
+    {
+      "id": "watermark-classification-failed-holds",
+      "file": "watermark-classification-failed-holds.pinData.json",
+      "input": "2 new replies; one is labelled, the other reaches Classify Sentiment's error output",
+      "proves": "A per-reply classification failure holds the watermark (the failed reply keeps analyzed_at null and is re-scored next pass), still stores the labelled reply, and raises SENTIMENT_API_FAILED through the probe. STAGING ONLY - pins per-reply and media-sentiment nodes production does not have.",
+      "watermarkWriterPinned": false,
+      "expected": {
+        "reaches": [
+          "Insert or update replies",
+          "If Safe To Advance Watermark (Analyzed)",
+          "Get Reply Status Counts",
+          "Build Truncation Alert"
+        ],
+        "doesNotReach": [
+          "Advance Run State"
+        ],
+        "runState": "UNCHANGED",
+        "stagingOnly": true,
+        "asserts": {
+          "classification_failed_count": 1,
+          "failed_reply_ids": [
+            "9003"
+          ],
+          "scheduler_alert_type": "SENTIMENT_API_FAILED",
+          "watermark": "hold"
+        }
+      }
+    },
+    {
+      "id": "cheat-sheet-per-client-isolation",
+      "file": "cheat-sheet-per-client-isolation.pinData.json",
+      "input": "2 tracked users on 2 different clients, 1 qualifying post and 1 new reply each, both clients holding a different active cheat sheet",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Get Active Cheat Sheets",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)"
+      ],
+      "expected": {
+        "reaches": [
+          "Get Active Cheat Sheets",
+          "Build Analyzer Batches",
+          "Classify Sentiment",
+          "Merge Sentiment Results"
+        ],
+        "asserts": {
+          "batch_count": 2,
+          "client A": {
+            "client_id": "f7317adc-eea5-49db-81bf-8b2393a93c89",
+            "cheat_sheet_version": 3,
+            "canary": "CANARY_ALPHA",
+            "post_count": 1
+          },
+          "client B": {
+            "client_id": "11111111-2222-3333-4444-555555555555",
+            "cheat_sheet_version": 5,
+            "canary": "CANARY_BRAVO",
+            "post_count": 1
+          }
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "proves": "Each client gets one OpenAI call carrying only its own posts and only its own rules. The two contiguous client_id+cheat_sheet_version pairings are the isolation proof: a merge, or a sheet handed to the wrong client, breaks both.",
+      "whyItMatters": "Stance rules are client-specific. Leaking one client’s rules into another client’s replies would actively degrade labelling rather than fail loudly."
+    },
+    {
+      "id": "cheat-sheet-absent-fallback",
+      "file": "cheat-sheet-absent-fallback.pinData.json",
+      "input": "1 tracked user with NO active cheat sheet (Get Active Cheat Sheets pinned to a single empty item, which is what alwaysOutputData emits for 0 rows), plus a post whose author is not in Tracked Users",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Get Active Cheat Sheets",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)"
+      ],
+      "expected": {
+        "reaches": [
+          "Build Analyzer Batches",
+          "Classify Sentiment",
+          "Merge Sentiment Results",
+          "Insert or update replies"
+        ],
+        "asserts": {
+          "cheat_sheet_version": 0,
+          "fallback_text": "No client-specific labelling rules are configured",
+          "untracked_author_client_id": "unknown"
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "proves": "An empty \"Sentiment Cheat Sheets\" table degrades to general judgement instead of stalling the analysis branch, and a post whose author is not in Tracked Users is still analyzed rather than silently dropped.",
+      "whyItMatters": "Get Active Cheat Sheets is a credentialed node in the main path. Without alwaysOutputData a 0-row result would emit no items and silently kill every downstream node, including storage and alerting."
+    },
+    {
+      "id": "tenancy-two-clients-one-pass",
+      "file": "tenancy-two-clients-one-pass.pinData.json",
+      "phase": "T3",
+      "input": "Two clients, one tracked account and one alerting post each (20 replies, 3 of 4 negative = 0.75), both crossing in the same pass. Both have an active Client Members chat with receives_alerts.",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "Build Negative Alert Notification",
+          "Send Negative Alert Notification"
+        ],
+        "asserts": {
+          "telegram_item_count": 2,
+          "chat 9900000001": [
+            "9990000000000000101"
+          ],
+          "chat 9900000002": [
+            "9990000000000000202"
+          ],
+          "developer_alerts": 0
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "proves": "Cases 1, 2 and 3 of the T3 table. Each chat receives exactly its own client's post, and neither message contains the other client's post id or post text.",
+      "whyItMatters": "Pre-T3 Get Telegram Users read the whole table and Build Negative Alert Notification emitted one alert per recipient per post, so this same input produced four alerts and each chat saw both clients' post text and reply counts."
+    },
+    {
+      "id": "tenancy-client-b-no-recipient",
+      "file": "tenancy-client-b-no-recipient.pinData.json",
+      "phase": "T3",
+      "input": "The same two clients and posts, but client B has no active Client Members row with receives_alerts. Get Alert Recipients LEFT JOINs, so B arrives as a row with a null chat_id.",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "Send Negative Alert Notification",
+          "Build Scheduler Developer Alert",
+          "Send Scheduler Developer Alert"
+        ],
+        "asserts": {
+          "telegram_item_count": 1,
+          "chat 9900000001": [
+            "9990000000000000101"
+          ],
+          "scheduler_alert_type": "NO_TELEGRAM_RECIPIENTS",
+          "developer_alert_names": "Tenancy Test B"
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "proves": "Case 4. The NO_TELEGRAM_RECIPIENTS alert is raised per client and names the misconfigured one, while the other client's alert still sends in the same pass.",
+      "whyItMatters": "The pre-T3 alert was global and returned early, so one client with no recipients suppressed every other client's alerts for that pass."
+    },
+    {
+      "id": "tenancy-receives-alerts-false",
+      "file": "tenancy-receives-alerts-false.pinData.json",
+      "phase": "T3",
+      "input": "One client whose only member has receives_alerts = false. The recipient query filters on cm.receives_alerts, so the member never appears with a chat_id.",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "Build Scheduler Developer Alert",
+          "Send Scheduler Developer Alert"
+        ],
+        "asserts": {
+          "telegram_item_count": 0,
+          "scheduler_alert_type": "NO_TELEGRAM_RECIPIENTS"
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "proves": "Case 5. A member opted out of alerts receives nothing, and the silence is reported to the developer chat rather than being silent.",
+      "whyItMatters": "This is the fixture that will change behaviour the day the operator row flips receives_alerts to false. It pins what that flip does before anyone performs it."
+    },
+    {
+      "id": "backfill-new-post-full-window",
+      "file": "backfill-new-post-full-window.pinData.json",
+      "input": "One post created at 10:00 that only now crossed min_replies, watermark at 14:00, four replies of which three predate the watermark",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Probe OpenAI Error Reason",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert"
+      ],
+      "expected": {
+        "reaches": [
+          "Get Backfilled Post Ids",
+          "Build Replies Query",
+          "Send Negative Alert Notification"
+        ],
+        "asserts": {
+          "is_backfill": true,
+          "start_time": "2026-08-24T09:59:00.000Z",
+          "new_reply_count": 4,
+          "analyzed_count": 4,
+          "alert_now": true
+        }
+      },
+      "why": "A post is invisible to the reply fetcher until its X reply_count crosses the client's min_replies. By then every reply it already has is older than the watermark window, so a watermark-anchored search skips them and never asks again -- the replies are lost, not merely delayed. Production post 2095516553672380450 lost 9 of 13 replies exactly this way on 2026-09-04. Get Backfilled Post Ids reports the post as uncollected, so the window must start one minute before the post's own created_at (09:59), not at 13:50.",
+      "environmentNeutral": "Runs against BOTH schedulers. Get Active Cheat Sheets and Classify Media Replies are deliberately NOT pinned because they exist only in staging and pin data naming an absent node is a hard error; the defect this covers is a production one, so the fixture must not be staging-only. Unpinned, the cheat-sheet lookup is a read-only SELECT and the media classifier is unreachable (no reply carries an attachment). Green in both: production 21617, staging 21619."
     }
+  ],
+  "tenancyFixtures": {
+    "note": "The tenancy-* fixtures are the T3 gate: per-client alert routing. Both ends of the routing are pinned -- Get Tracked Users supplies each account's client and thresholds, Get Alert Recipients supplies the resolved Client Members -- so they touch no database and run against either scheduler.",
+    "offlineEquivalent": "tests/n8n/t3-alert-routing-fixtures.test.mjs replays these three fixtures through the real Code-node bodies with no n8n access, and asserts the same table. It proves the logic, not the wiring or the publish state.",
+    "case6": "The per-client threshold case is exercised by mutating client_min_replies and client_negative_threshold in the offline replay rather than by a fourth fixture, because it needs two runs over the same input."
+  }
 }

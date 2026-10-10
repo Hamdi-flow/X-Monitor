@@ -14,14 +14,20 @@ production.
 - Environment: staging
 - Active: no
 - Local export: `workflows/staging/xmonitor-scheduled-post-tracking-staging.json`
-- Last observed live update: `2026-09-04T10:26Z` (draft `e04f9e2f-8cc7-4dea-9edb-e850cc95a73f`; inactive by design, so there is no active version to match)
+- Last observed live update: `2026-10-10T08:46Z` (draft `449eabf2-c73e-43f5-8270-61161b4d4839`; inactive by design, so there is no active version to match)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 
-> **In parity with production as of 2026-08-25.** The Phase 1 incremental-replies rebuild
-> was validated here and promoted to `Emb26wP77eFXgnVi` on 2026-08-25, so the two are
-> structurally equivalent again. Keep them that way: validate changes here first, then
-> promote, and remember production runs a **published version** - saving a draft there does
-> not change live behaviour until it is published.
+> **Staging is ahead of production.** The Phase 1 incremental-replies rebuild was promoted
+> on 2026-08-25 and per-post backfill on 2026-09-04, but staging has since gained reply media
+> sentiment, the per-client cheat sheet, and — as of 2026-10-10 — **per-reply sentiment
+> classification** (see [Per-Reply Sentiment Classification](#per-reply-sentiment-classification---2026-10-10)),
+> none of which is in `Emb26wP77eFXgnVi`. Validate changes here first, then promote, and
+> remember production runs a **published version** - saving a draft there does not change
+> live behaviour until it is published.
+>
+> The local export was re-synced from live on 2026-10-10. Before that it had drifted: live
+> carried `Build Post Metrics Refresh` / `Refresh Post Metrics` and newer `Prepare Post Data`,
+> `Get Reply Status Counts` and `Get Stored Post Counts` parameters that the export lacked.
 
 ## Important Variables
 
@@ -45,7 +51,9 @@ production.
 | Chunk pacing | `Get Replies` | `batchSize=1`, `batchInterval=1100ms` | Keeps chunked fan-out under X's 1 request/second ceiling. |
 | Page pacing | both X searches | `requestInterval=1100ms` | Same ceiling, applied between pages. |
 | Hidden/visible negative counts | `Get Reply Status Counts` | All stored `sentiment='Negative'` replies for the post, joined to `Replies.status` | Counts hidden and visible replies across **stored** negatives, not just the current run's. |
-| OpenAI model | `Analyze Sentiment with ChatGPT` | `gpt-5.4-mini` | Must stay identical to production. Aligned 2026-08-24 (was `gpt-4o-mini`). |
+| OpenAI model | `OpenAI Sentiment Model` (feeds `Classify Sentiment`) | `gpt-5.4-mini`, `temperature 0` | Must stay identical to production (`Analyze Sentiment with ChatGPT` there). Aligned 2026-08-24 (was `gpt-4o-mini`). |
+| Classification shape | `Build Analysis Plan` → `Classify Sentiment` | **one model call per new reply**, batches of `5`, `1000 ms` between batches, `retryOnFail` ×3, auto-fixing on | Since 2026-10-10. Production still sends every new reply in one batched JSON call. See [Per-Reply Sentiment Classification](#per-reply-sentiment-classification---2026-10-10). |
+| Post text in the prompt | `Build Analysis Plan`, `composeClassifierInput` | cut at `1000` chars | Same cap as IG - Monitor's caption. |
 
 ## Incremental Reply Fetching
 
@@ -315,15 +323,20 @@ Primary staging differences:
 
 ## OpenAI Failure Handling
 
-`Analyze Sentiment with ChatGPT` runs with `onError: continueErrorOutput`. When the OpenAI
-call fails, the run **aborts cleanly instead of crashing**: the whole main branch
-(sentiment counts, `Posts`/`Replies` upserts, reply status counts, negative-sentiment
-Telegram alert) is skipped, and the error output goes to the developer alert path instead.
+`Classify Sentiment` runs with `onError: continueErrorOutput` and `retryOnFail` ×3. A reply
+whose call still fails lands on the node's error output; `Collect Sentiment Labels` leaves it
+out of `results` and counts it, and `If Any Classification Failed` sends the probe below down
+the developer alert path. The replies that did classify are stored and alerted on; the failed
+ones are not stored and the watermark is held so they are re-scored next pass. When every
+reply fails the main branch stores nothing, which is the same clean abort the batched call
+had. See [How a failed reply is counted](#how-a-failed-reply-is-counted). (Production's
+batched `Analyze Sentiment with ChatGPT` still aborts the whole pass from its output 1.)
 
 | Node | Role |
 | --- | --- |
-| `Probe OpenAI Error Reason` | HTTP Request, output index 1 of the sentiment node. One minimal `chat/completions` call with `fullResponse` + `neverError`, so the raw provider error is readable. |
-| `Build Sentiment Failure Alert` | Classifies the probe result and shapes it for `Build Scheduler Developer Alert`. |
+| `If Any Classification Failed` | `classification_failed_count > 0` on `Collect Sentiment Labels`' single output item. Runs once per pass, so the probe is one call however many replies failed. |
+| `Probe OpenAI Error Reason` | HTTP Request. One minimal `chat/completions` call with `fullResponse` + `neverError`, so the raw provider error is readable. |
+| `Build Sentiment Failure Alert` | Classifies the probe result, adds the planned / classified / failed counts and failed reply ids, and shapes it for `Build Scheduler Developer Alert`. |
 
 **Why the probe exists.** n8n's `continueErrorOutput` propagates only its own generic
 message (`The service is receiving too many requests from you`). The OpenAI `description`
@@ -372,10 +385,16 @@ produced. Revert the page size afterwards.
 - If changing thresholds or schedule cadence, update both staging and production docs once promoted.
 - Manual execution can read/write staging Supabase, call X/OpenAI, and send staging Telegram messages unless nodes are pinned. A live run now costs real money per post resource returned, so keep runs deliberate and few.
 - Telegram negative-sentiment alerts use a professional, metric-first HTML layout that displays post author, total X replies, analyzed replies, negative replies, and hidden/visible counts within those negative replies. "Analyzed replies" is now the **running** denominator (`Posts.analyzed_count`), not the count fetched in that run.
-- Anything that inserts a node between `Analyze Sentiment with ChatGPT` and
-  `Calculate/Filter Sentiment Counts` must keep reading the model output through
-  `$('Analyze Sentiment with ChatGPT')`. That node's own `items` are the stored-count rows,
-  not the analysis. This already caused one failure during development.
+- Anything that inserts a node between `Collect Sentiment Labels` and
+  `Calculate/Filter Sentiment Counts` must keep reading the labels through
+  `$('Collect Sentiment Labels')` (production: `$('Analyze Sentiment with ChatGPT')`). The
+  intermediate nodes' own `items` are the stored-count rows, not the analysis. This already
+  caused one failure during development.
+- The classifier's system prompt lives in `Classify Sentiment` and is an **expression** so
+  the per-client cheat sheet can be injected. It is a LangChain template underneath: a
+  literal `{` or `}` anywhere in it, cheat sheet text included, is read as a placeholder.
+  `Build Analysis Plan` doubles braces in the cheat sheet block for that reason; keep the
+  base prompt brace-free apart from `{categories}`.
 
 ## Reply Media Sentiment (Option C) - added 2026-08-24
 
@@ -499,12 +518,15 @@ Two nodes were inserted between `If Has New Replies` and `Analyze Sentiment with
 | Node | Role |
 | --- | --- |
 | `Get Active Cheat Sheets` | Postgres. `SELECT client_id, version, rules_text FROM "Sentiment Cheat Sheets" WHERE status = 'active'`. Drafts are excluded - they wait for human activation. |
-| `Build Analyzer Batches` | Code. Groups posts by client (`Tracked Users.user_id` -> `client_id`) and emits **one item per client**, each carrying only that client's posts and that client's rules. |
+| `Build Analyzer Batches` | Code. Groups posts by client (`Tracked Users.user_id` -> `client_id`) and emits **one item per client**, each carrying only that client's posts and that client's rules. **Replaced on 2026-10-10 by `Build Analysis Plan`**, which does the same lookup per reply item; `client_id` / `cheat_sheet_version` / `cheat_sheet_block` keep their names and the `unknown` fallback. |
 
 `Analyze Sentiment with ChatGPT` gained a **second system message** holding
 `{{ $json.cheat_sheet_block }}`. The base prompt was left as a literal string on purpose: it
 contains JSON braces, and converting it to an expression would make it one stray `}}` away
-from breaking the whole scheduler at runtime.
+from breaking the whole scheduler at runtime. *(2026-10-10: `Classify Sentiment` has a single
+system prompt, so the block is now injected by expression into an otherwise brace-free
+prompt; `Build Analysis Plan` doubles any brace inside the rules because the prompt is a
+LangChain template.)*
 
 ### Why one call per client
 
@@ -643,3 +665,151 @@ execute against the real database with real credentials. Execution 18865 then re
 acceptance table with `Get Alert Recipients` **unpinned** against three real synthetic clients,
 so the recipient query itself is proved, not just the fan-out that consumes it. Production's
 first pass under T3 is 18854. See §12d of `docs/architecture/multi-tenant-and-web-ui.md`.
+
+## Per-Reply Sentiment Classification - 2026-10-10
+
+Staging now classifies **one reply per model call**, the way IG - Monitor (Production,
+`Be8WZuoQf0S0sdgV`) classifies one comment per call. Until this change X sent every new reply
+of every post in a single batched JSON call per client and parsed a `{"results":[...]}` blob
+back; Instagram and Facebook never did. The three monitors are meant to converge on one
+shared prompt (to be kept in a Supabase table) plus an image analyzer per platform, and X was
+converted first so that unification starts from the same per-item shape everywhere.
+
+Downstream behaviour is unchanged apart from the labels themselves: counts, the per-client
+threshold, alert text and buttons, both upserts, the stored-count ratio and the watermark all
+read the same `{results:[...]}` shape they always did. It is now produced by
+`Collect Sentiment Labels` instead of the model.
+
+### What changed
+
+| Node | Change |
+| --- | --- |
+| `Get Replies` | `tweet.fields` gained `author_id` so a reply written by the account owner can be marked. Fields are free; no extra resource cost. |
+| `Attach replies to posts` | Each reply object now carries `author_id`. Nothing else moved. |
+| `Build Analyzer Batches` | **Removed.** |
+| `Build Analysis Plan` | **New** (Code). One item per new reply, read from `Attach replies to posts`' `text`. Carries the post, the owning client and its cheat sheet (`client_id` / `cheat_sheet_version` / `cheat_sheet_block`, unchanged semantics, `unknown` fallback kept), the reply, `is_owner_reply`, and `classifier_input` built by `composeClassifierInput` exactly as IG's `Build Analysis Plan` builds it: `Account owner: @username (display name)`, the post text in place of the caption inside `<caption>` tags cut at 1000 chars, then the reply inside `<comment>` tags, marked `(written by the account owner)` when it is. |
+| `Analyze Sentiment with ChatGPT` | **Removed.** |
+| `Classify Sentiment` | **New** (`@n8n/n8n-nodes-langchain.sentimentAnalysis` v1.1). Input `{{ $json.classifier_input }}`, categories `Positive, Neutral, Negative`, `includeDetailedResults`, `enableAutoFixing`, batches of 5 with 1000 ms between batches, `retryOnFail` ×3, `onError: continueErrorOutput`. The system prompt is IG - Monitor's verbatim with "Instagram account" / "caption" / "comment" wording adapted to X posts and replies; the per-client cheat sheet block is injected between the rules and the closing `Categorize the reply into ...` line. |
+| `OpenAI Sentiment Model` | **New** (`lmChatOpenAi` v1.3), `gpt-5.4-mini`, `temperature 0`, `OpenAi account 2`. Same model as production's batched call. |
+| `Tag Positive` / `Tag Neutral` / `Tag Negative` | **New** (Set). Stamp `sentiment` on the three category outputs. Copied from IG. |
+| `Tag Failed` | **New** (Set). Stamps `classification_failed: true` on the node's error output. |
+| `Merge Sentiment Results` | **New** (Merge, append, 4 inputs). |
+| `Collect Sentiment Labels` | **New** (Code). Regroups the labelled items by post into `{results:[{postId, postText, userId, postAuthor, authorUsername, authorName, replies:[{id, sentiment, text, author_id, is_owner_reply}]}]}` and emits `planned_reply_count`, `classified_reply_count`, `classification_failed_count`, `failed_reply_ids`, `analysis_complete`. Feeds `Get Stored Post Counts` (main path) and `If Any Classification Failed`. |
+| `If Any Classification Failed` | **New** (If). `classification_failed_count > 0` → `Probe OpenAI Error Reason` → `Build Sentiment Failure Alert` → developer alert. |
+| `Build Media Classify Requests` | Only pays for images on replies that received a text label this pass; a reply whose classification failed is re-scored next pass anyway. |
+| `Apply Media Sentiment` | Reads `$('Collect Sentiment Labels')` instead of the removed analyzer. |
+| `Build Sentiment Failure Alert` | Reads the counts from `Collect Sentiment Labels` and says how many replies failed out of how many, whether the rest were stored, and that the watermark was held. The three `scheduler_alert_type` values are unchanged. |
+| `If Safe To Advance Watermark (Analyzed)` | Second condition: `classification_failed_count == 0`. |
+
+### How a failed reply is counted
+
+The Sentiment Analysis node's error output carries only `{error}`; the original fields are
+dropped by n8n. So `Collect Sentiment Labels` does not trust the error items - it takes the
+**set difference** between `Build Analysis Plan` and the labelled items. Any planned reply
+without a valid label is a failure, whichever way it was lost.
+
+A failed reply is **not stored and not counted**: it is left out of `results`, so it never
+reaches `Prepare Reply Data`, keeps `analyzed_at = null`, and is not part of the denominator.
+The replies that did get a label are stored, counted and alerted on normally. Then:
+
+- `If Safe To Advance Watermark (Analyzed)` sees `classification_failed_count > 0` and
+  **holds the watermark**, so the next pass re-reads the window, `Get Analyzed Reply Ids`
+  keeps the stored ones out, and only the failed replies are sent to the model again.
+- `If Any Classification Failed` sends the probe down the existing failure path, so the
+  developer alert fires with the real provider reason (`SENTIMENT_NO_OPENAI_CREDITS`,
+  `SENTIMENT_RATE_LIMITED` or `SENTIMENT_API_FAILED`) and the failed reply ids.
+
+If **every** reply fails (credits, outage), `Merge Sentiment Results` still runs on the error
+input alone, `results` is empty, the main branch stores nothing (`Split Out Reply Analysis`
+emits no items), the watermark is held and the alert fires - the same outcome the batched
+abort had. The trade-off is deliberate: a reply the model can never label would hold the
+watermark every hour and the re-read window would grow. That was already true of a
+persistently failing batched call, and a held marker only costs re-reads, whereas an advanced
+one loses the reply forever.
+
+### Cost: one call per reply
+
+Per run, OpenAI calls go from **one per client** to **one per new reply** (plus the existing
+per-media-reply call, unchanged). Each call carries the full system prompt (about 600 tokens
+with the cheat-sheet fallback), the node's format instructions, the post text and one reply,
+so input tokens scale with replies × prompt rather than with replies alone.
+
+Measured on live execution `44787` (104 replies, one post) against the last batched staging
+run `41028` (13 replies, one post, 2026-10-03):
+
+| | Batched (production today) | Per reply (staging now) |
+| --- | --- | --- |
+| Calls per run | 1 per client with new replies (+1 per media reply) | 1 per new reply (+1 per media reply) |
+| Prompt tokens | 1,921 for 13 replies, about 150 per reply | 104,613 for 104 replies, about 1,006 per reply |
+| Completion tokens | about 30 per reply (the JSON echo of id, text and label) | about 22 per reply (`{"sentiment","strength","confidence"}`) |
+| Tokens per reply | about 180 | about 1,030 (5.7x) |
+| Wall time | 3.9 s for 13 replies | 43 s for 104 replies (batches of 5, 1 s apart, about 0.9 s per call) |
+
+At the list price third-party trackers quote for `gpt-5.4-mini` on 2026-10-10 ($0.75 per
+million input, $4.50 per million output; not verified against OpenAI's own page) that is
+about **$0.00025 per reply batched versus $0.00085 per reply per-reply**, i.e. the 104-reply
+run above cost about $0.09 instead of about $0.03. Per-reply prompt tokens are almost all the
+fixed system prompt plus format instructions, so the ratio does not change with volume.
+Also note the wall time: `Classify Sentiment` spends roughly 0.4 s per reply, so a 500-reply
+pass sits in the model for about 3.5 minutes where the batched call took seconds.
+
+The old batched call was cheaper per label and will stay so; the point of per-reply is that
+every label is judged with the post and owner in context, the same way on all three
+monitors, and that one malformed answer no longer discards the whole pass.
+
+### Validation
+
+Pinned fixtures (`tests/n8n/scheduled-tracking-pins/`, all 21 green on 2026-10-10, executions
+`44761`-`44784`). Twelve fixtures were converted from the `Analyze Sentiment with ChatGPT` pin
+to the `Classify Sentiment` + `Merge Sentiment Results` pair (see the suite README for why
+two pins), two cheat-sheet fixtures were completed so every planned reply has a label, and
+`watermark-classification-failed-holds` is new: one of two replies fails, the other is still
+stored, `SENTIMENT_API_FAILED` is built through a pinned probe, and `Run State` is proven
+unchanged (`44776`, `44784`).
+
+Live, on real data:
+
+| Execution | What ran | Result |
+| --- | --- | --- |
+| `44785` | `tests/n8n/reply-sentiment-live-staging.test.mjs` probe pass, 7-day lookback | X returned 0 replies: the 108-reply target post (`2089952031398125613`, 2026-08-24) is now older than the replies window floor. Nothing mutated, snapshot restored byte-identical. |
+| - | `Build Replies Query` `LOOKBACK_DAYS` raised to 60 **temporarily** (draft `d29ca287`) | Same trick as the page-size one above; reverted to 7 afterwards (draft `1a3baa1f-b081-47d8-a04c-ab09837f6a5c`, which is the exported version). |
+| `44786` | probe pass, 60-day lookback | X returned 104 of the 108 stored replies across 2 pages; quiet pass, no OpenAI, no alert. |
+| `44787` | **live pass**: 52 replies deleted (INSERT path) + 52 nulled (ON CONFLICT path) + 4 untouched; real X search, real `Classify Sentiment`, real upserts, real Telegram | `Build Analysis Plan` 104 items; `Classify Sentiment` outputs 14 Positive / 6 Neutral / 84 Negative / **0 failed**, no auto-fix retries; `Collect Sentiment Labels` `classified 104, failed 0, analysis_complete true`; all 104 rows persisted with `sentiment` + `analyzed_at`; `analyzed_count 108 = 4 stored + 104 new`, `negative_ratio 0.806`, `alert_now true`; alert delivered (message 232, one recipient); `If Any Classification Failed` took the false branch; `If Safe To Advance Watermark (Analyzed)` took the true branch and `Advance Run State` ran. Post, replies and `Run State` restored from the snapshot afterwards. |
+
+**Old labels versus new labels on the same 104 real replies** (old = the batched prompt in
+August, new = the per-reply IG prompt). Agreement 77/104. Rows are the old label, columns
+the new one:
+
+| | Negative | Neutral | Positive |
+| --- | --- | --- | --- |
+| Negative | 70 | 0 | 9 |
+| Neutral | 13 | 6 | 4 |
+| Positive | 1 | 0 | 1 |
+
+The two big movements are what the prompt change was for. Thirteen replies the batched call
+called Neutral are now Negative: sarcastic or dismissive one-liners aimed at the author
+("شايفة حالك بالمراية؟", "مين انتي؟", "اوك نفخيه"). Nine replies it called Negative are now
+Positive: they are disgusted, but at the programme the post itself attacks ("عنجد مقرف 🤮",
+"خلطة قرف"), and the IG prompt judges target and stance, not tone, so agreeing with the
+owner's criticism of a third party is Positive. Both directions are intended; neither is a
+defect. The remaining deltas are the usual ambiguous cases ("طبعا", "ما عدا الطعام😔"). No
+manual labels exist in staging yet (`Replies.manual_sentiment` is null everywhere), so this
+is a comparison between two models' opinions, not an accuracy score.
+
+`Classify Sentiment`'s auto-fixing output parser is the thing the parked
+`XMonitor - Scheduled Post Tracking Native Sentiment Staging` (`f2eFqB2wO91HAYMJ`) attempt
+could not get past in July (`Error during parsing of LLM output` on `gpt-4o-mini`, then
+provider throttling). With `gpt-5.4-mini` and IG's configuration it parsed every reply above
+without a single auto-fix retry, so that workflow and its benchmark remain parked, not revived.
+
+### Not yet done
+
+- **Production promotion.** `Emb26wP77eFXgnVi` still runs the batched call. Promotion is the
+  node list above plus the staging-only nodes production also lacks (reply media sentiment,
+  `Get Active Cheat Sheets`), with production credentials, `errorWorkflow`
+  `UmKr9JkZ3ec3GDH5`, the `author_id` field on `Get Replies`, and a **publish** after the
+  draft is written. The pinned suite now targets the per-reply graph, so run it against
+  production only after promotion; until then `tests/n8n/t3-alert-routing-fixtures.test.mjs`
+  keeps the production export covered offline.
+- The shared Supabase-held prompt and the X image analyzer are separate pieces of work; this
+  change only put X on the same per-item shape as Instagram.
