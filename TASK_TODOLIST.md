@@ -53,6 +53,86 @@ Notes:
 
 ## Open Tasks
 
+### Move the SMMWiz API key out of workflow parameters and rotate it
+
+- Status: in progress (staging router done 2026-10-03; production and polling pending)
+- Priority: high
+- Complexity: `M`
+- Source: n8n MCP validator `SET_CREDENTIAL_FIELD`, 2026-10-03
+
+Design:
+
+1. Staging router `oLwwjO05IcRjtF8E`, **done**: removed `apiKey` from `Set Comment Service Config`,
+   `Set Likes Service Config`, `Prepare Comment Order Request`, `Prepare Likes Order Request`.
+   Removed the `key` body param from `Place Comment Order` / `Place Likes Order`. Both now use
+   `genericCredentialType` / `httpTemplatedCustomAuth`. Published as `66db1fd5-…`.
+2. User: create the credential in the n8n UI (template `{"body":{"key":"{{api_key}}"}}`, key in
+   the secret field, name e.g. `SMMWiz API (Staging)`) and bind it to both order nodes. Use the
+   **rotated** key, not the leaked one.
+3. Prove injection without touching SMMWiz: a temporary inactive workflow whose HTTP Request node
+   uses the same credential and content type, posting to a temporary in-instance webhook that
+   returns only `has_key` and `key_length`. Delete both afterwards.
+4. Production router `cWczsttyDbTBbRAC`: same six-node change, bound to a production
+   credential. Needs explicit approval.
+5. Order status polling (staging `Attach SMM Status Config` + `Check Provider Order Status`,
+   and production): the same key, same pattern. Not in the original scope.
+6. Rotate the key in the SMMWiz panel. It is in git history (3 commits) and in stored
+   execution data of every order and pinned run on both routers (e.g. staging 41002–41007).
+
+Validation:
+
+- Pinned order fixtures (6) on staging: 41008–41013 all pass, and no `apiKey` in item data.
+- `tests/n8n/telegram-router-retry-guard.test.mjs`: 4/4 pass after the change.
+- Injection proof (step 3) before the first live staging order.
+
+Open Questions:
+
+- Rotate first, or promote first? Recommendation: create the credentials with the new key,
+  promote, then revoke the old key, so production never runs on a revoked key.
+- Rewrite git history (`git filter-repo`) or rely on rotation? Recommendation: rotation alone,
+  since a rewrite does not reach existing clones or n8n execution data.
+
+Notes:
+
+- The local exports for the prod router and both polling workflows now carry
+  `REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL` in place of the value, so they intentionally
+  differ from live in that one field. Do not re-import them as-is.
+- Until a staging credential is bound, live staging orders fail at the order node, closed and
+  with no charge.
+
+### Hide replies by percentage — staging done, production promotion pending
+
+- Status: open — staging live and published 2026-10-03; production not promoted
+- Priority: medium
+- Complexity: `M`
+- Source: user request 2026-10-03
+
+Design:
+
+1. The alert button `hide_replies:<id>`, `/hide POST_ID` and `/hide_replies POST_ID` open a menu with 25% / 50% / 75% / 100% / Custom %. Choices arrive as `hide_pct:<id>:<pct|custom>`; Custom opens a send-and-wait number form. `/hide POST_ID PERCENT` applies directly.
+2. The percentage is a **target share of stored `Negative` replies**. Already-hidden negatives count toward it, and the rest are picked oldest first by snowflake reply ID. `target = ceil(negatives × pct / 100)`.
+3. This also fixes a pre-existing bug: the hide branch queued every stored reply for the post, including Neutral, Positive and unanalyzed ones.
+4. Also fixed while in the switch: its fallback output was unwired (Default Help sat on `LIST_CLIENTS`), so unknown commands got no reply.
+5. Workflow: staging router `oLwwjO05IcRjtF8E`. Doc: `docs/workflows/xmonitor-telegram-router-staging.md` § "Hide Replies By Percentage".
+
+Validation:
+
+- [x] Local logic checks for the parser, validator, queue builder and summary.
+- [x] Pinned staging runs on the draft: `40971` menu, `40972` 50% with oldest-first ordering, `40973` invalid 150%, `40974` unknown command → Default Help, `40975` custom 34% form, `40976` 100% mixed sentiments, `40977` all hidden, `40978`–`40980` tenancy (cross-tenant refused, same-tenant and staff authorized). No live X, Supabase or Telegram writes.
+- [x] Published: `versionId` = `activeVersionId` = `d4b403b4-c7b7-40e2-8273-72bfcb301fc6`.
+- [x] Staging bot command menu updated (`@XmonitorBetaBot`, default and `all_private_chats` scopes).
+- [ ] Optional live staging check: press Hide on a real staging alert and pick a percentage. This only writes `Moderation Queue` rows, but the active staging drain will then hide those replies on X, which needs explicit approval.
+- [ ] Production promotion of router `cWczsttyDbTBbRAC` (same nodes, production credentials), pinned production runs, production command-menu update. Needs explicit approval.
+
+Open Questions:
+
+- Production router `cWczsttyDbTBbRAC` has an unpublished draft (`adf487cc…`, saved 2026-09-04) that differs from its published version (`a645e560…`) in five nodes: `Clear Telegram User Links`, `Update Post Status`, `If Status Origin Is Callback`, `If Edit Resume Button`, `Route Client Admin Intent`. Promotion would publish that draft too. Decide whether it ships or gets discarded first.
+
+Notes:
+
+- Lowering the percentage does not cancel rows queued by an earlier, higher request that is still draining.
+- The n8n command-menu utility `Rwsu0hUtYA0Ithpl` still carries the old `/hide_replies` description; only `scripts/set-telegram-bot-commands.ps1` was updated and run.
+
 ### Fix the scheduler alert chain: only the first recipient is alerted, and lookups fan out per reply
 
 - Status: open — found 2026-08-29 during live staging verification, not yet fixed

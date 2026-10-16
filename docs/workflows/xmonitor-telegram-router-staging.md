@@ -10,8 +10,8 @@ Staging copy of the production Telegram router. This is the preferred workflow f
 - Environment: staging
 - Active: yes
 - Local export: `workflows/staging/xmonitor-codex-staging.json`
-- Node count: `127`
-- Last observed live update: `2026-07-11T09:33:28Z`
+- Node count: `155`
+- Last observed live update: `2026-10-03T08:17:07Z` (published, `activeVersionId` `d4b403b4-c7b7-40e2-8273-72bfcb301fc6`)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 - Main trigger node: `Telegram Trigger`
 
@@ -30,7 +30,36 @@ Important staging deltas:
 | Error workflow | Staging developer error alerts | none configured in export |
 | Credentials | Staging Supabase/Postgres/Telegram where configured | Production credentials |
 | Hide replies | **Enqueues into `Moderation Queue`**; hiding and failure alerts belong to the drain workflow | Same since the 2026-08-27 promotion |
+| Hide percentage | Menu + `/hide POST_ID PERCENT`; percentage of stored **negative** replies, oldest first. See below. | **Not promoted.** Hides every stored reply for the post, whatever its sentiment. Unknown commands get no reply there either (unwired fallback). |
 | Order placement retry | `retryOnFail: false` explicit on `Place Comment Order` and `Place Likes Order` | Same, set in the same change on 2026-08-25 |
+| SMM API key | n8n credential (`httpTemplatedCustomAuth`) on both order nodes; no `apiKey` in any Set node | Still a plain-text `apiKey` in `Set Comment Service Config` / `Set Likes Service Config`; not promoted |
+
+## SMM API Key Lives In A Credential
+
+Changed 2026-10-03. The SMMWiz key used to be a plain-text `apiKey` assignment in
+`Set Comment Service Config` and `Set Likes Service Config`. It was copied forward through
+`Prepare Comment Order Request` / `Prepare Likes Order Request` and sent as the `key` form
+field. That put it in every export, in git history, and in the stored item data of every
+order execution.
+
+Now:
+
+- None of the four Set nodes has an `apiKey` assignment.
+- `Place Comment Order` and `Place Likes Order` use `authentication: genericCredentialType`,
+  `genericAuthType: httpTemplatedCustomAuth`, and no longer list `key` in their body
+  parameters. The credential injects `key` into the same form-urlencoded body, so SMMWiz
+  should still receive `key`, `action=add`, `service`, `link`, `comments`/`quantity`.
+- The credential has to be created and bound **in the n8n UI**, because the n8n MCP cannot
+  create credentials. Template: `{"body":{"key":"{{api_key}}"}}`, with the key in the
+  secret field. Suggested name: `SMMWiz API (Staging)`.
+- **Until a credential is bound, a live staging `/order_comments` or `/order_likes` fails at
+  the order node and places no order.** It fails closed, but the steps before it on that
+  path (post lookup, comment generation, `Store … Order Post`) will already have run.
+
+The pinned fixtures pin both order nodes. They prove the graph is intact and that no
+`apiKey` appears in item data. They do **not** prove the credential lands in the request
+body. Prove that once with a non-SMM echo before the first live staging order (see
+`TASK_TODOLIST.md`).
 
 ## Order Placement Must Never Retry
 
@@ -52,6 +81,36 @@ Indexes `posts_user_id_idx` and `replies_post_id_idx` still cover the foreign-ke
 
 Fixtures `track-users-soft-delete.pinData.json` and `track-users-invalid-input.pinData.json` cover this branch; `TRACK-FIX-EVIDENCE.md` in the same directory records the pinned and live staging runs and the production promotion.
 
+## Hide Replies By Percentage
+
+**Changed 2026-10-03, staging only — not yet promoted.** The user now picks what share of a post's negative replies should be hidden.
+
+| Input | Intent | Result |
+| --- | --- | --- |
+| Alert button `hide_replies:<post_id>`, `/hide POST_ID`, `/hide_replies POST_ID`, "hide replies of post N" | `HIDE_MENU` | `Build Hide Percentage Menu` sends 25% / 50% / 75% / 100% / Custom % buttons. Nothing is read or written. |
+| Menu button `hide_pct:<post_id>:<25,50,75,100>` | `HIDE_REPLIES` | Applies that percentage. |
+| Menu button `hide_pct:<post_id>:custom` | `HIDE_REPLIES` | `Answer Hide Callback` then `Prompt For Hide Percentage`, a send-and-wait number form like the likes amount prompt. |
+| `/hide POST_ID PERCENT` (`50` or `50%`) | `HIDE_REPLIES` | Applies directly. |
+
+The alert button payload is unchanged (`hide_replies:<post_id>`), so the scheduler did not need to change. Pressing it now opens the menu instead of hiding at once.
+
+`HIDE_REPLIES` goes through `If Hide Percentage Needed` → (form) → `Validate Hide Percentage` → `If Hide Percentage Valid` before `Get Post For Hide`. A missing post ID, extra arguments, or a value outside 1–100 (whole numbers only) goes to `Send Hide Percentage Error` without any lookup. The tenancy gate (`If Hide Authorized`) is unchanged and still runs after validation.
+
+What the percentage means (`Build Hide Queue Items`):
+
+- **Denominator: stored replies with `Replies.sentiment = 'Negative'`.** This is the same set the alert's hidden / not-hidden counts use. Neutral, Positive and unanalyzed replies are never queued. *This also fixes a pre-existing bug:* the branch used to queue every stored reply for the post, whatever its sentiment, because `Replies` started storing every analyzed reply and nothing here filtered by sentiment.
+- **It is a target, not an increment.** `target = ceil(negatives × percent / 100)`; already-hidden negatives count toward it, and only `target − already hidden` more are queued. Pressing 50% twice queues nothing the second time, which is reported as `hide_target_already_met`. Rounding up means 1% of a small post still hides one reply, and 100% always means every negative.
+- **Oldest first, by reply ID.** X reply IDs are snowflakes, so numeric order is creation order on X. `Replies.created_at` is not used because it records when the row was stored, which is late for backfilled replies.
+- `hide_failed` and no-status rows stay eligible, as before.
+
+The queued summary now states the denominator: `Target: 50% of 40 negative replies = 20 hidden`, plus already-hidden and `Queued to hide: N (oldest first)`. No negatives at all sends "Nothing to hide" and skips the no-replies developer alert; that alert still fires only when the post has no stored replies whatsoever.
+
+Known limit: lowering the percentage does not cancel rows an earlier, higher request already queued. Press 75% and then 25% before the drain finishes, and the 75% batch still drains.
+
+### Switch fallback fix
+
+Appending the `HIDE_MENU` rule moved the switch's fallback output from 13 to 14. While doing it we found the fallback had been **unwired**: when the three client-admin rules were added, `Send Default Help` stayed on output 10 (now `LIST_CLIENTS`), so unknown commands got no reply at all (pinned execution `40967`). The fallback (output 14) is now wired to `Send Default Help`, and the stray `LIST_CLIENTS` → `Send Default Help` edge is removed.
+
 ## Hide Replies Enqueues, It No Longer Calls X
 
 **Changed 2026-08-26, promoted to production 2026-08-27.** The hide branch does not call X at all any more. It enqueues, and [XMonitor - Moderation Queue Drain](./xmonitor-moderation-queue-drain-staging.md) does the hiding inside the real per-token quota, woken by a `pg_cron` heartbeat only when the queue has due rows. This implements [limits-and-capacity.md §2.2](../architecture/limits-and-capacity.md) and closes defect G in [multi-tenant-and-web-ui.md](../architecture/multi-tenant-and-web-ui.md).
@@ -59,7 +118,8 @@ Fixtures `track-users-soft-delete.pinData.json` and `track-users-invalid-input.p
 The branch is now:
 
 ```
-Prepare Account For Replies → Get Replies For Post → Build Hide Queue Items → If Replies Found
+Validate Hide Percentage → If Hide Percentage Valid → Get Post For Hide → … → Prepare Account For Replies
+    → Get Replies For Post → Build Hide Queue Items → If Replies Found
     ├─ true  → Enqueue Hide Requests → Build Hide Queued Summary
     │            → Send Hide Queued Summary → Store Queue Message Id
     └─ false → Send No Replies → Build/Send Developer Alert - No Replies
@@ -121,7 +181,7 @@ Staging-specific detail:
 
 - Safe direct checks include `/help`, invalid commands, `/auth_x` link generation with side-effect nodes pinned, and validation failures.
 - For snooze changes, pin Telegram inputs for `snooze:<post_id>`, `snooze_duration:<post_id>:12h`, invalid duration commands, and missing post IDs.
-- Use `tests/n8n/telegram-router-risky-pins/` for `hide_replies`, `order_likes`, and `order_comments` paths. Comment-order coverage includes the amount form's success and invalid-range branches. Hide-replies coverage here is now `hide-replies-enqueue` (mixed statuses: new, null, already-hidden, `hide_failed`) and `hide-replies-all-hidden`.
+- Use `tests/n8n/telegram-router-risky-pins/` for `hide_replies`, `order_likes`, and `order_comments` paths. Comment-order coverage includes the amount form's success and invalid-range branches. Hide-replies coverage here is `hide-replies-enqueue` (mixed statuses and sentiments at 100%), `hide-replies-all-hidden`, `hide-replies-menu`, `hide-replies-percentage` (50%, oldest-first ordering), `hide-replies-custom-percentage` (the form), and `hide-replies-invalid-percentage`; `unknown-command-default-help` covers the switch fallback. Last pinned pass 2026-10-03: executions `40971`–`40980`.
 - The X-facing hide scenarios — success, provider errors, rate limiting, attempts exhaustion — moved to `tests/n8n/moderation-queue-drain.test.mjs` with fixtures in `tests/n8n/moderation-queue-drain-pins/`, because the router no longer calls X. The `hide-replies-success`, `-provider-error`, `-skip-hidden`, `-rate-limit-partial`, and `-rate-limit-precheck` fixtures were deleted on 2026-08-26: they pinned nodes that no longer exist and a static-data precheck that no longer runs.
 - Keep HTTP requests, Telegram sends, Supabase writes, OpenAI generation, and SMM calls pinned when exercising risky paths without explicit live approval.
 - Never run live `hide_replies`, `/order_comments`, or valid `/order_likes` from staging without explicit approval. A live `hide_replies` now only writes queue rows, but activating the drain is what actually hides on X — that needs its own approval.
