@@ -15,15 +15,35 @@ Use each `*.pinData.json` file as the `pinData` argument for n8n MCP
 
 ## Fixtures
 
-- `hide-replies-enqueue.pinData.json`: exercises `hide_replies:<POST_ID>` against
-  four stored replies — `New`, `null`, `hidden`, and `hide_failed`. Verifies the
-  already-hidden row is excluded while `hide_failed` stays eligible, that the
-  three candidates go into `Moderation Queue` as one batch, that the Telegram
-  reply reports the queued count honestly, and that the sent `message_id` is
-  written back so the drain can edit it.
-- `hide-replies-all-hidden.pinData.json`: verifies an all-hidden stored reply
-  set sends a clean user message, writes nothing, and does not send the
+**Since 2026-10-03 the alert button `hide_replies:<POST_ID>` only opens a
+percentage menu.** The fixtures that reach the queue press a menu choice,
+`hide_pct:<POST_ID>:<25|50|75|100|custom>`, instead. Every stored reply now
+carries `sentiment`, because only `Negative` replies are hide candidates.
+
+- `hide-replies-enqueue.pinData.json`: presses 100% against four negative
+  replies — `New`, `null`, `hidden`, `hide_failed` — plus one Neutral and one
+  Positive. Verifies the Neutral and Positive replies are never queued, the
+  already-hidden negative counts toward the target while `hide_failed` stays
+  eligible, the three candidates go into `Moderation Queue` as one batch, the
+  Telegram reply states its denominator, and the sent `message_id` is written
+  back so the drain can edit it.
+- `hide-replies-all-hidden.pinData.json`: verifies an all-hidden negative set
+  sends a clean user message, writes nothing, and does not send the
   no-replies developer alert.
+- `hide-replies-menu.pinData.json`: the alert button opens the 25/50/75/100/Custom
+  menu and reads or writes nothing.
+- `hide-replies-percentage.pinData.json`: 50% of six negatives (one hidden)
+  queues exactly the two oldest visible ones. Reply ids are shuffled and one is
+  a digit shorter, which proves the order is numeric snowflake order, not row
+  order or string order.
+- `hide-replies-custom-percentage.pinData.json`: the Custom button answers the
+  callback, pins the send-and-wait form as `34`, and queues the two oldest of
+  three (34% rounds up).
+- `hide-replies-invalid-percentage.pinData.json`: `/hide POST_ID 150` is
+  rejected by `Validate Hide Percentage` before any lookup.
+- `unknown-command-default-help.pinData.json`: an unknown command reaches
+  `Send Default Help` through the switch fallback (output 14). Before
+  2026-10-03 that output was unwired and unknown commands got no reply.
 
 **Deleted 2026-08-26** — `hide-replies-success`, `hide-replies-provider-error`,
 `hide-replies-skip-hidden`, `hide-replies-rate-limit-precheck`, and

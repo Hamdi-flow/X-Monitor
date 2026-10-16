@@ -5,19 +5,26 @@
         "update_id": 910201,
         "callback_query": {
           "id": "test-hide-replies-enqueue-callback",
-          "from": { "id": 8677383067, "is_bot": false, "first_name": "Test", "language_code": "en" },
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "language_code": "en"
+          },
           "message": {
             "message_id": 401,
-            "chat": { "id": 8677383067, "type": "private" },
+            "chat": {
+              "id": 8677383067,
+              "type": "private"
+            },
             "date": 1787760000,
             "text": "Post controls"
           },
-          "data": "hide_replies:9990000000000000007"
+          "data": "hide_pct:9990000000000000007:100"
         }
       }
     }
   ],
-
   "Get Post For Hide": [
     {
       "json": {
@@ -28,7 +35,6 @@
       }
     }
   ],
-
   "Get X Auth Account": [
     {
       "json": {
@@ -42,14 +48,14 @@
       }
     }
   ],
-
   "Get Replies For Post": [
     {
       "json": {
         "reply_id": "9990000000000001001",
         "post_id": "9990000000000000007",
         "text": "Pinned negative reply one",
-        "status": "New"
+        "status": "New",
+        "sentiment": "Negative"
       }
     },
     {
@@ -57,7 +63,8 @@
         "reply_id": "9990000000000001002",
         "post_id": "9990000000000000007",
         "text": "Pinned negative reply two",
-        "status": null
+        "status": null,
+        "sentiment": "Negative"
       }
     },
     {
@@ -65,7 +72,8 @@
         "reply_id": "9990000000000001003",
         "post_id": "9990000000000000007",
         "text": "Pinned reply already hidden locally",
-        "status": "hidden"
+        "status": "hidden",
+        "sentiment": "Negative"
       }
     },
     {
@@ -73,11 +81,29 @@
         "reply_id": "9990000000000001004",
         "post_id": "9990000000000000007",
         "text": "Pinned reply that failed a previous hide and stays eligible",
-        "status": "hide_failed"
+        "status": "hide_failed",
+        "sentiment": "Negative"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "9990000000000001005",
+        "post_id": "9990000000000000007",
+        "text": "Pinned neutral reply that must never be queued",
+        "status": "New",
+        "sentiment": "Neutral"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "9990000000000001006",
+        "post_id": "9990000000000000007",
+        "text": "Pinned positive reply that must never be queued",
+        "status": null,
+        "sentiment": "Positive"
       }
     }
   ],
-
   "Enqueue Hide Requests": [
     {
       "json": {
@@ -87,21 +113,34 @@
       }
     }
   ],
-
   "Send Hide Queued Summary": [
     {
       "json": {
         "ok": true,
         "result": {
           "message_id": 5101,
-          "chat": { "id": 8677383067, "type": "private" },
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
           "text": "Pinned queued summary sent"
         }
       }
     }
   ],
-
   "Store Queue Message Id": [
-    { "json": { "id": "00000000-0000-4000-8000-000000000901" } }
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000901"
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
+      }
+    }
   ]
 }

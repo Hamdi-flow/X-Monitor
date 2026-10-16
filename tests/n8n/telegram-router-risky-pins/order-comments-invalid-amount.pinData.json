@@ -30,6 +30,14 @@
       }
     }
   ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
+      }
+    }
+  ],
   "Prompt For Comment Amount": [
     {
       "json": {

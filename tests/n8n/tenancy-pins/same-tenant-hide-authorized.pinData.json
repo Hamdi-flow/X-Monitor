@@ -24,7 +24,7 @@
             "text": "Post controls"
           },
           "chat_instance": "-1",
-          "data": "hide_replies:9990000000000000101"
+          "data": "hide_pct:9990000000000000101:100"
         }
       }
     }

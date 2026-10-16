@@ -31,7 +31,7 @@ $commands = @(
   @{ command = "ignore"; description = "Stop alerts for a post. Usage: /ignore POST_ID" }
   @{ command = "snooze"; description = "Snooze alerts for 4 runs. Usage: /snooze POST_ID" }
   @{ command = "resume"; description = "Resume monitoring. Usage: /resume POST_ID" }
-  @{ command = "hide_replies"; description = "Hide stored negative replies. Usage: /hide_replies POST_ID" }
+  @{ command = "hide_replies"; description = "Hide a percentage of negative replies. Usage: /hide_replies POST_ID [PERCENT]" }
   @{ command = "order_likes"; description = "Order likes. Usage: /order_likes POST_ID AMOUNT" }
   @{ command = "order_comments"; description = "Generate comments with amount form. Usage: /order_comments POST_ID" }
 )

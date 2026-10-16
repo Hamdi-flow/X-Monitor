@@ -1,0 +1,46 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910215,
+        "message": {
+          "message_id": 404,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test"
+          },
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "date": 1790000000,
+          "text": "/notacommand"
+        }
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
+      }
+    }
+  ],
+  "Send Default Help": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 5104,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned default help sent"
+        }
+      }
+    }
+  ]
+}

@@ -38,8 +38,9 @@
     {
       "id": "hide-replies-enqueue",
       "file": "hide-replies-enqueue.pinData.json",
-      "input": "callback_query.data=hide_replies:9990000000000000007, four stored replies with status New, null, hidden, hide_failed",
+      "input": "callback_query.data=hide_pct:9990000000000000007:100; four Negative replies with status New, null, hidden, hide_failed plus one Neutral and one Positive",
       "riskPinned": [
+        "Resolve Caller Authorization",
         "Get Post For Hide",
         "Get X Auth Account",
         "Get Replies For Post",
@@ -49,6 +50,7 @@
       ],
       "expected": {
         "reaches": [
+          "Validate Hide Percentage",
           "Build Hide Queue Items",
           "Enqueue Hide Requests",
           "Build Hide Queued Summary",
@@ -59,9 +61,10 @@
           "Send No Replies"
         ],
         "asserts": [
-          "Build Hide Queue Items excludes the status=hidden reply and keeps New, null and hide_failed -> submitted=3, locally_already_hidden=1",
+          "Build Hide Queue Items counts 4 negative replies of 6 stored; the Neutral and Positive replies are never queued",
+          "target_hidden=4 at 100%; the status=hidden negative counts toward it, New, null and hide_failed are queued oldest first -> submitted=3, locally_already_hidden=1",
           "Build Hide Queue Items emits ONE item carrying queued_rows_json plus a freshly minted batch_id",
-          "Build Hide Queued Summary reports the queued count honestly (Queued to hide: 3, 0 of 3 hidden)",
+          "Build Hide Queued Summary states the denominator (Target: 100% of 4 negative replies = 4 hidden) and Queued to hide: 3 (oldest first)",
           "Store Queue Message Id receives the sent message_id so the drain can edit that message"
         ],
         "doesNotCallLive": [
@@ -69,13 +72,18 @@
           "Supabase Moderation Queue insert",
           "Telegram sendMessage"
         ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40976"
       }
     },
     {
       "id": "hide-replies-all-hidden",
       "file": "hide-replies-all-hidden.pinData.json",
-      "input": "callback_query.data=hide_replies:2060604129798496702, all stored replies already status=hidden",
+      "input": "callback_query.data=hide_pct:2060604129798496702:100, both stored Negative replies already status=hidden",
       "riskPinned": [
+        "Resolve Caller Authorization",
         "Get Post For Hide",
         "Get X Auth Account",
         "Get Replies For Post",
@@ -101,6 +109,182 @@
           "Supabase Moderation Queue insert",
           "Telegram sendMessage"
         ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40977"
+      }
+    },
+    {
+      "id": "hide-replies-menu",
+      "file": "hide-replies-menu.pinData.json",
+      "input": "callback_query.data=hide_replies:9990000000000000007 (the alert button)",
+      "riskPinned": [
+        "Resolve Caller Authorization",
+        "Send Hide Percentage Menu"
+      ],
+      "expected": {
+        "reaches": [
+          "Build Hide Percentage Menu",
+          "Send Hide Percentage Menu"
+        ],
+        "doesNotReach": [
+          "Get Post For Hide",
+          "Get Replies For Post",
+          "Enqueue Hide Requests"
+        ],
+        "asserts": [
+          "Route Telegram Intent leaves on output 13 (HIDE_MENU)",
+          "nothing is read or written; the button only opens the 25/50/75/100/Custom menu"
+        ],
+        "doesNotCallLive": [
+          "X API hide endpoint",
+          "Supabase Moderation Queue insert",
+          "Telegram sendMessage"
+        ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40971"
+      }
+    },
+    {
+      "id": "hide-replies-percentage",
+      "file": "hide-replies-percentage.pinData.json",
+      "input": "callback_query.data=hide_pct:9990000000000000007:50; six Negative replies (one hidden) in shuffled id order, one Neutral, one unanalyzed",
+      "riskPinned": [
+        "Resolve Caller Authorization",
+        "Get Post For Hide",
+        "Get X Auth Account",
+        "Get Replies For Post",
+        "Enqueue Hide Requests",
+        "Send Hide Queued Summary",
+        "Store Queue Message Id"
+      ],
+      "expected": {
+        "reaches": [
+          "Validate Hide Percentage",
+          "Build Hide Queue Items",
+          "Enqueue Hide Requests",
+          "Build Hide Queued Summary",
+          "Store Queue Message Id"
+        ],
+        "doesNotReach": [
+          "Send No Replies",
+          "Prompt For Hide Percentage"
+        ],
+        "asserts": [
+          "negative_replies=6, target_hidden=3, locally_already_hidden=1 -> exactly 2 queued",
+          "queued reply_ids are 999000000000000999 then 9990000000000001020: numeric snowflake order, so the shorter id is older",
+          "the Neutral and unanalyzed replies, though older, are not queued"
+        ],
+        "doesNotCallLive": [
+          "X API hide endpoint",
+          "Supabase Moderation Queue insert",
+          "Telegram sendMessage"
+        ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40972"
+      }
+    },
+    {
+      "id": "hide-replies-custom-percentage",
+      "file": "hide-replies-custom-percentage.pinData.json",
+      "input": "callback_query.data=hide_pct:9990000000000000007:custom; form returns Percentage=34; three Negative replies",
+      "riskPinned": [
+        "Resolve Caller Authorization",
+        "Get Post For Hide",
+        "Get X Auth Account",
+        "Get Replies For Post",
+        "Enqueue Hide Requests",
+        "Send Hide Queued Summary",
+        "Store Queue Message Id",
+        "Answer Hide Callback",
+        "Prompt For Hide Percentage"
+      ],
+      "expected": {
+        "reaches": [
+          "Answer Hide Callback",
+          "Prompt For Hide Percentage",
+          "Validate Hide Percentage",
+          "Enqueue Hide Requests",
+          "Store Queue Message Id"
+        ],
+        "doesNotReach": [
+          "Send Hide Percentage Error"
+        ],
+        "asserts": [
+          "34% of 3 rounds up to target_hidden=2; the two oldest (…1001, …1002) are queued"
+        ],
+        "doesNotCallLive": [
+          "X API hide endpoint",
+          "Supabase Moderation Queue insert",
+          "Telegram sendMessage"
+        ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40975"
+      }
+    },
+    {
+      "id": "hide-replies-invalid-percentage",
+      "file": "hide-replies-invalid-percentage.pinData.json",
+      "input": "message.text=/hide 9990000000000000007 150",
+      "riskPinned": [
+        "Resolve Caller Authorization",
+        "Send Hide Percentage Error"
+      ],
+      "expected": {
+        "reaches": [
+          "Validate Hide Percentage",
+          "Send Hide Percentage Error"
+        ],
+        "doesNotReach": [
+          "Get Post For Hide",
+          "Enqueue Hide Requests"
+        ],
+        "asserts": [
+          "error_message is \"Hide percentage must be a whole number from 1 to 100.\""
+        ],
+        "doesNotCallLive": [
+          "X API hide endpoint",
+          "Supabase Moderation Queue insert",
+          "Telegram sendMessage"
+        ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40973"
+      }
+    },
+    {
+      "id": "unknown-command-default-help",
+      "file": "unknown-command-default-help.pinData.json",
+      "input": "message.text=/notacommand",
+      "riskPinned": [
+        "Resolve Caller Authorization",
+        "Send Default Help"
+      ],
+      "expected": {
+        "reaches": [
+          "Send Default Help"
+        ],
+        "doesNotReach": [
+          "If Client Admin Is Staff"
+        ],
+        "asserts": [
+          "Route Telegram Intent leaves on the fallback output 14, which is wired to Send Default Help (it was unwired before 2026-10-03, execution 40967)"
+        ],
+        "doesNotCallLive": [
+          "Telegram sendMessage"
+        ]
+      },
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40974"
       }
     },
     {

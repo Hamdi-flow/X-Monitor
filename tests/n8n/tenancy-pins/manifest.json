@@ -44,15 +44,29 @@
     {
       "id": "cross-tenant-hide",
       "file": "cross-tenant-hide.pinData.json",
-      "input": "callback_query.data=hide_replies:9990000000000000101 from chat B against client A's post",
+      "input": "callback_query.data=hide_pct:9990000000000000101:100 from chat B against client A's post",
       "expected": {
         "refusalReason": "cross_tenant_post",
-        "reaches": ["If Hide Authorized", "Build Access Refusal", "Answer Access Refusal Callback", "Send Access Refusal"],
-        "doesNotReach": ["Get X Auth Account", "Get Replies For Post", "Enqueue Hide Requests"],
+        "reaches": [
+          "If Hide Authorized",
+          "Build Access Refusal",
+          "Answer Access Refusal Callback",
+          "Send Access Refusal"
+        ],
+        "doesNotReach": [
+          "Get X Auth Account",
+          "Get Replies For Post",
+          "Enqueue Hide Requests"
+        ],
         "asserts": [
           "the callback is answered with 'Post not found.', never with anything that admits the post exists",
           "no reply is queued for hiding"
         ]
+      },
+      "inputChanged": "2026-10-03: the alert button hide_replies:<id> now only opens the percentage menu, so the gate is exercised through a 100% choice",
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40978"
       }
     },
     {
@@ -61,8 +75,15 @@
       "input": "message.text=/ignore 9990000000000000101 from chat B",
       "expected": {
         "refusalReason": "cross_tenant_post",
-        "reaches": ["If Status Change Authorized", "Build Access Refusal", "Send Access Refusal"],
-        "doesNotReach": ["Prepare Post Status Change", "Update Post Status"]
+        "reaches": [
+          "If Status Change Authorized",
+          "Build Access Refusal",
+          "Send Access Refusal"
+        ],
+        "doesNotReach": [
+          "Prepare Post Status Change",
+          "Update Post Status"
+        ]
       }
     },
     {
@@ -71,7 +92,10 @@
       "input": "message.text=/snooze 9990000000000000101 4h from chat B",
       "expected": {
         "refusalReason": "cross_tenant_post",
-        "doesNotReach": ["Prepare Post Status Change", "Update Post Status"]
+        "doesNotReach": [
+          "Prepare Post Status Change",
+          "Update Post Status"
+        ]
       }
     },
     {
@@ -80,7 +104,10 @@
       "input": "message.text=/resume 9990000000000000101 from chat B",
       "expected": {
         "refusalReason": "cross_tenant_post",
-        "doesNotReach": ["Prepare Post Status Change", "Update Post Status"]
+        "doesNotReach": [
+          "Prepare Post Status Change",
+          "Update Post Status"
+        ]
       }
     },
     {
@@ -89,9 +116,18 @@
       "input": "message.text=/order_likes 9990000000000000101 25 from chat B",
       "expected": {
         "refusalReason": "cross_tenant_post",
-        "reaches": ["If Likes Order Authorized", "Build Access Refusal"],
-        "doesNotReach": ["Get Likes Post Tracked User", "Place Likes Order", "Create Likes Order Info"],
-        "asserts": ["the refusal happens before any SMMWiz call - SMMWiz has no cancel, so money must be decided first"]
+        "reaches": [
+          "If Likes Order Authorized",
+          "Build Access Refusal"
+        ],
+        "doesNotReach": [
+          "Get Likes Post Tracked User",
+          "Place Likes Order",
+          "Create Likes Order Info"
+        ],
+        "asserts": [
+          "the refusal happens before any SMMWiz call - SMMWiz has no cancel, so money must be decided first"
+        ]
       }
     },
     {
@@ -100,9 +136,19 @@
       "input": "message.text=/order_comments 9990000000000000101 from chat B, form comment_amount=10",
       "expected": {
         "refusalReason": "cross_tenant_post",
-        "reaches": ["If Comment Order Authorized", "Build Access Refusal"],
-        "doesNotReach": ["Get Comment Post Tracked User", "Generate Supportive Comments", "Place Comment Order", "Create Comment Order Info"],
-        "asserts": ["the refusal precedes both the OpenAI generation and the SMMWiz call"]
+        "reaches": [
+          "If Comment Order Authorized",
+          "Build Access Refusal"
+        ],
+        "doesNotReach": [
+          "Get Comment Post Tracked User",
+          "Generate Supportive Comments",
+          "Place Comment Order",
+          "Create Comment Order Info"
+        ],
+        "asserts": [
+          "the refusal precedes both the OpenAI generation and the SMMWiz call"
+        ]
       }
     },
     {
@@ -122,8 +168,17 @@
       "input": "message.text=/ignore 9990000000000000101 from chat 9900000009, which is in neither Client Members nor Staff",
       "expected": {
         "refusalReason": "unknown_chat",
-        "reaches": ["If Caller Known", "Build Access Refusal", "Send Access Refusal", "Build Developer Alert - Access Denied", "Send Developer Alert - Access Denied"],
-        "doesNotReach": ["Route Telegram Intent output branches", "Get Post For Status Change"],
+        "reaches": [
+          "If Caller Known",
+          "Build Access Refusal",
+          "Send Access Refusal",
+          "Build Developer Alert - Access Denied",
+          "Send Developer Alert - Access Denied"
+        ],
+        "doesNotReach": [
+          "Route Telegram Intent output branches",
+          "Get Post For Status Change"
+        ],
         "asserts": [
           "an unknown chat is refused BEFORE the route switch, so it can reach no action at all",
           "the developer alert always fires for an unknown chat and carries chat id, name and type so it can be assigned (decision #7)"
@@ -136,7 +191,11 @@
       "input": "message.text=/track @lynnharfoush from chat B, a client member but not staff",
       "expected": {
         "refusalReason": "staff_only_command",
-        "doesNotReach": ["Parse Users To Track", "Deactivate Tracked Users For Chat", "Upsert Tracked X User"],
+        "doesNotReach": [
+          "Parse Users To Track",
+          "Deactivate Tracked Users For Chat",
+          "Upsert Tracked X User"
+        ],
         "asserts": [
           "/track is staff-only per decision #3",
           "the message is a plain 'not available' - unlike the post refusals it reveals nothing, because no post id is involved"
@@ -146,39 +205,78 @@
     {
       "id": "same-tenant-hide-authorized",
       "file": "same-tenant-hide-authorized.pinData.json",
-      "input": "callback_query.data=hide_replies:9990000000000000101 from chat A, the post's own client",
+      "input": "callback_query.data=hide_pct:9990000000000000101:100 from chat A, the post's own client",
       "expected": {
-        "reaches": ["If Hide Authorized", "Get X Auth Account"],
-        "doesNotReach": ["Build Access Refusal"],
-        "asserts": ["the authorized path is unchanged - the gate is transparent when the caller owns the post"]
+        "reaches": [
+          "If Hide Authorized",
+          "Get X Auth Account"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ],
+        "asserts": [
+          "the authorized path is unchanged - the gate is transparent when the caller owns the post"
+        ]
+      },
+      "inputChanged": "2026-10-03: the alert button hide_replies:<id> now only opens the percentage menu, so the gate is exercised through a 100% choice",
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40979"
       }
     },
     {
       "id": "same-tenant-ignore-authorized",
       "file": "same-tenant-ignore-authorized.pinData.json",
       "input": "message.text=/ignore 9990000000000000101 from chat A",
-      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+      "expected": {
+        "reaches": [
+          "Prepare Post Status Change"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ]
+      }
     },
     {
       "id": "same-tenant-snooze-authorized",
       "file": "same-tenant-snooze-authorized.pinData.json",
       "input": "message.text=/snooze 9990000000000000101 4h from chat A",
-      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+      "expected": {
+        "reaches": [
+          "Prepare Post Status Change"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ]
+      }
     },
     {
       "id": "same-tenant-resume-authorized",
       "file": "same-tenant-resume-authorized.pinData.json",
       "input": "message.text=/resume 9990000000000000101 from chat A",
-      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+      "expected": {
+        "reaches": [
+          "Prepare Post Status Change"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ]
+      }
     },
     {
       "id": "same-tenant-order-likes-authorized",
       "file": "same-tenant-order-likes-authorized.pinData.json",
       "input": "message.text=/order_likes 9990000000000000101 25 from chat A",
       "expected": {
-        "reaches": ["Get Likes Post Tracked User"],
-        "doesNotReach": ["Build Access Refusal"],
-        "asserts": ["Place Likes Order is pinned to a provider rejection, so the gate is proved open without creating or charging an order"]
+        "reaches": [
+          "Get Likes Post Tracked User"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ],
+        "asserts": [
+          "Place Likes Order is pinned to a provider rejection, so the gate is proved open without creating or charging an order"
+        ]
       }
     },
     {
@@ -186,35 +284,68 @@
       "file": "same-tenant-order-comments-authorized.pinData.json",
       "input": "message.text=/order_comments 9990000000000000101 from chat A, form comment_amount=10, confirmation='Do nothing'",
       "expected": {
-        "reaches": ["Get Comment Post Tracked User"],
-        "doesNotReach": ["Build Access Refusal", "Place Comment Order"],
-        "asserts": ["the confirmation is pinned to cancel, so the gate is proved open without placing an order"]
+        "reaches": [
+          "Get Comment Post Tracked User"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal",
+          "Place Comment Order"
+        ],
+        "asserts": [
+          "the confirmation is pinned to cancel, so the gate is proved open without placing an order"
+        ]
       }
     },
     {
       "id": "staff-cross-tenant-hide-authorized",
       "file": "staff-cross-tenant-hide-authorized.pinData.json",
-      "input": "callback_query.data=hide_replies:9990000000000000202 from the operator chat against client B's post",
+      "input": "callback_query.data=hide_pct:9990000000000000202:100 from the operator chat against client B's post",
       "expected": {
-        "reaches": ["If Hide Authorized", "Get X Auth Account"],
-        "doesNotReach": ["Build Access Refusal"],
-        "asserts": ["a Staff chat acts across every client without holding a Client Members row for that client - this is what stops the operator breaking the moment client #2 exists"]
+        "reaches": [
+          "If Hide Authorized",
+          "Get X Auth Account"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ],
+        "asserts": [
+          "a Staff chat acts across every client without holding a Client Members row for that client - this is what stops the operator breaking the moment client #2 exists"
+        ]
+      },
+      "inputChanged": "2026-10-03: the alert button hide_replies:<id> now only opens the percentage menu, so the gate is exercised through a 100% choice",
+      "lastValidated": {
+        "date": "2026-10-03",
+        "execution": "40980"
       }
     },
     {
       "id": "staff-cross-tenant-ignore-authorized",
       "file": "staff-cross-tenant-ignore-authorized.pinData.json",
       "input": "message.text=/ignore 9990000000000000101 from the operator chat against client A's post",
-      "expected": { "reaches": ["Prepare Post Status Change"], "doesNotReach": ["Build Access Refusal"] }
+      "expected": {
+        "reaches": [
+          "Prepare Post Status Change"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ]
+      }
     },
     {
       "id": "staff-track-authorized",
       "file": "staff-track-authorized.pinData.json",
       "input": "message.text=/track @lynnharfoush from the operator chat",
       "expected": {
-        "reaches": ["If Track Caller Is Staff", "Parse Users To Track"],
-        "doesNotReach": ["Build Access Refusal"],
-        "asserts": ["a staff /track still assigns to the caller's own client, exactly as before - choosing a client is T5"]
+        "reaches": [
+          "If Track Caller Is Staff",
+          "Parse Users To Track"
+        ],
+        "doesNotReach": [
+          "Build Access Refusal"
+        ],
+        "asserts": [
+          "a staff /track still assigns to the caller's own client, exactly as before - choosing a client is T5"
+        ]
       }
     }
   ],

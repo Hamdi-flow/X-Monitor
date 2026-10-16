@@ -24,7 +24,7 @@ The menu mirrors the router parser and help text:
 | `/ignore` | Stop alerts for a post. Usage: `/ignore POST_ID` |
 | `/snooze` | Choose a snooze duration. Usage: `/snooze POST_ID` |
 | `/resume` | Resume monitoring. Usage: `/resume POST_ID` |
-| `/hide_replies` | Hide stored negative replies. Usage: `/hide_replies POST_ID` |
+| `/hide_replies` | Hide a percentage of negative replies. Usage: `/hide_replies POST_ID [PERCENT]` |
 | `/order_likes` | Order likes. Usage: `/order_likes POST_ID AMOUNT` |
 | `/order_comments` | Generate supportive comments with an amount form. Usage: `/order_comments POST_ID` |
 

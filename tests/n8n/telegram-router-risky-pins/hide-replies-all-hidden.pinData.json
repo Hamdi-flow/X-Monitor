@@ -20,7 +20,7 @@
             "date": 1783762310,
             "text": "Post controls"
           },
-          "data": "hide_replies:2060604129798496702"
+          "data": "hide_pct:2060604129798496702:100"
         }
       }
     }
@@ -54,7 +54,8 @@
         "reply_id": "2060605000000000201",
         "post_id": "2060604129798496702",
         "text": "Pinned already hidden reply one",
-        "status": "hidden"
+        "status": "hidden",
+        "sentiment": "Negative"
       }
     },
     {
@@ -62,7 +63,8 @@
         "reply_id": "2060605000000000202",
         "post_id": "2060604129798496702",
         "text": "Pinned already hidden reply two",
-        "status": "hidden"
+        "status": "hidden",
+        "sentiment": "Negative"
       }
     }
   ],
@@ -78,6 +80,14 @@
           },
           "text": "Pinned all-hidden message sent"
         }
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
       }
     }
   ]

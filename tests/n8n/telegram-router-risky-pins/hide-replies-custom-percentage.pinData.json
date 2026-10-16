@@ -1,0 +1,136 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910212,
+        "callback_query": {
+          "id": "test-hide-replies-custom-callback",
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "language_code": "en"
+          },
+          "message": {
+            "message_id": 401,
+            "chat": {
+              "id": 8677383067,
+              "type": "private"
+            },
+            "date": 1787760000,
+            "text": "Post controls"
+          },
+          "data": "hide_pct:9990000000000000007:custom"
+        }
+      }
+    }
+  ],
+  "Get Post For Hide": [
+    {
+      "json": {
+        "post_id": "9990000000000000007",
+        "user_id": "TEST_ENQUEUE_ACCOUNT",
+        "username": "EnqueueTest",
+        "post_text": "Pinned test post for the moderation queue enqueue path."
+      }
+    }
+  ],
+  "Get X Auth Account": [
+    {
+      "json": {
+        "x_user_id": "TEST_ENQUEUE_ACCOUNT",
+        "x_username": "EnqueueTest",
+        "telegram_chat_id": "8677383067",
+        "access_token": "PINNED_FAKE_ACCESS_TOKEN",
+        "refresh_token": "PINNED_FAKE_REFRESH_TOKEN",
+        "expires_at": "2099-01-01T00:00:00.000Z",
+        "scope": "tweet.read tweet.write tweet.moderate.write users.read offline.access"
+      }
+    }
+  ],
+  "Get Replies For Post": [
+    {
+      "json": {
+        "reply_id": "9990000000000001003",
+        "post_id": "9990000000000000007",
+        "text": "Pinned negative 9990000000000001003",
+        "status": "New",
+        "sentiment": "Negative"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "9990000000000001001",
+        "post_id": "9990000000000000007",
+        "text": "Pinned negative 9990000000000001001",
+        "status": "New",
+        "sentiment": "Negative"
+      }
+    },
+    {
+      "json": {
+        "reply_id": "9990000000000001002",
+        "post_id": "9990000000000000007",
+        "text": "Pinned negative 9990000000000001002",
+        "status": null,
+        "sentiment": "Negative"
+      }
+    }
+  ],
+  "Enqueue Hide Requests": [
+    {
+      "json": {
+        "submitted": 2,
+        "queued": 2,
+        "batch_id": "00000000-0000-4000-8000-0000000000c3"
+      }
+    }
+  ],
+  "Send Hide Queued Summary": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 5101,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned queued summary sent"
+        }
+      }
+    }
+  ],
+  "Store Queue Message Id": [
+    {
+      "json": {
+        "id": "00000000-0000-4000-8000-000000000901"
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
+      }
+    }
+  ],
+  "Answer Hide Callback": [
+    {
+      "json": {
+        "ok": true,
+        "result": true
+      }
+    }
+  ],
+  "Prompt For Hide Percentage": [
+    {
+      "json": {
+        "data": {
+          "Percentage": 34
+        }
+      }
+    }
+  ]
+}
