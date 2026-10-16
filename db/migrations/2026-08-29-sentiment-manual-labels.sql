@@ -5,7 +5,12 @@
 -- sheet that is appended to the analyzer's system prompt.
 --
 -- Applied to: XMonitor Staging (npytqidroqxgikaqofmq) first, production
--- (jxnzdxyhoakpfmkbjdeq) after staging validation.
+-- (jxnzdxyhoakpfmkbjdeq) applied 2026-10-10 via the Supabase connector (migration name sentiment_manual_labels).
+-- Checked 2026-10-16 against supabase_migrations.schema_migrations (comments and whitespace
+-- removed): staging 20260829100057 matches this file. Production 20261010085328 has the same
+-- DDL but differs in COMMENT text only. It has no COMMENT on "Sentiment Cheat Sheets".rules_text
+-- or .benchmark_accuracy, and manual_labeled_by reads "Reviewer email from the console, or
+-- filled by hand in the Supabase table editor."
 --
 -- NOTE ON PREREQUISITE: this feedback loop is meaningless until the production
 -- "Insert or update replies" node writes Replies.sentiment again. The 2026-08-25

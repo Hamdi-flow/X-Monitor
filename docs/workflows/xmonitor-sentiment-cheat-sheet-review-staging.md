@@ -121,8 +121,12 @@ That seeding run also confirmed the `replies_touch_manual_label` trigger stamps
   (`tests/n8n/native-sentiment-accuracy.integration.test.mjs`) has never produced a live score
   - every run so far died on OpenAI rate limits. Until it does, Activate is a judgement call
   on reading the rules, not a measured decision.
-- Production promotion, including the migration
-  `db/migrations/2026-08-29-sentiment-manual-labels.sql`, which is applied to staging only.
+- Production promotion of this workflow. The migration
+  `db/migrations/2026-08-29-sentiment-manual-labels.sql` was applied to production on
+  2026-10-10 (for the console's "Sentiment wrong?" button, which writes `manual_sentiment`,
+  `manual_sentiment_note` and `manual_labeled_by` directly -- see
+  `../X-Monitor-Console/lib/actions/sentiment-feedback.ts`). Reviewer labels now arrive from the
+  console, not the table editor, so the "none exist yet" caveat below will stop being true.
 - Rule quality is entirely unvalidated. It has never run against real reviewer labels, because
   none exist yet.
 
