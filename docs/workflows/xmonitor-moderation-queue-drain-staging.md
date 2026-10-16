@@ -14,6 +14,23 @@ error workflow, and Vault secrets.
 | Telegram credential | `Testing Telegram API` | `TrackedUsersManager` |
 | Error workflow | `CCzwnMyoy7UequuI` | `UmKr9JkZ3ec3GDH5` |
 
+**Production has an unpublished draft (checked 2026-10-16).** Triggers run the published
+version `f19a65a0-3710-4528-8d0f-a10aec6ed13d` (2026-08-27). The latest saved version is
+`b25fd601-21c3-4982-9008-f2bb073a0a09`, an n8n editor autosave by tarek ismail on
+2026-09-02 22:13 UTC that was never published. It changes no nodes and no wiring. It moves
+32 of the 34 nodes on the canvas and adds `binaryMode: separate` to the settings. The editor
+also dropped three parameters:
+
+- `resource: message` on `Edit Telegram Progress`, which is that parameter's default;
+- `additionalFields.appendAttribution: false` on `Edit Telegram Progress`. The Telegram node
+  does not show this option for `editMessageText`, so it should not change the edited
+  progress message, but that has not been run;
+- `responseMode: onReceived` on `Drain Webhook`, which is that parameter's default.
+
+The export holds the draft at top level (`versionId` `b25fd601…`) and the running version
+under `activeVersion` (`sameAsDraft: false`, 34 nodes). Publishing or discarding that draft is
+the owner's call. Until then, the next production edit that gets published will ship it too.
+
 The two environments use **different** shared secrets, so a leak in one cannot
 authorise the other.
 

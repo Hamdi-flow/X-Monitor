@@ -9,6 +9,46 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
+- **Re-exported three PRODUCTION workflows from live n8n, 2026-10-16** (read-only
+  `get_workflow_details`; nothing in n8n was changed). Each export had fallen behind the latest
+  saved version, and all three now match it node for node and edge for edge. The one exception
+  is the SMMWiz `apiKey` in the router, which stays `REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL`
+  as it has been since 2026-10-03.
+  - **XMonitor - Telegram Router** `cWczsttyDbTBbRAC`: export `e707cbed` (2026-08-29, 127
+    nodes) → live `92d6b099` (2026-10-03 10:08 UTC, 155 nodes, published). The gap covers T5
+    (2026-08-30, six MCP versions `1b8658b0`…`3057a599`: client-scoped `/track`, staff
+    `/clients` / `/client_new` / `/client_attach`, `client_id` through `/auth_x` and onto
+    `Moderation Queue`), then `9c8b0bae` (all ten Postgres nodes on one credential). It also
+    covers **hide replies by percentage, promoted to production 2026-10-03 by tarek ismail via
+    MCP** from staging `d4b403b4`, without the staging SMM credential change. That promotion
+    also put the switch fallback on `Send Default Help`. n8n's diff `9c8b0bae` → `92d6b099`
+    shows it carried more than its "hide-percentage change only" description. It also reworked
+    the post-status path: `Prepare Post Status Change`; `Update Post Status`, now a Postgres
+    query; `If Status Origin Is Callback`; `If Edit Resume Button`; `Edit Status Alert` and
+    `Edit Status Alert With Resume`. It changed `Clear Telegram User Links` (`filterType`
+    dropped) and `Resolve Caller Authorization` (`onError: stopWorkflow` dropped, which is the
+    default). Four of those nodes are the ones the todolist had flagged as an unpublished
+    production draft. See `docs/workflows/xmonitor-telegram-router.md`.
+  - **XMonitor - X OAuth Callback** `JQ9KM3l1kRJQhWxb`: export `5685e01f` (2026-07-07, 16
+    nodes) → live `08616485` (2026-10-14 23:06 UTC, 21 nodes, published). It gained T5's
+    `Stamp Auth Account Client` (2026-08-30). It gained `Console authorization?` plus a username
+    check in `Prepare Account Row` for `console.<username>.<nonce>` states ("Support
+    account-bound Jess Console OAuth sessions", tarek ismail via MCP, 2026-09-16). Two **n8n
+    editor saves** by tarek ismail on 2026-10-14 then added a `PolyJess callback?` branch. It
+    sends `polyjess.<43 chars>` states to the `jess-workspace-gateway/oauth/polyjess` edge
+    function on Supabase project `npytqidroqxgikaqofmq` (XMonitor Staging) and relays that
+    function's response (`71562351`). The second save raised that call's timeout from 20 s to
+    60 s (`08616485`). See the doc's "PolyJess Forwarding" section.
+  - **XMonitor - Moderation Queue Drain** `vm4UNW7OIx2zEGb4`: the export now carries
+    `versionId` `b25fd601`, an **unpublished n8n editor autosave** by tarek ismail
+    (2026-09-02 22:13 UTC). Production still runs `f19a65a0` (2026-08-27), which the export
+    keeps under `activeVersion`. The autosave changes no nodes or wiring: it moves 32 nodes on
+    the canvas, adds `binaryMode: separate`, and drops three parameters. Two of them equal
+    their defaults (`resource: message`, `responseMode: onReceived`). The third is
+    `appendAttribution: false` on an `editMessageText` node, which does not offer that option.
+    See the drain doc.
+  - `workflows/manifest.json` `updatedAt` refreshed for all three.
+
 - **Scheduled Post Tracking — per-reply sentiment classification. Published to PRODUCTION
   2026-10-10** (`Emb26wP77eFXgnVi`, `activeVersionId` `8669273d-0fac-44cf-8e35-053df306a956`,
   confirmed equal to `versionId` by re-read) after validation on **STAGING** the same day

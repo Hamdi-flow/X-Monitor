@@ -10,10 +10,35 @@ Production Telegram workflow that receives bot commands and alert button callbac
 - Environment: production
 - Active: yes
 - Local export: `workflows/active/xmonitor-telegram-router.json`
-- Node count: `127`
+- Node count: `155`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-07-18T14:48:04.997Z`
+- Last observed live update: `2026-10-03T10:08:21.985Z` (published; `versionId` = `activeVersionId` = `92d6b099-f1f1-40e1-b80d-f7f6636c586e`, re-exported 2026-10-16)
 - Main trigger node: `Telegram Trigger`
+
+> **This doc lags the live workflow.** The 2026-10-16 re-export brought the export from
+> `e707cbed` (2026-08-29) to `92d6b099`. In between, production gained:
+>
+> - **T5, 2026-08-30** (Hamdi Said via MCP; `1b8658b0` through `3057a599`). This covers
+>   client-scoped `/track` (`Resolve Track Client`, `Build Track Outcome`, and deactivating
+>   by difference after the upserts). It adds the staff-only `/clients`, `/client_new` and
+>   `/client_attach` behind `If Client Admin Is Staff` and `Route Client Admin Intent`. It also
+>   carries `client_id` through `/auth_x` (`Resolve Auth Client`) and stamps it on
+>   `Moderation Queue` rows at enqueue. Then `9c8b0bae` put all ten Postgres nodes on one
+>   credential. The write-up of T5 is on the `archive/claude/eager-dewdney-395c19` branch
+>   (commits `188df1f`, `be24f51`), which is not merged into `main`.
+> - **Hide replies by percentage, 2026-10-03 10:08 UTC** (tarek ismail via MCP, `92d6b099`).
+>   This was promoted from staging `d4b403b4` *without* the staging SMM credential change. It
+>   adds the `HIDE_MENU` intent and the `hide_pct:<post_id>:<pct|custom>` callbacks, counts the
+>   target as a share of stored negative replies, oldest first, and wires the switch fallback
+>   to `Send Default Help`. Behaviour is as described in
+>   [the staging doc](./xmonitor-telegram-router-staging.md#hide-replies-by-percentage).
+>   Despite its "hide-percentage only" description, the same publish also brought staging's
+>   post-status rework to production. That covers `Prepare Post Status Change`, `Update Post
+>   Status` (now a Postgres query), `If Status Origin Is Callback`, `If Edit Resume Button`,
+>   and both `Edit Status Alert` nodes.
+>
+> The sections below were not rewritten for these changes. Where they disagree, the export wins.
+> The Hide Replies section also predates the 2026-08-27 change to enqueue-and-drain.
 
 ## Supported Inputs And Intents
 
@@ -24,7 +49,8 @@ Production Telegram workflow that receives bot commands and alert button callbac
 | `HELP` | `/help`, `/start`, `help`, `start`, fallback help buttons | Sends the help manual. |
 | `AUTH_X` | `/auth_x`, `/auth`, `/start auth`, `/start connect_x` | Generates an X OAuth link and stores a PKCE auth session. |
 | `TRACK_USERS` | `/track USERS`, `/start track-USERS` | **Staff only** (decision #3). Replaces tracked users for the chat. A non-staff chat is refused. |
-| `HIDE_REPLIES` | `/hide_replies POST_ID`, `/hide POST_ID`, `hide_replies:<post_id>` | Authorizes the caller against the post's client, then enqueues stored negative replies for hiding. |
+| `HIDE_MENU` | `/hide_replies POST_ID`, `/hide POST_ID`, `hide_replies:<post_id>` | Since 2026-10-03: sends the 25% / 50% / 75% / 100% / Custom % menu. Reads and writes nothing. |
+| `HIDE_REPLIES` | `/hide POST_ID PERCENT`, `hide_pct:<post_id>:<25,50,75,100,custom>` | Validates the percentage (Custom opens a number form), authorizes the caller against the post's client, then enqueues the oldest stored negative replies up to that share. |
 | `IGNORE_POST` | `/ignore POST_ID`, `ignore:<post_id>` | Sets the post status to `Ignored`. |
 | `SNOOZE_MENU` | `/snooze POST_ID`, `snooze:<post_id>` | Sends a fixed snooze-duration menu. |
 | `SNOOZE_POST` | `/snooze POST_ID 1h|4h|12h|24h`, `snooze_duration:<post_id>:<duration>` | Sets the post status to `Snoozed`. |
