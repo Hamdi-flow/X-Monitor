@@ -1646,7 +1646,7 @@
             {
               "id": "1eaad23f-fcc1-49f0-af60-b8d7efb34c6d",
               "name": "apiKey",
-              "value": "46eb45cc6f745a325b4599c0601a2bda",
+              "value": "REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL",
               "type": "string"
             },
             {
@@ -2179,7 +2179,7 @@
             {
               "id": "1eaad23f-fcc1-49f0-af60-b8d7efb34c6d",
               "name": "apiKey",
-              "value": "46eb45cc6f745a325b4599c0601a2bda",
+              "value": "REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL",
               "type": "string"
             },
             {

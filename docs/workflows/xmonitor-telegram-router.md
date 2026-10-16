@@ -204,7 +204,7 @@ On confirmation, it sends a SMMWiz `add` request with service `8404`, normalizes
 
 ## Configuration Risks
 
-- The workflow export currently contains inline SMMWiz API key configuration in the order service config nodes. Do not copy the key into docs or logs. Prefer moving it into n8n credentials or another secret store before further promotion work.
+- Live production still holds the SMMWiz API key as a plain-text `apiKey` field in `Set Comment Service Config` and `Set Likes Service Config`. Since 2026-10-03 the local export has that value replaced by `REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL`, so **do not re-import this export into n8n as-is**: production ordering would break. Staging has already moved the key into an `httpTemplatedCustomAuth` credential (see the staging doc), and promotion is pending. Never copy the key into docs or logs.
 - The X OAuth client ID and client secret are embedded in code nodes in the export. Treat them as sensitive configuration and avoid printing or duplicating them.
 - `/order_comments`, `/order_likes`, and `hide_replies` have real external side effects. Use staging and pinned tests unless the user explicitly approves live X writes or SMM orders.
 

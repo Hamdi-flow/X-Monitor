@@ -42,7 +42,7 @@ Final statuses are `completed`, `partial`, `canceled`, and `failed`.
 
 1. `Every 30 Minutes` starts the poll.
 2. `Fetch Due Order Info Rows` selects due rows from `Order Info`.
-3. `Attach SMM Status Config` attaches provider URL and API key configuration.
+3. `Attach SMM Status Config` attaches provider URL and API key configuration. The key is still a plain-text field in live n8n (staging and production). Since 2026-10-03 the local exports have it replaced by `REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL`, so do not re-import them as-is. Moving it to a credential is tracked in `TASK_TODOLIST.md`.
 4. `Check Provider Order Status` posts `action=status` and `order=<provider_order_id>` to SMMWiz.
 5. `Normalize Provider Status` normalizes provider response, charge, start count, remains, currency, and error fields.
 6. `Update Order Info Status` updates provider fields, increments `poll_attempts`, sets `last_checked_at`, and moves `next_check_at` forward for non-final statuses.
