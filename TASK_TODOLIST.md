@@ -100,16 +100,18 @@ Notes:
 - Until a staging credential is bound, live staging orders fail at the order node, closed and
   with no charge.
 
-### Hide replies by percentage — staging done, production promotion pending
+### Hide replies by percentage — live in staging and production; production evidence not recorded
 
-- Status: open — staging live and published 2026-10-03; production not promoted
+- Status: open. Staging was published at 08:17 UTC on 2026-10-03, and **production was promoted
+  at 10:08 UTC the same day** (`92d6b099`, tarek ismail via MCP), a fact confirmed from live n8n
+  on 2026-10-16. Close it once the production run evidence below is recorded.
 - Priority: medium
 - Complexity: `M`
 - Source: user request 2026-10-03
 
 Design:
 
-1. The alert button `hide_replies:<id>`, `/hide POST_ID` and `/hide_replies POST_ID` open a menu with 25% / 50% / 75% / 100% / Custom %. Choices arrive as `hide_pct:<id>:<pct|custom>`; Custom opens a send-and-wait number form. `/hide POST_ID PERCENT` applies directly.
+1. The alert button `hide_replies:<id>`, `/hide POST_ID` and `/hide_replies POST_ID` open a menu with 25% / 50% / 75% / 100% / Custom %. Choices arrive as `hide_pct:<id>:<pct|custom>`; Custom opens a send-and-wait number form. `/hide POST_ID PERCENT` and `/hide_replies POST_ID PERCENT` apply directly.
 2. The percentage is a **target share of stored `Negative` replies**. Already-hidden negatives count toward it, and the rest are picked oldest first by snowflake reply ID. `target = ceil(negatives × pct / 100)`.
 3. This also fixes a pre-existing bug: the hide branch queued every stored reply for the post, including Neutral, Positive and unanalyzed ones.
 4. Also fixed while in the switch: its fallback output was unwired (Default Help sat on `LIST_CLIENTS`), so unknown commands got no reply.
@@ -122,11 +124,30 @@ Validation:
 - [x] Published: `versionId` = `activeVersionId` = `d4b403b4-c7b7-40e2-8273-72bfcb301fc6`.
 - [x] Staging bot command menu updated (`@XmonitorBetaBot`, default and `all_private_chats` scopes).
 - [ ] Optional live staging check: press Hide on a real staging alert and pick a percentage. This only writes `Moderation Queue` rows, but the active staging drain will then hide those replies on X, which needs explicit approval.
-- [ ] Production promotion of router `cWczsttyDbTBbRAC` (same nodes, production credentials), pinned production runs, production command-menu update. Needs explicit approval.
+- [x] Production promotion of router `cWczsttyDbTBbRAC`: published 2026-10-03 10:08 UTC as
+  `92d6b099-f1f1-40e1-b80d-f7f6636c586e` (`versionId` = `activeVersionId`, re-read
+  2026-10-16). The version note says it was promoted from staging `d4b403b4` without the
+  staging SMM credential change, and that Telegram nodes use `TrackedUsersManager`. The export
+  was re-synced on 2026-10-16.
+- [x] Production command menu: `@trackedUsersManagerBot` shows
+  `/hide_replies` = "Hide a percentage of negative replies. Usage: /hide_replies POST_ID [PERCENT]"
+  in both the default and `all_private_chats` scopes (read with `getMyCommands`, 2026-10-16).
+- [ ] Production run evidence. Seven manual executions, `41065`–`41071`, ran between 10:09 and
+  10:10 UTC right after the publish, and all succeeded. They look like the pinned production
+  runs, but which fixtures they used, and whether every side-effect node was pinned, was not
+  written down. Record that from the executions, or re-run the hide fixtures against
+  production, before moving this task to Completed.
 
-Open Questions:
+Open Questions (resolved 2026-10-16 from live n8n):
 
-- Production router `cWczsttyDbTBbRAC` has an unpublished draft (`adf487cc…`, saved 2026-09-04) that differs from its published version (`a645e560…`) in five nodes: `Clear Telegram User Links`, `Update Post Status`, `If Status Origin Is Callback`, `If Edit Resume Button`, `Route Client Admin Intent`. Promotion would publish that draft too. Decide whether it ships or gets discarded first.
+- ~~Production router has an unpublished draft (`adf487cc…`) that differs from its published
+  version (`a645e560…`) in five nodes~~ — overtaken by the promotion. Neither id appears in
+  the router's n8n history any more. n8n's diff `9c8b0bae` → `92d6b099` shows the promotion
+  shipped the rest of staging's graph along with the hide nodes. That covers the post-status
+  rework (`Prepare Post Status Change`, `Update Post Status` as a Postgres query,
+  `If Status Origin Is Callback`, `If Edit Resume Button`, both `Edit Status Alert` nodes),
+  `Clear Telegram User Links` (`filterType` dropped) and `Resolve Caller Authorization`
+  (`onError` default). `Route Client Admin Intent` did not change in that publish.
 
 Notes:
 

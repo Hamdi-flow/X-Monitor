@@ -11,7 +11,7 @@ Staging copy of the production Telegram router. This is the preferred workflow f
 - Active: yes
 - Local export: `workflows/staging/xmonitor-codex-staging.json`
 - Node count: `155`
-- Last observed live update: `2026-10-03T08:17:07Z` (published, `activeVersionId` `d4b403b4-c7b7-40e2-8273-72bfcb301fc6`)
+- Last observed live update: `2026-10-03T08:32:10Z` (published; `versionId` = `activeVersionId` = `66db1fd5-59ab-4f65-9373-0a2148658a88`, the SMM credential change on top of `d4b403b4`; re-read 2026-10-16)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 - Main trigger node: `Telegram Trigger`
 
@@ -30,7 +30,7 @@ Important staging deltas:
 | Error workflow | Staging developer error alerts | none configured in export |
 | Credentials | Staging Supabase/Postgres/Telegram where configured | Production credentials |
 | Hide replies | **Enqueues into `Moderation Queue`**; hiding and failure alerts belong to the drain workflow | Same since the 2026-08-27 promotion |
-| Hide percentage | Menu + `/hide POST_ID PERCENT`; percentage of stored **negative** replies, oldest first. See below. | **Not promoted.** Hides every stored reply for the post, whatever its sentiment. Unknown commands get no reply there either (unwired fallback). |
+| Hide percentage | Menu + `/hide POST_ID PERCENT`; percentage of stored **negative** replies, oldest first. See below. | Same since the promotion at 2026-10-03 10:08 UTC (`92d6b099`), including the switch-fallback fix |
 | Order placement retry | `retryOnFail: false` explicit on `Place Comment Order` and `Place Likes Order` | Same, set in the same change on 2026-08-25 |
 | SMM API key | n8n credential (`httpTemplatedCustomAuth`) on both order nodes; no `apiKey` in any Set node | Still a plain-text `apiKey` in `Set Comment Service Config` / `Set Likes Service Config`; not promoted |
 
@@ -83,7 +83,7 @@ Fixtures `track-users-soft-delete.pinData.json` and `track-users-invalid-input.p
 
 ## Hide Replies By Percentage
 
-**Changed 2026-10-03, staging only — not yet promoted.** The user now picks what share of a post's negative replies should be hidden.
+**Changed 2026-10-03 on staging (`d4b403b4`, 08:17 UTC) and promoted to production the same day (`92d6b099`, 10:08 UTC, tarek ismail via MCP).** The user now picks what share of a post's negative replies should be hidden. The production publish did not include the later SMM credential change. It did carry staging's post-status rework, as described in the production doc.
 
 | Input | Intent | Result |
 | --- | --- | --- |

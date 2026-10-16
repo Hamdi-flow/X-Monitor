@@ -50,7 +50,7 @@ Production Telegram workflow that receives bot commands and alert button callbac
 | `AUTH_X` | `/auth_x`, `/auth`, `/start auth`, `/start connect_x` | Generates an X OAuth link and stores a PKCE auth session. |
 | `TRACK_USERS` | `/track USERS`, `/start track-USERS` | **Staff only** (decision #3). Replaces tracked users for the chat. A non-staff chat is refused. |
 | `HIDE_MENU` | `/hide_replies POST_ID`, `/hide POST_ID`, `hide_replies:<post_id>` | Since 2026-10-03: sends the 25% / 50% / 75% / 100% / Custom % menu. Reads and writes nothing. |
-| `HIDE_REPLIES` | `/hide POST_ID PERCENT`, `hide_pct:<post_id>:<25,50,75,100,custom>` | Validates the percentage (Custom opens a number form), authorizes the caller against the post's client, then enqueues the oldest stored negative replies up to that share. |
+| `HIDE_REPLIES` | `/hide POST_ID PERCENT`, `/hide_replies POST_ID PERCENT`, `hide_pct:<post_id>:<25,50,75,100,custom>` | Validates the percentage (Custom opens a number form), authorizes the caller against the post's client, then enqueues the oldest stored negative replies up to that share. |
 | `IGNORE_POST` | `/ignore POST_ID`, `ignore:<post_id>` | Sets the post status to `Ignored`. |
 | `SNOOZE_MENU` | `/snooze POST_ID`, `snooze:<post_id>` | Sends a fixed snooze-duration menu. |
 | `SNOOZE_POST` | `/snooze POST_ID 1h|4h|12h|24h`, `snooze_duration:<post_id>:<duration>` | Sets the post status to `Snoozed`. |
