@@ -9,6 +9,38 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
+- **Shared classifier prompt table, staging, 2026-10-18 (MINOR).** New migration
+  `db/migrations/2026-10-18-sentiment-prompts.sql` creates `public."Sentiment Prompts"` (key PK,
+  `system_prompt`, `user_template`, `model`, `temperature`, `categories`, `notes`,
+  `updated_at` + trigger, RLS on). It seeds three rows:
+  - `target_stance_rules`, written once;
+  - `comment_text`, which includes the rules and holds `{{cheat_sheet_block}}`;
+  - `comment_image`, which also includes the rules.
+
+  This repo owns the file because it owns the other cross-product tables. **Applied to staging
+  `npytqidroqxgikaqofmq` only**; production waits for sign-off.
+  - **XMonitor - Scheduled Post Tracking Staging** `l4eKZucUZXzfz0H8`, saved draft `8521396d`
+    (still inactive by design):
+    - added `Get Sentiment Prompts` → `Resolve Sentiment Prompts` between `Schedule Trigger` and
+      `Get Run State`;
+    - added `Build Sentiment Prompt Warning` → `Build Scheduler Developer Alert`;
+    - `Classify Sentiment` system prompt, `OpenAI Sentiment Model` model + temperature, and
+      `Build Analysis Plan`'s classifier input now come from the table.
+
+    The shared text is platform-neutral, so the prompt now says "comment" and "a Lebanese public
+    account". The input says "Post:" / "Comment" instead of "Post text:" / "Reply". The
+    `<caption>` / `<comment>` tags are unchanged. See the staging doc.
+  - Evidence:
+    - pinned suite **21/21 green**, executions `49307`–`49333`. This includes both cheat-sheet
+      fixtures (`CANARY_ALPHA` / `CANARY_BRAVO` reach the prompt), with `Get Sentiment Prompts`
+      reading the real staging table.
+    - real manual run **`49338`**: 201 new replies classified on the table prompt, 34 Positive /
+      13 Neutral / 154 Negative / 0 failed. The system message sent to OpenAI contained the table
+      wording ("Lebanese public account") and the client cheat sheet, with no leaked
+      `[[CHEAT_SHEET_BLOCK]]` marker, and none of the old "Lebanese X (Twitter) account"
+      wording. Staging replies were stored and one staging alert was sent, as on any manual pass.
+  - The drift auditor compared live with the export: in sync, 62 nodes.
+
 - **Re-exported three PRODUCTION workflows from live n8n, 2026-10-16** (read-only
   `get_workflow_details`; nothing in n8n was changed). Each export had fallen behind the latest
   saved version, and all three now match it node for node and edge for edge. The one exception

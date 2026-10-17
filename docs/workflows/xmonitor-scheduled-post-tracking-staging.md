@@ -390,11 +390,22 @@ produced. Revert the page size afterwards.
   `$('Collect Sentiment Labels')` (production: `$('Analyze Sentiment with ChatGPT')`). The
   intermediate nodes' own `items` are the stored-count rows, not the analysis. This already
   caused one failure during development.
-- The classifier's system prompt lives in `Classify Sentiment` and is an **expression** so
-  the per-client cheat sheet can be injected. It is a LangChain template underneath: a
-  literal `{` or `}` anywhere in it, cheat sheet text included, is read as a placeholder.
-  `Build Analysis Plan` doubles braces in the cheat sheet block for that reason; keep the
-  base prompt brace-free apart from `{categories}`.
+- **Since 2026-10-18 the classifier prompt lives in Supabase, not in n8n:**
+  `public."Sentiment Prompts"`, shared by X, FB Monitor and Insta-Monitor (DDL and seed:
+  `db/migrations/2026-10-18-sentiment-prompts.sql`). `Get Sentiment Prompts` (right after
+  `Schedule Trigger`, `executeOnce`, `alwaysOutputData`) reads every row, and
+  `Resolve Sentiment Prompts` composes `comment_text` with `target_stance_rules`. It leaves the
+  marker `[[CHEAT_SHEET_BLOCK]]` where the row says `{{cheat_sheet_block}}`, and doubles every
+  brace except `{categories}`. `Classify Sentiment.systemPromptTemplate` is
+  `$('Resolve Sentiment Prompts').first().json.comment_text.system_prompt.split('[[CHEAT_SHEET_BLOCK]]').join($json.cheat_sheet_block || '')`,
+  so the per-client cheat sheet is still filled in per reply. `Build Analysis Plan` builds
+  `classifier_input` from the row's `user_template`. `OpenAI Sentiment Model` takes model and
+  temperature from the row.
+- If a row is missing or empty, the run uses the hard-coded 2026-10-10 prompt, and `Build Sentiment
+  Prompt Warning` sends `SENTIMENT_PROMPT_FALLBACK` through `Build Scheduler Developer Alert`. A
+  failed read stops the run.
+- It is still a LangChain template underneath. `Build Analysis Plan` still doubles braces in the
+  cheat sheet block. `Resolve` does the same for the row, so an edit to the row cannot break it.
 
 ## Reply Media Sentiment (Option C) - added 2026-08-24
 
