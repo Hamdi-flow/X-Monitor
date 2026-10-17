@@ -1424,7 +1424,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// One item per NEW reply, each carrying exactly what Classify Sentiment reads.\n// Replaces the batched-JSON call (one OpenAI request per client carrying every\n// post and reply) with the per-reply shape IG - Monitor uses, so all three\n// monitors classify the same way and can later share one prompt.\n//\n// Replies are read from Attach replies to posts, which already dropped anything\n// scored in an earlier pass and any duplicate across chunks, pages or the overlap\n// window. A reply that is not in this plan is never sent to OpenAI.\n\nconst payloadRaw = $('Attach replies to posts').first()?.json?.text || '{\"results\":[]}';\nlet posts = [];\ntry {\n  const parsed = JSON.parse(payloadRaw);\n  posts = Array.isArray(parsed.results) ? parsed.results : [];\n} catch {\n  posts = [];\n}\n\n// X author id -> tracked user, from the rows this run already fetched. Carries\n// the client (for the per-client cheat sheet) and the display name (so the\n// classifier can recognise a reply that addresses the owner by name).\nconst trackedByAuthorId = new Map(\n  $('Get Tracked Users').all().map(item => [\n    String(item.json.user_id || ''),\n    {\n      clientId: String(item.json.client_id || ''),\n      username: String(item.json.username || ''),\n      displayName: String(item.json.display_name || ''),\n    },\n  ])\n);\n\n// Get Active Cheat Sheets uses alwaysOutputData, so an empty table still yields\n// one blank item. Drop anything without both a client and rule text.\nconst sheetByClientId = new Map(\n  $('Get Active Cheat Sheets').all()\n    .map(item => item.json || {})\n    .filter(row => row.client_id && row.rules_text)\n    .map(row => [\n      String(row.client_id),\n      { version: Number(row.version || 0), rulesText: String(row.rules_text) },\n    ])\n);\n\n// The classifier's system prompt is a LangChain template: a literal brace in the\n// cheat sheet would be read as a placeholder and break the call. Double them.\nfunction escapeTemplateBraces(value) {\n  return String(value).split('{').join('{{').split('}').join('}}');\n}\n\n// The text Classify Sentiment receives for one reply. Mirrors IG - Monitor's\n// composeClassifierInput so the three monitors judge TARGET and STANCE toward the\n// owner from the same shape: owner, post text (in place of the caption), reply.\nfunction composeClassifierInput(p) {\n  const owner = '@' + (p.author_username || 'unknown') + (p.author_name ? ' (' + p.author_name + ')' : '');\n  let postText = p.post_text ? String(p.post_text).trim() : '';\n  if (postText.length > 1000) postText = postText.slice(0, 1000) + ' [...]';\n  return 'Account owner: ' + owner + '\\n' +\n    'Post text:\\n<caption>\\n' + (postText || '(no text)') + '\\n</caption>\\n' +\n    'Reply' + (p.is_owner_reply ? ' (written by the account owner)' : '') + ':\\n' +\n    '<comment>\\n' + String(p.reply_text || '') + '\\n</comment>';\n}\n\nconst out = [];\nfor (const post of posts) {\n  const postId = String(post.postId || '');\n  const userId = String(post.userId || '');\n  const tracked = trackedByAuthorId.get(userId) || null;\n  const clientId = tracked && tracked.clientId ? tracked.clientId : 'unknown';\n  const sheet = sheetByClientId.get(clientId) || null;\n  const block = sheet\n    ? 'Client-specific labelling rules (cheat sheet v' + sheet.version + '). Apply these over your general judgement whenever they match:\\n' + sheet.rulesText\n    : 'No client-specific labelling rules are configured for this client. Use your general judgement.';\n\n  const authorUsername = String(post.authorUsername || (tracked ? tracked.username : '') || '');\n  const authorName = String(post.authorName || (tracked ? tracked.displayName : '') || '');\n\n  for (const reply of (Array.isArray(post.replies) ? post.replies : [])) {\n    if (!reply || !reply.id) continue;\n    const replyAuthorId = reply.author_id ? String(reply.author_id) : '';\n    const isOwnerReply = replyAuthorId !== '' && replyAuthorId === userId;\n    const replyText = String(reply.text || '');\n    out.push({\n      json: {\n        post_id: postId,\n        post_text: String(post.postText || ''),\n        user_id: userId,\n        post_author: String(post.postAuthor || ''),\n        author_username: authorUsername,\n        author_name: authorName,\n        // Kept adjacent on purpose: the cheat-sheet isolation fixture asserts the\n        // contiguous pairing \"client_id\":\"<uuid>\",\"cheat_sheet_version\":<n>.\n        client_id: clientId,\n        cheat_sheet_version: sheet ? sheet.version : 0,\n        cheat_sheet_block: escapeTemplateBraces(block),\n        reply_id: String(reply.id),\n        reply_text: replyText,\n        reply_author_id: replyAuthorId,\n        is_owner_reply: isOwnerReply,\n        classifier_input: composeClassifierInput({\n          author_username: authorUsername,\n          author_name: authorName,\n          post_text: post.postText,\n          is_owner_reply: isOwnerReply,\n          reply_text: replyText,\n        }),\n      },\n    });\n  }\n}\n\n// Nothing to score. Returning no items stops the analysis branch cleanly.\nreturn out;\n"
+        "jsCode": "// One item per NEW reply, each carrying exactly what Classify Sentiment reads.\n// Replaces the batched-JSON call (one OpenAI request per client carrying every\n// post and reply) with the per-reply shape IG - Monitor uses, so all three\n// monitors classify the same way and can later share one prompt.\n//\n// Replies are read from Attach replies to posts, which already dropped anything\n// scored in an earlier pass and any duplicate across chunks, pages or the overlap\n// window. A reply that is not in this plan is never sent to OpenAI.\n\nconst payloadRaw = $('Attach replies to posts').first()?.json?.text || '{\"results\":[]}';\nlet posts = [];\ntry {\n  const parsed = JSON.parse(payloadRaw);\n  posts = Array.isArray(parsed.results) ? parsed.results : [];\n} catch {\n  posts = [];\n}\n\n// X author id -> tracked user, from the rows this run already fetched. Carries\n// the client (for the per-client cheat sheet) and the display name (so the\n// classifier can recognise a reply that addresses the owner by name).\nconst trackedByAuthorId = new Map(\n  $('Get Tracked Users').all().map(item => [\n    String(item.json.user_id || ''),\n    {\n      clientId: String(item.json.client_id || ''),\n      username: String(item.json.username || ''),\n      displayName: String(item.json.display_name || ''),\n    },\n  ])\n);\n\n// Get Active Cheat Sheets uses alwaysOutputData, so an empty table still yields\n// one blank item. Drop anything without both a client and rule text.\nconst sheetByClientId = new Map(\n  $('Get Active Cheat Sheets').all()\n    .map(item => item.json || {})\n    .filter(row => row.client_id && row.rules_text)\n    .map(row => [\n      String(row.client_id),\n      { version: Number(row.version || 0), rulesText: String(row.rules_text) },\n    ])\n);\n\n// The classifier's system prompt is a LangChain template: a literal brace in the\n// cheat sheet would be read as a placeholder and break the call. Double them.\nfunction escapeTemplateBraces(value) {\n  return String(value).split('{').join('{{').split('}').join('}}');\n}\n\n// The text the classifier receives for one comment, built from the comment_text\n// row's user_template in public.\"Sentiment Prompts\" (placeholders {{owner}},\n// {{post}}, {{author_note}}, {{comment}}). The same shape in X, FB and IG: owner,\n// then the post (cut at 1000 characters), then the comment.\nconst USER_TEMPLATE = $('Resolve Sentiment Prompts').first().json.comment_text.user_template;\nfunction fillTemplate(tpl, values) {\n  return String(tpl).replace(/\\{\\{(\\w+)\\}\\}/g, (m, k) => Object.prototype.hasOwnProperty.call(values, k) ? String(values[k]) : m);\n}\nfunction composeClassifierInput(p) {\n  const owner = '@' + (p.author_username || 'unknown') + (p.author_name ? ' (' + p.author_name + ')' : '');\n  let post = p.post_text ? String(p.post_text).trim() : '';\n  if (post.length > 1000) post = post.slice(0, 1000) + ' [...]';\n  return fillTemplate(USER_TEMPLATE, {\n    owner,\n    post: post || '(no text)',\n    author_note: p.is_owner_reply ? ' (written by the account owner)' : '',\n    comment: String(p.reply_text || ''),\n  });\n}\n\nconst out = [];\nfor (const post of posts) {\n  const postId = String(post.postId || '');\n  const userId = String(post.userId || '');\n  const tracked = trackedByAuthorId.get(userId) || null;\n  const clientId = tracked && tracked.clientId ? tracked.clientId : 'unknown';\n  const sheet = sheetByClientId.get(clientId) || null;\n  const block = sheet\n    ? 'Client-specific labelling rules (cheat sheet v' + sheet.version + '). Apply these over your general judgement whenever they match:\\n' + sheet.rulesText\n    : 'No client-specific labelling rules are configured for this client. Use your general judgement.';\n\n  const authorUsername = String(post.authorUsername || (tracked ? tracked.username : '') || '');\n  const authorName = String(post.authorName || (tracked ? tracked.displayName : '') || '');\n\n  for (const reply of (Array.isArray(post.replies) ? post.replies : [])) {\n    if (!reply || !reply.id) continue;\n    const replyAuthorId = reply.author_id ? String(reply.author_id) : '';\n    const isOwnerReply = replyAuthorId !== '' && replyAuthorId === userId;\n    const replyText = String(reply.text || '');\n    out.push({\n      json: {\n        post_id: postId,\n        post_text: String(post.postText || ''),\n        user_id: userId,\n        post_author: String(post.postAuthor || ''),\n        author_username: authorUsername,\n        author_name: authorName,\n        // Kept adjacent on purpose: the cheat-sheet isolation fixture asserts the\n        // contiguous pairing \"client_id\":\"<uuid>\",\"cheat_sheet_version\":<n>.\n        client_id: clientId,\n        cheat_sheet_version: sheet ? sheet.version : 0,\n        cheat_sheet_block: escapeTemplateBraces(block),\n        reply_id: String(reply.id),\n        reply_text: replyText,\n        reply_author_id: replyAuthorId,\n        is_owner_reply: isOwnerReply,\n        classifier_input: composeClassifierInput({\n          author_username: authorUsername,\n          author_name: authorName,\n          post_text: post.postText,\n          is_owner_reply: isOwnerReply,\n          reply_text: replyText,\n        }),\n      },\n    });\n  }\n}\n\n// Nothing to score. Returning no items stops the analysis branch cleanly.\nreturn out;\n"
       },
       "id": "a30b802b-93b2-45fa-8596-96d0cf2b7ed1",
       "name": "Build Analysis Plan",
@@ -1440,7 +1440,7 @@
         "inputText": "={{ $json.classifier_input }}",
         "options": {
           "categories": "Positive, Neutral, Negative",
-          "systemPromptTemplate": "=You classify replies left on the posts of a Lebanese X (Twitter) account. The account owner uses this to find replies that are AGAINST THEM. Each input gives you the account owner, the text of the post, and one reply. Classify ONLY the reply. The post text is context for working out what the reply refers to and whether it agrees with the owner; never classify the post itself.\n\nReplies may be written in Modern Standard Arabic, Lebanese or other dialectal Arabic in Arabic script, Lebanese Arabic transliterated into Latin letters and numerals (Arabizi/franco-arabe, e.g. \"3ajebne\", \"7elou\", \"mish mnih\"), English, French, or a mix of these within the same reply. Detect the language and dialect automatically and judge from meaning, tone and intent, not from the script used.\n\nDecide by TARGET and STANCE, not by tone. First ask who the reply is aimed at, then whether it is for or against the owner.\n\nNegative: the reply is hostile, critical, insulting, mocking, sarcastic or dismissive toward the account owner, toward this post, or toward the position the post takes. This includes disagreeing with the post's message, attacking the owner's competence, sincerity or motives, telling them to stop posting or go away, and disgust or contempt aimed at the post itself.\n\nPositive: the reply supports, praises, thanks or agrees with the owner or the post. Anger, insults or blame aimed at someone else - the state, the government, politicians, parties, officials, institutions, or society in general - are Positive when they agree with or echo the owner's point. Blaming \"us\" or the public in a way that echoes the post is agreement too. Strong or crude language aimed at a third party does not make a reply Negative.\n\nNeutral: questions, tagging other people, greetings, remarks unrelated to the owner or the post, and replies whose target or stance cannot be determined with reasonable confidence, including bare reactions such as \"Bruh\", \"?\", or emoji that do not clearly praise or attack.\n\nRules:\n- If the post criticises a third party and the reply piles on that same third party or a similar one, that is agreement: Positive.\n- If a reply mixes agreement with a jab at the owner, it is Negative.\n- Choose Negative only when the reply is aimed at the owner, this post, or its position. If you cannot tell who it is aimed at, choose Neutral rather than Negative.\n- A reply written by the account owner is classified by the same rules.\n\n{{ $json.cheat_sheet_block }}\n\nCategorize the reply into one of the following: {categories}. Use the provided formatting instructions. Only output the JSON.",
+          "systemPromptTemplate": "={{ $('Resolve Sentiment Prompts').first().json.comment_text.system_prompt.split('[[CHEAT_SHEET_BLOCK]]').join($json.cheat_sheet_block || '') }}",
           "includeDetailedResults": true,
           "enableAutoFixing": true,
           "batching": {
@@ -1465,12 +1465,11 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "mode": "list",
-          "value": "gpt-5.4-mini",
-          "cachedResultName": "gpt-5.4-mini"
+          "mode": "id",
+          "value": "={{ $('Resolve Sentiment Prompts').first().json.comment_text.model }}"
         },
         "options": {
-          "temperature": 0
+          "temperature": "={{ $('Resolve Sentiment Prompts').first().json.comment_text.temperature }}"
         }
       },
       "id": "4f03c7ff-3a18-4e2b-a5d5-e7b8b5d74923",
@@ -1645,6 +1644,59 @@
         3264,
         672
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Shared classifier prompts, one row set per Supabase project (X, FB and IG all\n-- read this table). Composed by Resolve Sentiment Prompts. A failed read stops the\n-- run on purpose: no labels from an unknown prompt.\nSELECT key, system_prompt, user_template, model, temperature::float8 AS temperature, categories, updated_at\nFROM public.\"Sentiment Prompts\"\nORDER BY key;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2000,
+        536
+      ],
+      "id": "fc96bc21-5323-4259-99f4-7867ac8c2cec",
+      "name": "Get Sentiment Prompts",
+      "credentials": {
+        "postgres": {
+          "id": "CyXakOvvENeDwRue",
+          "name": "Supabase Staging Postgres"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Reads the shared classifier prompts (public.\"Sentiment Prompts\", one row set per\n// Supabase project) and composes what this run sends to OpenAI. ONE item out, read\n// by name: $('Resolve Sentiment Prompts').first().json. Same code in X, FB and IG\n// apart from the constants below; the table, its placeholders and how the rows\n// compose are documented in X-Monitor db/migrations/2026-10-18-sentiment-prompts.sql.\n//\n// Rows: comment_text and comment_image each say {{target_stance_rules}} where the\n// shared rules go, so the rules exist once. comment_text also says\n// {{cheat_sheet_block}}; this workflow keeps a marker there and fills it per item with the client cheat sheet.\n//\n// FALLBACK: a missing or empty row means this run uses the hard-coded copy below\n// (the Classify Sentiment prompt as of 2026-10-10, cheat sheet marker included) and Build Sentiment Prompt Warning tells the developer\n// chat. A failed READ never reaches this node: Get Sentiment Prompts stops the run.\nconst CHEAT_SHEET_MARKER = \"[[CHEAT_SHEET_BLOCK]]\";\nconst NEEDS_IMAGE_PROMPT = false;\nconst DEFAULT_MODEL = 'gpt-5.4-mini';\nconst FALLBACK_COMMENT_TEXT = \"You classify replies left on the posts of a Lebanese X (Twitter) account. The account owner uses this to find replies that are AGAINST THEM. Each input gives you the account owner, the text of the post, and one reply. Classify ONLY the reply. The post text is context for working out what the reply refers to and whether it agrees with the owner; never classify the post itself.\\n\\nReplies may be written in Modern Standard Arabic, Lebanese or other dialectal Arabic in Arabic script, Lebanese Arabic transliterated into Latin letters and numerals (Arabizi/franco-arabe, e.g. \\\"3ajebne\\\", \\\"7elou\\\", \\\"mish mnih\\\"), English, French, or a mix of these within the same reply. Detect the language and dialect automatically and judge from meaning, tone and intent, not from the script used.\\n\\nDecide by TARGET and STANCE, not by tone. First ask who the reply is aimed at, then whether it is for or against the owner.\\n\\nNegative: the reply is hostile, critical, insulting, mocking, sarcastic or dismissive toward the account owner, toward this post, or toward the position the post takes. This includes disagreeing with the post's message, attacking the owner's competence, sincerity or motives, telling them to stop posting or go away, and disgust or contempt aimed at the post itself.\\n\\nPositive: the reply supports, praises, thanks or agrees with the owner or the post. Anger, insults or blame aimed at someone else - the state, the government, politicians, parties, officials, institutions, or society in general - are Positive when they agree with or echo the owner's point. Blaming \\\"us\\\" or the public in a way that echoes the post is agreement too. Strong or crude language aimed at a third party does not make a reply Negative.\\n\\nNeutral: questions, tagging other people, greetings, remarks unrelated to the owner or the post, and replies whose target or stance cannot be determined with reasonable confidence, including bare reactions such as \\\"Bruh\\\", \\\"?\\\", or emoji that do not clearly praise or attack.\\n\\nRules:\\n- If the post criticises a third party and the reply piles on that same third party or a similar one, that is agreement: Positive.\\n- If a reply mixes agreement with a jab at the owner, it is Negative.\\n- Choose Negative only when the reply is aimed at the owner, this post, or its position. If you cannot tell who it is aimed at, choose Neutral rather than Negative.\\n- A reply written by the account owner is classified by the same rules.\\n\\n[[CHEAT_SHEET_BLOCK]]\\n\\nCategorize the reply into one of the following: {categories}. Use the provided formatting instructions. Only output the JSON.\";\nconst FALLBACK_USER_TEMPLATE = \"Account owner: {{owner}}\\nPost:\\n<caption>\\n{{post}}\\n</caption>\\nComment{{author_note}}:\\n<comment>\\n{{comment}}\\n</comment>\";\nconst FALLBACK_COMMENT_IMAGE = null;\n\nconst rows = new Map();\nfor (const item of $input.all()) {\n  const r = item.json || {};\n  if (r.key && typeof r.system_prompt === 'string' && r.system_prompt.trim() !== '') rows.set(String(r.key), r);\n}\nconst required = ['target_stance_rules', 'comment_text'].concat(NEEDS_IMAGE_PROMPT ? ['comment_image'] : []);\nconst missing_keys = required.filter(k => !rows.has(k));\nconst warnings = [];\nconst rules = rows.get('target_stance_rules') || null;\n\n// The Sentiment Analysis node's system prompt is a LangChain template: {categories}\n// is its placeholder, so every OTHER brace must be doubled or the call breaks.\nfunction escapeForLangChain(s) {\n  const T = '\\u0000CATEGORIES\\u0000';\n  return s.split('{categories}').join(T).split('{').join('{{').split('}').join('}}').split(T).join('{categories}');\n}\nfunction withRules(s) { return s.split('{{target_stance_rules}}').join(rules.system_prompt.trim()); }\nfunction tidy(s) { return s.replace(/\\n{3,}/g, '\\n\\n').trim(); }\nfunction settings(row, label) {\n  const model = row && row.model && String(row.model).trim() ? String(row.model).trim() : DEFAULT_MODEL;\n  let temperature = row && row.temperature !== null && row.temperature !== undefined ? Number(row.temperature) : 0;\n  if (!Number.isFinite(temperature) || temperature < 0 || temperature > 2) { warnings.push(label + '.temperature is not a number in 0-2; used 0'); temperature = 0; }\n  return { model, temperature };\n}\n\nlet comment_text;\nconst textRow = rows.get('comment_text');\nif (textRow && rules) {\n  let s = withRules(textRow.system_prompt);\n  if (!s.includes('{{cheat_sheet_block}}') && CHEAT_SHEET_MARKER) { warnings.push('comment_text has no {{cheat_sheet_block}}; the cheat sheet was appended at the end'); s += '\\n\\n{{cheat_sheet_block}}'; }\n  s = s.split('{{cheat_sheet_block}}').join('\\u0001CHEAT\\u0001');\n  if (!s.includes('{categories}')) { warnings.push('comment_text has no {categories}; the category list was appended'); s += '\\n\\nCategorize the comment into one of the following: {categories}.'; }\n  s = tidy(escapeForLangChain(s).split('\\u0001CHEAT\\u0001').join(CHEAT_SHEET_MARKER));\n  const tpl = textRow.user_template && String(textRow.user_template).trim() ? String(textRow.user_template) : FALLBACK_USER_TEMPLATE;\n  if (tpl === FALLBACK_USER_TEMPLATE && !(textRow.user_template && String(textRow.user_template).trim())) warnings.push('comment_text.user_template is empty; used the hard-coded template');\n  comment_text = { source: 'table', system_prompt: s, user_template: tpl, ...settings(textRow, 'comment_text'), updated_at: textRow.updated_at || null };\n} else {\n  comment_text = { source: 'fallback', system_prompt: FALLBACK_COMMENT_TEXT, user_template: FALLBACK_USER_TEMPLATE, model: DEFAULT_MODEL, temperature: 0, updated_at: null };\n}\n\nlet comment_image = null;\nif (NEEDS_IMAGE_PROMPT) {\n  const imageRow = rows.get('comment_image');\n  if (imageRow && rules) {\n    comment_image = { source: 'table', system_prompt: tidy(withRules(imageRow.system_prompt)), ...settings(imageRow, 'comment_image'), updated_at: imageRow.updated_at || null };\n  } else {\n    comment_image = { source: 'fallback', system_prompt: FALLBACK_COMMENT_IMAGE, model: DEFAULT_MODEL, temperature: 0, updated_at: null };\n  }\n}\n\nconst fallback_used = comment_text.source === 'fallback' || (comment_image !== null && comment_image.source === 'fallback');\nreturn [{ json: {\n  comment_text,\n  comment_image,\n  fallback_used,\n  missing_keys,\n  warnings,\n  row_count: rows.size\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1776,
+        536
+      ],
+      "id": "e409da01-b2ba-49dd-b2a8-4bf8211851e4",
+      "name": "Resolve Sentiment Prompts"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One developer line when Resolve Sentiment Prompts fell back to a hard-coded prompt\n// or had to repair a row, so a deleted or broken row in public.\"Sentiment Prompts\"\n// is never silent. Returns nothing when every row was read cleanly.\nconst p = $input.first().json;\nif (!p.fallback_used && (!p.warnings || p.warnings.length === 0)) return [];\nfunction escapeHtml(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\nconst parts = [];\nif (p.missing_keys && p.missing_keys.length) parts.push('Missing or empty rows: ' + p.missing_keys.join(', ') + '. This run used the hard-coded prompt for: ' + [p.comment_text && p.comment_text.source === 'fallback' ? 'comment_text' : null, p.comment_image && p.comment_image.source === 'fallback' ? 'comment_image' : null].filter(Boolean).join(', ') + '.');\nfor (const w of (p.warnings || [])) parts.push(w);\nreturn [{ json: { scheduler_alert_type: 'SENTIMENT_PROMPT_FALLBACK', message: escapeHtml('public.\"Sentiment Prompts\": ' + parts.join(' ') + ' Labels are still produced; fix the row to stop this warning.') } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1552,
+        336
+      ],
+      "id": "262ccad3-9aba-4ff3-8a1f-a79ec90e0a2a",
+      "name": "Build Sentiment Prompt Warning"
     }
   ],
   "connections": {
@@ -1863,7 +1915,7 @@
       "main": [
         [
           {
-            "node": "Get Run State",
+            "node": "Get Sentiment Prompts",
             "type": "main",
             "index": 0
           }
@@ -2330,6 +2382,44 @@
         [
           {
             "node": "Probe OpenAI Error Reason",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sentiment Prompts": {
+      "main": [
+        [
+          {
+            "node": "Resolve Sentiment Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Sentiment Prompts": {
+      "main": [
+        [
+          {
+            "node": "Get Run State",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Sentiment Prompt Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Sentiment Prompt Warning": {
+      "main": [
+        [
+          {
+            "node": "Build Scheduler Developer Alert",
             "type": "main",
             "index": 0
           }
