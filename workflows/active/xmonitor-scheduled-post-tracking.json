@@ -114,7 +114,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const analyzedRow = $('Get Analyzed Reply Ids').first()?.json || {};\nlet analyzedIds = analyzedRow.analyzed_reply_ids || [];\nif (typeof analyzedIds === 'string') {\n  // Postgres text[] can arrive as a literal '{a,b,c}'.\n  analyzedIds = analyzedIds\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\nconst alreadyAnalyzed = new Set((Array.isArray(analyzedIds) ? analyzedIds : []).map(String));\n\nconst postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      postAuthor: item.json.post_author || (item.json.author_username ? `@${item.json.author_username}` : String(item.json.author_id || 'unknown')),\n      authorUsername: item.json.author_username || '',\n      authorName: item.json.author_name || '',\n      totalReplyCount: Number(item.json.public_metrics?.reply_count ?? 0),\n      replies: [],\n    },\n  ])\n);\n\nconst replyPages = $('Get Replies').all();\n\nconst seen = new Set();\nlet newReplyCount = 0;\nlet fetchedReplyCount = 0;\n\nfor (const group of replyPages) {\n  for (const reply of group.json.data || []) {\n    fetchedReplyCount += 1;\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    const replyId = String(reply.id);\n    // Skip replies scored in an earlier pass, and duplicates across chunks/overlap/pages.\n    if (alreadyAnalyzed.has(replyId) || seen.has(replyId)) continue;\n    seen.add(replyId);\n\n    post.replies.push({\n      id: replyId,\n      text: String(reply.text || '').replace(/\\s+/g, ' ').trim(),\n      // Lets Build Analysis Plan mark a reply written by the account owner.\n      author_id: reply.author_id ? String(reply.author_id) : '',\n    });\n    newReplyCount += 1;\n  }\n}\n\n// Page-cap detection. Pagination stops either because a page carried no next_token\n// (complete) or because maxRequests was reached (truncated). Group pages back to the\n// chunk that produced them and check whether that chunk's LAST page still had a token.\n// A silent cap here would look identical to \"there was nothing more\", and under\n// incremental fetching the missed replies are never requested again.\nfunction lastPageStillHasToken(pages) {\n  const byChunk = new Map();\n  pages.forEach((page, index) => {\n    let key = 'unknown';\n    const paired = page.pairedItem;\n    if (typeof paired === 'number') key = String(paired);\n    else if (paired && typeof paired === 'object' && paired.item !== undefined) key = String(paired.item);\n    if (!byChunk.has(key)) byChunk.set(key, []);\n    byChunk.get(key).push(page);\n  });\n  for (const group of byChunk.values()) {\n    const last = group[group.length - 1];\n    if (last?.json?.meta?.next_token) return true;\n  }\n  return false;\n}\n\nconst repliesTruncated = lastPageStillHasToken(replyPages);\n\nlet postsTruncated = false;\nlet postPageCount = 0;\ntry {\n  const postPages = $('Get posts of tracked users').all();\n  postPageCount = postPages.length;\n  postsTruncated = lastPageStillHasToken(postPages);\n} catch (e) {\n  // posts node output unavailable; leave defaults\n}\n\n// T3: which client owns each post, and its thresholds. Built as a separate map\n// and deliberately kept OUT of `results`/`text`, because `text` is the OpenAI\n// prompt payload -- tenancy ids have no business in it, and adding them would\n// change the prompt, its cost, and the model's input for no gain.\nconst post_client_map = {};\nfor (const item of $('Keep Posts With 10+ Replies').all()) {\n  const row = item.json || {};\n  const postId = String(row.id || '');\n  if (!postId) continue;\n  post_client_map[postId] = {\n    client_id: String(row.client_id || ''),\n    client_slug: String(row.client_slug || ''),\n    client_name: String(row.client_name || ''),\n    min_replies: Number(row.client_min_replies ?? 10),\n    negative_threshold: Number(row.client_negative_threshold ?? 0.5),\n  };\n}\n\nconst allPosts = [...postsByConversation.values()];\n// Only posts with something new go to OpenAI.\nconst results = allPosts.filter(post => post.replies.length > 0);\n\nreturn [{\n  json: {\n    has_new_replies: newReplyCount > 0,\n    new_reply_count: newReplyCount,\n    fetched_reply_count: fetchedReplyCount,\n    reply_page_count: replyPages.length,\n    post_page_count: postPageCount,\n    replies_truncated: repliesTruncated,\n    posts_truncated: postsTruncated,\n    fetch_truncated: repliesTruncated || postsTruncated,\n    post_client_map,\n    candidate_post_ids: allPosts.map(post => String(post.postId || '')).filter(Boolean),\n    text: JSON.stringify({ results }),\n  },\n}];"
+        "jsCode": "const MAX_IMAGES_PER_REPLY = 4;\n\nconst analyzedRow = $('Get Analyzed Reply Ids').first()?.json || {};\nlet analyzedIds = analyzedRow.analyzed_reply_ids || [];\nif (typeof analyzedIds === 'string') {\n  // Postgres text[] can arrive as a literal '{a,b,c}'.\n  analyzedIds = analyzedIds\n    .replace(/^\\{/, '')\n    .replace(/\\}$/, '')\n    .split(',')\n    .map(value => value.replace(/^\"|\"$/g, '').trim())\n    .filter(Boolean);\n}\nconst alreadyAnalyzed = new Set((Array.isArray(analyzedIds) ? analyzedIds : []).map(String));\n\nconst postsByConversation = new Map(\n  $('Keep Posts With 10+ Replies').all().map(item => [\n    String(item.json.conversation_id),\n    {\n      postId: item.json.id,\n      postText: item.json.text,\n      userId: item.json.author_id,\n      postAuthor: item.json.post_author || (item.json.author_username ? `@${item.json.author_username}` : String(item.json.author_id || 'unknown')),\n      authorUsername: item.json.author_username || '',\n      authorName: item.json.author_name || '',\n      totalReplyCount: Number(item.json.public_metrics?.reply_count ?? 0),\n      replies: [],\n    },\n  ])\n);\n\nconst replyPages = $('Get Replies').all();\n\nconst seen = new Set();\nlet newReplyCount = 0;\nlet fetchedReplyCount = 0;\n\n// Replies carrying images or a video thumbnail. Relabelled downstream by a per-reply\n// multimodal call, because text-only analysis cannot see an image-only insult.\nconst mediaReplies = [];\nlet unresolvedMediaKeys = 0;\n\nfor (const group of replyPages) {\n  // media_keys resolve against this page's includes.media block.\n  const includes = group.json.includes || {};\n  const mediaByKey = new Map();\n  for (const m of (includes.media || [])) {\n    mediaByKey.set(String(m.media_key), m);\n  }\n\n  for (const reply of group.json.data || []) {\n    fetchedReplyCount += 1;\n    const post = postsByConversation.get(String(reply.conversation_id));\n    if (!post || !reply.id) continue;\n\n    const replyId = String(reply.id);\n    // Skip replies scored in an earlier pass, and duplicates across chunks/overlap/pages.\n    if (alreadyAnalyzed.has(replyId) || seen.has(replyId)) continue;\n    seen.add(replyId);\n\n    const text = String(reply.text || '').replace(/\\s+/g, ' ').trim();\n    post.replies.push({\n      id: replyId,\n      text,\n      // Lets Build Analysis Plan mark a reply written by the account owner.\n      author_id: reply.author_id ? String(reply.author_id) : '',\n    });\n    newReplyCount += 1;\n\n    const declaredKeys = (reply.attachments && reply.attachments.media_keys) ? reply.attachments.media_keys : [];\n    const imageUrls = [];\n    for (const key of declaredKeys) {\n      const m = mediaByKey.get(String(key));\n      if (!m) { unresolvedMediaKeys += 1; continue; }\n      // Photos expose url. Video and animated_gif expose only a thumbnail.\n      const url = m.url || m.preview_image_url || '';\n      if (url) imageUrls.push(url);\n    }\n\n    if (imageUrls.length > 0) {\n      mediaReplies.push({\n        reply_id: replyId,\n        post_id: String(post.postId || ''),\n        postText: String(post.postText || ''),\n        replyText: text,\n        imageUrls: imageUrls.slice(0, MAX_IMAGES_PER_REPLY),\n      });\n    }\n  }\n}\n\n// Page-cap detection. Pagination stops either because a page carried no next_token\n// (complete) or because maxRequests was reached (truncated). Group pages back to the\n// chunk that produced them and check whether that chunk's LAST page still had a token.\n// A silent cap here would look identical to \"there was nothing more\", and under\n// incremental fetching the missed replies are never requested again.\nfunction lastPageStillHasToken(pages) {\n  const byChunk = new Map();\n  pages.forEach((page, index) => {\n    let key = 'unknown';\n    const paired = page.pairedItem;\n    if (typeof paired === 'number') key = String(paired);\n    else if (paired && typeof paired === 'object' && paired.item !== undefined) key = String(paired.item);\n    if (!byChunk.has(key)) byChunk.set(key, []);\n    byChunk.get(key).push(page);\n  });\n  for (const group of byChunk.values()) {\n    const last = group[group.length - 1];\n    if (last?.json?.meta?.next_token) return true;\n  }\n  return false;\n}\n\nconst repliesTruncated = lastPageStillHasToken(replyPages);\n\nlet postsTruncated = false;\nlet postPageCount = 0;\ntry {\n  const postPages = $('Get posts of tracked users').all();\n  postPageCount = postPages.length;\n  postsTruncated = lastPageStillHasToken(postPages);\n} catch (e) {\n  // posts node output unavailable; leave defaults\n}\n\n// T3: which client owns each post, and its thresholds. Built as a separate map\n// and deliberately kept OUT of `results`/`text`, because `text` is the OpenAI\n// prompt payload -- tenancy ids have no business in it, and adding them would\n// change the prompt, its cost, and the model's input for no gain.\nconst post_client_map = {};\nfor (const item of $('Keep Posts With 10+ Replies').all()) {\n  const row = item.json || {};\n  const postId = String(row.id || '');\n  if (!postId) continue;\n  post_client_map[postId] = {\n    client_id: String(row.client_id || ''),\n    client_slug: String(row.client_slug || ''),\n    client_name: String(row.client_name || ''),\n    min_replies: Number(row.client_min_replies ?? 10),\n    negative_threshold: Number(row.client_negative_threshold ?? 0.5),\n  };\n}\n\nconst allPosts = [...postsByConversation.values()];\n// Only posts with something new go to OpenAI.\nconst results = allPosts.filter(post => post.replies.length > 0);\n\nreturn [{\n  json: {\n    has_new_replies: newReplyCount > 0,\n    new_reply_count: newReplyCount,\n    fetched_reply_count: fetchedReplyCount,\n    reply_page_count: replyPages.length,\n    post_page_count: postPageCount,\n    replies_truncated: repliesTruncated,\n    posts_truncated: postsTruncated,\n    fetch_truncated: repliesTruncated || postsTruncated,\n    media_reply_count: mediaReplies.length,\n    unresolved_media_keys: unresolvedMediaKeys,\n    media_replies: mediaReplies,\n    post_client_map,\n    candidate_post_ids: allPosts.map(post => String(post.postId || '')).filter(Boolean),\n    text: JSON.stringify({ results }),\n  },\n}];"
       },
       "id": "6709d845-b024-42d2-a045-184a0dda4440",
       "name": "Attach replies to posts",
@@ -127,7 +127,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// T3: the alert threshold is per client now. This constant survives only as the\n// fallback for a post whose client did not resolve, and equals the pre-T3 value.\nconst DEFAULT_ALERT_THRESHOLD = 0.5;\n\nfunction parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nfunction parseInputPosts() {\n  const raw = $('Attach replies to posts').first()?.json?.text;\n  if (!raw) return [];\n  try {\n    const parsed = JSON.parse(raw);\n    return Array.isArray(parsed.results) ? parsed.results : [];\n  } catch {\n    return [];\n  }\n}\n\nconst inputPostsById = new Map(\n  parseInputPosts().map(post => [String(post.postId || ''), post])\n);\n\n// T3: per-post client thresholds, carried alongside the post rather than inside\n// the model payload. See Attach replies to posts.\nconst clientByPostId = $('Attach replies to posts').first()?.json?.post_client_map || {};\n\n// Counts from replies scored in earlier passes.\nconst storedByPostId = new Map(\n  $('Get Stored Post Counts').all().map(item => {\n    const row = item.json || {};\n    return [String(row.post_id || ''), {\n      analyzed: Number(row.stored_analyzed || 0),\n      negative: Number(row.stored_negative || 0),\n      positive: Number(row.stored_positive || 0),\n      neutral: Number(row.stored_neutral || 0),\n    }];\n  })\n);\n\n// This node's own input is Get Stored Post Counts, so the model output has to be\n// read from its node directly rather than from `items`.\nconst posts = $('Collect Sentiment Labels').all().flatMap(item =>\n  parseResults(item).map(post => {\n    const postId = String(post.postId || '');\n    const metadata = inputPostsById.get(postId) || {};\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n\n    const fresh = { positive: 0, neutral: 0, negative: 0 };\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(fresh, sentiment)) {\n        fresh[sentiment] += 1;\n      }\n    }\n\n    const stored = storedByPostId.get(postId) || { analyzed: 0, negative: 0, positive: 0, neutral: 0 };\n    const client = clientByPostId[postId] || {};\n    const clientThreshold = Number(client.negative_threshold);\n    const alert_threshold = Number.isFinite(clientThreshold) ? clientThreshold : DEFAULT_ALERT_THRESHOLD;\n\n    // The ratio is (stored + new) / (stored + new), never this run's slice alone.\n    const new_analyzed_count = replies.length;\n    const analyzed_count = stored.analyzed + new_analyzed_count;\n    const negative_count = stored.negative + fresh.negative;\n    const positive_count = stored.positive + fresh.positive;\n    const neutral_count = stored.neutral + fresh.neutral;\n    const negative_ratio = analyzed_count > 0 ? negative_count / analyzed_count : 0;\n\n    const total_reply_count = Number(metadata.totalReplyCount ?? analyzed_count);\n\n    let overall_tag = 'Neutral';\n    if (positive_count > neutral_count && positive_count > negative_count) {\n      overall_tag = 'Positive';\n    } else if (negative_count > neutral_count && negative_count > positive_count) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId || metadata.userId,\n      postAuthor: metadata.postAuthor || post.postAuthor || String(post.userId || metadata.userId || 'unknown'),\n      authorUsername: metadata.authorUsername || post.authorUsername || '',\n      authorName: metadata.authorName || post.authorName || '',\n      replies,\n      new_analyzed_count,\n      new_negative_count: fresh.negative,\n      stored_analyzed_count: stored.analyzed,\n      stored_negative_count: stored.negative,\n      comments_count: analyzed_count,\n      analyzed_count,\n      total_reply_count,\n      positive_count,\n      neutral_count,\n      negative_count,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n      // T3: the owning client travels with the post so the alert fan-out can route\n      // on it without re-querying, and so execution data shows who a post was for.\n      client_id: String(client.client_id || ''),\n      client_slug: String(client.client_slug || ''),\n      client_name: String(client.client_name || ''),\n      alert_threshold,\n      // Storage is no longer gated on the threshold - only alerting is.\n      alert_now: negative_ratio >= alert_threshold,\n    };\n  })\n);\n\nreturn [{ json: { posts } }];"
+        "jsCode": "// T3: the alert threshold is per client now. This constant survives only as the\n// fallback for a post whose client did not resolve, and equals the pre-T3 value.\nconst DEFAULT_ALERT_THRESHOLD = 0.5;\n\nfunction parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\nfunction parseInputPosts() {\n  const raw = $('Attach replies to posts').first()?.json?.text;\n  if (!raw) return [];\n  try {\n    const parsed = JSON.parse(raw);\n    return Array.isArray(parsed.results) ? parsed.results : [];\n  } catch {\n    return [];\n  }\n}\n\nconst inputPostsById = new Map(\n  parseInputPosts().map(post => [String(post.postId || ''), post])\n);\n\n// T3: per-post client thresholds, carried alongside the post rather than inside\n// the model payload. See Attach replies to posts.\nconst clientByPostId = $('Attach replies to posts').first()?.json?.post_client_map || {};\n\n// Counts from replies scored in earlier passes.\nconst storedByPostId = new Map(\n  $('Get Stored Post Counts').all().map(item => {\n    const row = item.json || {};\n    return [String(row.post_id || ''), {\n      analyzed: Number(row.stored_analyzed || 0),\n      negative: Number(row.stored_negative || 0),\n      positive: Number(row.stored_positive || 0),\n      neutral: Number(row.stored_neutral || 0),\n    }];\n  })\n);\n\n// Read the media-corrected labels, not the raw batched output: replies carrying an\n// image are relabelled by a per-reply multimodal call in Apply Media Sentiment.\nconst posts = $('Apply Media Sentiment').all().flatMap(item =>\n  parseResults(item).map(post => {\n    const postId = String(post.postId || '');\n    const metadata = inputPostsById.get(postId) || {};\n    const replies = Array.isArray(post.replies) ? post.replies : [];\n\n    const fresh = { positive: 0, neutral: 0, negative: 0 };\n    for (const reply of replies) {\n      const sentiment = String(reply.sentiment || '').toLowerCase();\n      if (Object.prototype.hasOwnProperty.call(fresh, sentiment)) {\n        fresh[sentiment] += 1;\n      }\n    }\n\n    const stored = storedByPostId.get(postId) || { analyzed: 0, negative: 0, positive: 0, neutral: 0 };\n    const client = clientByPostId[postId] || {};\n    const clientThreshold = Number(client.negative_threshold);\n    const alert_threshold = Number.isFinite(clientThreshold) ? clientThreshold : DEFAULT_ALERT_THRESHOLD;\n\n    // The ratio is (stored + new) / (stored + new), never this run's slice alone.\n    const new_analyzed_count = replies.length;\n    const analyzed_count = stored.analyzed + new_analyzed_count;\n    const negative_count = stored.negative + fresh.negative;\n    const positive_count = stored.positive + fresh.positive;\n    const neutral_count = stored.neutral + fresh.neutral;\n    const negative_ratio = analyzed_count > 0 ? negative_count / analyzed_count : 0;\n\n    const total_reply_count = Number(metadata.totalReplyCount ?? analyzed_count);\n\n    let overall_tag = 'Neutral';\n    if (positive_count > neutral_count && positive_count > negative_count) {\n      overall_tag = 'Positive';\n    } else if (negative_count > neutral_count && negative_count > positive_count) {\n      overall_tag = 'Negative';\n    }\n\n    return {\n      postId: post.postId,\n      postText: post.postText,\n      userId: post.userId || metadata.userId,\n      postAuthor: metadata.postAuthor || post.postAuthor || String(post.userId || metadata.userId || 'unknown'),\n      authorUsername: metadata.authorUsername || post.authorUsername || '',\n      authorName: metadata.authorName || post.authorName || '',\n      replies,\n      new_analyzed_count,\n      new_negative_count: fresh.negative,\n      stored_analyzed_count: stored.analyzed,\n      stored_negative_count: stored.negative,\n      comments_count: analyzed_count,\n      analyzed_count,\n      total_reply_count,\n      positive_count,\n      neutral_count,\n      negative_count,\n      negative_ratio,\n      negative_percentage: Math.round(negative_ratio * 100),\n      overall_tag,\n      // T3: the owning client travels with the post so the alert fan-out can route\n      // on it without re-querying, and so execution data shows who a post was for.\n      client_id: String(client.client_id || ''),\n      client_slug: String(client.client_slug || ''),\n      client_name: String(client.client_name || ''),\n      alert_threshold,\n      // Storage is no longer gated on the threshold - only alerting is.\n      alert_now: negative_ratio >= alert_threshold,\n    };\n  })\n);\n\nreturn [{ json: { posts } }];"
       },
       "id": "588619c4-fb92-4402-bdb2-fe65d6ceb218",
       "name": "Calculate/Filter Sentiment Counts",
@@ -617,7 +617,15 @@
             },
             {
               "name": "tweet.fields",
-              "value": "created_at,conversation_id,author_id"
+              "value": "created_at,conversation_id,author_id,attachments"
+            },
+            {
+              "name": "expansions",
+              "value": "attachments.media_keys"
+            },
+            {
+              "name": "media.fields",
+              "value": "type,url,preview_image_url,alt_text"
             }
           ]
         },
@@ -1587,6 +1595,104 @@
       ],
       "id": "106aaa3a-0b1d-4afc-9419-dbcbf066b5f6",
       "name": "Build Sentiment Prompt Warning"
+    },
+    {
+      "parameters": {
+        "jsCode": "const MAX_MEDIA_REPLIES_PER_PASS = 40;\n\nconst source = $('Attach replies to posts').first()?.json || {};\nconst allMediaReplies = Array.isArray(source.media_replies) ? source.media_replies : [];\n\n// Only replies that received a text label this pass. A reply whose text\n// classification failed is not stored this run (and is re-scored next pass once\n// the held watermark re-reads it), so paying for its image now would be wasted.\nlet classifiedIds = null;\ntry {\n  const parsed = JSON.parse($('Collect Sentiment Labels').first()?.json?.text || '{}');\n  const results = Array.isArray(parsed.results) ? parsed.results : [];\n  classifiedIds = new Set(results.flatMap(post => (post.replies || []).map(reply => String(reply.id))));\n} catch (e) {\n  classifiedIds = null;\n}\nconst mediaReplies = classifiedIds\n  ? allMediaReplies.filter(r => classifiedIds.has(String(r.reply_id)))\n  : allMediaReplies;\n\n// 2026-10-18: the system prompt is the comment_image row of public.\"Sentiment Prompts\",\n// composed with the shared target_stance_rules row by Resolve Sentiment Prompts\n// (hard-coded copy there if the row is missing). Model and temperature come from\n// the same row. The user message below stays here because it carries the images.\nconst IMAGE_PROMPT = $('Resolve Sentiment Prompts').first().json.comment_image;\nconst SYSTEM = IMAGE_PROMPT.system_prompt;\n\nif (mediaReplies.length === 0) {\n  return [{ json: { no_media: true, media_reply_count: 0 } }];\n}\n\nconst selected = mediaReplies.slice(0, MAX_MEDIA_REPLIES_PER_PASS);\nconst skipped = mediaReplies.length - selected.length;\n\nconst out = [];\nfor (const r of selected) {\n  const content = [{\n    type: 'text',\n    text: 'POST by the monitored account:\\n' + String(r.postText || '') + '\\n\\nREPLY to label:\\n' + String(r.replyText || '')\n  }];\n  for (const url of (r.imageUrls || [])) {\n    content.push({ type: 'image_url', image_url: { url: url, detail: 'low' } });\n  }\n\n  out.push({\n    json: {\n      no_media: false,\n      reply_id: String(r.reply_id),\n      post_id: String(r.post_id || ''),\n      image_count: (r.imageUrls || []).length,\n      skipped_over_cap: skipped,\n      body: {\n        model: IMAGE_PROMPT.model,\n        temperature: IMAGE_PROMPT.temperature,\n        response_format: { type: 'json_object' },\n        messages: [\n          { role: 'system', content: SYSTEM },\n          { role: 'user', content: content }\n        ]\n      }\n    }\n  });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3932,
+        336
+      ],
+      "id": "b548718b-6e85-47cb-81a3-19ef376fbcd7",
+      "name": "Build Media Classify Requests"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d1a7c904-6b52-4f8e-9c31-2a7b5e0f4d18",
+              "leftValue": "={{ $json.no_media }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4156,
+        336
+      ],
+      "id": "d115a60a-eff1-4447-96d8-b938083288ca",
+      "name": "If Has Media Replies"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 3
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4380,
+        256
+      ],
+      "id": "002b09f4-38e3-4e0e-b4b1-fd2bb6c0b244",
+      "name": "Classify Media Replies",
+      "credentials": {
+        "openAiApi": {
+          "id": "Valu7LAYDqkPgcyU",
+          "name": "OpenAi account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseResults(item) {\n  const candidates = [\n    item.json?.output?.[0]?.content?.[0]?.text,\n    item.json?.output,\n    item.json?.text,\n  ];\n\n  for (const candidate of candidates) {\n    let value = candidate;\n    if (typeof value === 'string') {\n      try {\n        value = JSON.parse(value);\n      } catch {\n        continue;\n      }\n    }\n\n    if (Array.isArray(value?.results)) {\n      return value.results;\n    }\n  }\n\n  throw new Error('OpenAI response did not contain a results array.');\n}\n\n// Text labels come from Collect Sentiment Labels, which regrouped the per-reply\n// Classify Sentiment output into the {results:[...]} shape used here.\nconst results = $('Collect Sentiment Labels').all().flatMap(item => parseResults(item));\n\nlet requests = [];\nlet responses = [];\ntry { requests = $('Build Media Classify Requests').all(); } catch (e) { requests = []; }\n// Not executed on a pass with no media replies.\ntry { responses = $('Classify Media Replies').all(); } catch (e) { responses = []; }\n\nconst VALID = new Set(['Positive', 'Negative', 'Neutral']);\nconst overrides = new Map();\nlet applied = 0;\nlet failed = 0;\n\nfor (let i = 0; i < requests.length; i++) {\n  const req = requests[i].json || {};\n  if (req.no_media) continue;\n\n  const res = responses[i] ? responses[i].json : null;\n  let label = '';\n  try {\n    const raw = (res && res.choices && res.choices[0] && res.choices[0].message)\n      ? res.choices[0].message.content\n      : null;\n    if (raw) {\n      const parsed = (typeof raw === 'string') ? JSON.parse(raw) : raw;\n      label = String(parsed.sentiment || '');\n    }\n  } catch (e) {\n    label = '';\n  }\n\n  if (VALID.has(label)) {\n    overrides.set(String(req.reply_id), label);\n    applied += 1;\n  } else {\n    // Degrade to the text-only label rather than dropping the reply.\n    failed += 1;\n  }\n}\n\nlet changed = 0;\nfor (const post of results) {\n  for (const reply of (post.replies || [])) {\n    const override = overrides.get(String(reply.id));\n    if (!override) continue;\n    if (String(reply.sentiment || '') !== override) changed += 1;\n    reply.sentiment = override;\n    reply.media_labeled = true;\n  }\n}\n\nreturn [{\n  json: {\n    text: JSON.stringify({ results }),\n    media_labels_applied: applied,\n    media_labels_failed: failed,\n    media_labels_changed_from_text: changed,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4604,
+        336
+      ],
+      "id": "fbdd10f6-328e-472b-80b3-3d3a1fd6992e",
+      "name": "Apply Media Sentiment"
     }
   ],
   "connections": {
@@ -1905,7 +2011,7 @@
       "main": [
         [
           {
-            "node": "Calculate/Filter Sentiment Counts",
+            "node": "Build Media Classify Requests",
             "type": "main",
             "index": 0
           }
@@ -2264,6 +2370,57 @@
           }
         ]
       ]
+    },
+    "Build Media Classify Requests": {
+      "main": [
+        [
+          {
+            "node": "If Has Media Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Media Replies": {
+      "main": [
+        [
+          {
+            "node": "Classify Media Replies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply Media Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Media Replies": {
+      "main": [
+        [
+          {
+            "node": "Apply Media Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Media Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Calculate/Filter Sentiment Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -2286,8 +2443,8 @@
   },
   "nodeGroups": [],
   "pinData": {},
-  "versionId": "9cfaaf87-0d7f-4415-a3ee-c681299de5d0",
-  "activeVersionId": "9cfaaf87-0d7f-4415-a3ee-c681299de5d0",
+  "versionId": "f6fe84d0-0209-4f88-bc17-2c140459980f",
+  "activeVersionId": "f6fe84d0-0209-4f88-bc17-2c140459980f",
   "versionCounter": 1705,
   "triggerCount": 1,
   "sourceWorkflowId": null,
