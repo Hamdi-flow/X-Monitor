@@ -47,7 +47,7 @@
 -- Idempotent; safe to re-run.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-18.
--- Production (jxnzdxyhoakpfmkbjdeq): NOT YET APPLIED, waiting for staging sign-off.
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-18 (user approval in chat); rows md5-identical to staging.
 
 CREATE TABLE IF NOT EXISTS public."Sentiment Prompts" (
   key           text PRIMARY KEY,
