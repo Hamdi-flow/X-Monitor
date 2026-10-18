@@ -9,6 +9,23 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
+- **Production rollout, 2026-10-18 (approved by the user in chat).** The migration was applied to
+  `jxnzdxyhoakpfmkbjdeq`; the md5 of every row equals staging. Each production draft passed a
+  pinned check on the production table before it was published: IG `49477`; FB `49481` (text)
+  and `49482` (3 real images); X `49484` (cheat-sheet isolation) and `49489` (17 real image
+  replies, 17/17 labelled). After each publish, `versionId == activeVersionId`, `triggerCount`
+  stayed 1, and X's error workflow `UmKr9JkZ3ec3GDH5` was kept.
+
+  | Platform | Production versionId | Prompt source | Image analysis | First scheduled run |
+  | --- | --- | --- | --- | --- |
+  | X `Emb26wP77eFXgnVi` | `f6fe84d0` | table | on (`comment_image`) | `49492` (10:00 UTC, success, 0 new replies) |
+  | FB `R5djuij2kpzLWtCH` | `c3822289` | table | on (`comment_image`) | `49493` (10:00 UTC, success, nothing new) |
+  | IG `Be8WZuoQf0S0sdgV` | `9be3b259` | table | not possible (API, see the IG probe `49472`) | not saved (success runs are not kept); no error run since publish |
+  **Still open:** labels written to production after the change. The first scheduled runs found
+  no new comments, so no production row has been labelled on the table prompt yet. Check
+  `Replies.analyzed_at`, `FB Comments.created_at` and `IG Comments.created_at` after the next
+  comment arrives.
+
 - **Shared classifier prompt table, staging, 2026-10-18 (MINOR).** New migration
   `db/migrations/2026-10-18-sentiment-prompts.sql` creates `public."Sentiment Prompts"` (key PK,
   `system_prompt`, `user_template`, `model`, `temperature`, `categories`, `notes`,
