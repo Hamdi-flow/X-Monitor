@@ -27,7 +27,9 @@
 -- Idempotent; safe to re-run.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-18.
--- NOT yet applied to production (jxnzdxyhoakpfmkbjdeq): needs the user's approval.
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-18 (user approval in chat); prompt rows
+-- unchanged by it (same md5 and updated_at before and after), history empty, anon/authenticated
+-- cannot execute save_sentiment_prompt().
 
 CREATE TABLE IF NOT EXISTS public."Sentiment Prompt History" (
   id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
