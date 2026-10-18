@@ -40,6 +40,38 @@ FB Monitor and Insta-Monitor changelogs.
       `[[CHEAT_SHEET_BLOCK]]` marker, and none of the old "Lebanese X (Twitter) account"
       wording. Staging replies were stored and one staging alert was sent, as on any manual pass.
   - The drift auditor compared live with the export: in sync, 62 nodes.
+  - **Image path on the same table, staging draft `2d180862`.** `Resolve Sentiment Prompts` now
+    also resolves `comment_image`. Its fallback is the 2026-10-10 "lebanese arabic sentiment
+    labeling engine" SYSTEM. `Build Media Classify Requests` takes SYSTEM, model and temperature
+    from that row; its image-carrying user message is unchanged.
+    - **Real-image evidence `49386`**: real run `49338`'s own read outputs were replayed into the
+      draft, with every write and send pinned. Its 17 real replies with images went to OpenAI on
+      the table prompt (`gpt-5.4-mini`, temperature 0; the system message contains the shared
+      target-and-stance rules).
+      - 17 labelled, 0 failed, 6 overrode the text label.
+      - **15 of 17 agree** with the old image prompt's labels from `49338`.
+      - `2110776065039663147` ("لا للاحتلال الايراني 😂😂", on a post against Iran's militia)
+        flipped Negative → Positive. That is correct: it agrees with the post.
+      - `2110847726506164624` flipped Negative → **Positive, and that looks WRONG**. The reply mocks
+        the owner ("لسيدكم الأمريكي … مسخرة القطيع … ما ضحك عليكم سنكري"). The new text prompt
+        also said Positive. The shared rules let a reply that insults the owner while naming
+        third parties pass as agreement. That is a prompt-wording question for the user, left
+        unchanged.
+    - Pinned suite after the image change: **21/21**, executions `49448`–`49470`.
+  - **Production prerequisites for the image path** (`Emb26wP77eFXgnVi` has none of it today):
+    - `Get Replies`: `tweet.fields` gains `attachments`, plus `expansions=attachments.media_keys`
+      and `media.fields=type,url,preview_image_url,alt_text`. Production keeps its own pagination
+      settings (`paginationMode`, `type: qs`).
+    - `Attach replies to posts`: the `media_replies` collection (`MAX_IMAGES_PER_REPLY = 4`). The
+      diff against production is purely additive.
+    - Four new nodes: `Build Media Classify Requests`, `If Has Media Replies`,
+      `Classify Media Replies` (`OpenAi account 2`, the same credential in both environments) and
+      `Apply Media Sentiment`.
+    - Rewire `Get Stored Post Counts` → `Build Media Classify Requests` → ... →
+      `Apply Media Sentiment` → `Calculate/Filter Sentiment Counts`, which then reads
+      `$('Apply Media Sentiment')` instead of `$('Collect Sentiment Labels')`.
+    - No image download node: X passes the `pbs.twimg.com` URLs to OpenAI directly, as proven in
+      `49338` and `49386`. Error workflow `UmKr9JkZ3ec3GDH5` stays.
 
 - **Re-exported three PRODUCTION workflows from live n8n, 2026-10-16** (read-only
   `get_workflow_details`; nothing in n8n was changed). Each export had fallen behind the latest
