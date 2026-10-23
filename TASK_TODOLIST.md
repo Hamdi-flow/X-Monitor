@@ -101,7 +101,7 @@ Notes:
   with no charge.
 - 2026-10-23: on staging, step 5 is overtaken for FB and IG — the unified poller
   `iKtxEUBYy5ZFlbaB` reads the key from `FB SMM Settings` via `due_order_polls()`, not from a
-  workflow parameter. X will follow the same path once a `smmwiz_x` row exists (see *Order
+  workflow parameter. X follows the same path since 2026-10-23 via the `smmwiz_x` row (see *Order
   status polling: pg_cron gate and unified poller*). The old X staging poller
   `ceX1EiVN3bFWARMu` still has the inline key but is superseded.
 - 2026-10-23: production follows the same path — `XPfhrrXEOcavSb94` reads the key from
@@ -111,7 +111,8 @@ Notes:
 ### Order status polling: pg_cron gate and unified poller
 
 - Status: open — staging live and validated 2026-10-23; production code/DB/workflow done
-  2026-10-23 and LIVE since 11:30 UTC (Vault set, cron enabled); `smmwiz_x` still open
+  2026-10-23 and LIVE since 11:30 UTC (Vault set, cron enabled); `smmwiz_x` added both
+  environments 2026-10-23, so X is polled too
 - Priority: medium
 - Complexity: `L`
 - Source: n8n execution-billing review, 2026-10-23
@@ -153,11 +154,13 @@ Design:
    Retire the production schedules only after the first production fire is verified:
    `XMonitor - Order Status Polling` `AqdNgOKRXG6J5zbj` plus the FB and IG production pollers.
    Order: workflow published → Vault set → cron enabled → schedules switched off.
-3. **`smmwiz_x` key decision.** X orders are not polled by the unified poller until an active
-   `FB SMM Settings` row `provider = 'smmwiz_x'` exists. The X routers place orders with
-   their own inline SMMWiz key; whether that is the same account as `smmwiz` is unconfirmed.
-   Same on production (checked 2026-10-23: only `smmwiz`, active). With the old X poller
-   inactive, production X orders have **no** poller until this is settled.
+3. **`smmwiz_x` key — done 2026-10-23.** The user confirmed the X routers use the same SMMWiz
+   account. An active `FB SMM Settings` row `provider = 'smmwiz_x'` (id 2, both projects) was
+   inserted with `api_url`/`api_key` copied in SQL from `smmwiz` (never printed) and NULL
+   service ids, so no order path can use it. The IG router's `WHERE is_active ORDER BY id
+   LIMIT 1` still picks `smmwiz` (id 1); checked after the insert. Proven on staging,
+   execution `51866`: June X order `30051512`, placed with the X router's own key, answered
+   `Completed` (charge 0.0387) to the shared key, notice sent on @XmonitorBetaBot, stamped.
 4. **Fold in X-Monitor-Advanced.** `X-Monitor-Advanced-Order-Polling` `AmLbKMDPumbW6fsq`
    (production, 8-hourly, ~90 runs/month, still active) is not covered: it also updates
    `Advanced Mentions`, and `Advanced Order Info` exists only in production. Needs a branch in
@@ -185,11 +188,8 @@ Validation:
 
 Open Questions:
 
-- Is the X routers' inline SMMWiz key the same account as `FB SMM Settings` `smmwiz`?
-  Options: (a) same account → add `smmwiz_x` with the same key (or point X at `smmwiz`);
-  (b) different account → add `smmwiz_x` with the X key; (c) leave X on its own poller.
-  Recommendation: confirm in the SMMWiz panel which account placed a known X order, then (a)
-  or (b). Pair it with the key rotation in the SMMWiz task above so the rotated key is the one
+- ~~Is the X routers' inline SMMWiz key the same account as `smmwiz`?~~ Answered 2026-10-23:
+  same account; `smmwiz_x` added with the same key. Pair it with the key rotation in the SMMWiz task above so the rotated key is the one
   stored.
 - ~~Approve the production rollout (step 2)?~~ Approved and done 2026-10-23 except the
   Vault/cron step and the error-workflow caller policy.

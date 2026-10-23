@@ -170,18 +170,17 @@ in_progress, otherwise pending. Final = completed, partial, canceled, failed.
 
 A status call only works with the API key of the account that placed the order. FB and IG
 share the SMMWiz account in `FB SMM Settings` row `provider = 'smmwiz'`. The X routers
-place orders with their **own inline SMMWiz key**, and nobody has confirmed it is the same
-account.
+place orders with their **own inline SMMWiz key**. The user confirmed on 2026-10-23 that it
+is the same account.
 
-So X rows join a separate row, `provider = 'smmwiz_x'`, which **does not exist** (checked
-2026-10-23 in both projects: the only provider row is `smmwiz`, active). The same holds
-on production. Until it is added, `due_order_polls()`
-returns no X rows, the gate never counts X as due, and X orders are simply not polled.
-The alternative — polling with the FB/IG key — would get `Incorrect order ID`, which the
-normalizer reads as `failed` and would announce to the user as a failed order.
-
-Turning X on is a data change, not a workflow change: insert an active `smmwiz_x` row
-with the key the X router actually uses. That is an open decision in `TASK_TODOLIST.md`.
+X rows still join a separate row, `provider = 'smmwiz_x'`, so X can be pointed at a
+different account later without touching a workflow. That row was added 2026-10-23 in both
+projects (id 2): `api_url`/`api_key` copied in SQL from `smmwiz`, never printed, service ids
+NULL so no order path can use it. The IG router reads `WHERE is_active ORDER BY id LIMIT 1`
+and still picks `smmwiz` (id 1). Deleting or deactivating `smmwiz_x` switches X polling
+off: `due_order_polls()` then returns no X rows. Never point it at a different account's
+key without checking, or every X order would answer `Incorrect order ID` and be announced
+as failed.
 
 ## Notify exactly once
 
@@ -213,7 +212,9 @@ Staging:
 | Cleanup | Test rows restored afterwards. |
 | 48 h stop | Retired staging X orders `30051512`, `30051764` on the first enabled tick. |
 
-Not yet exercised: the X branch (blocked on `smmwiz_x` by design), a failed Telegram send,
+| Staging execution **`51866`** | X branch: June order `30051512` (placed with the X router's own key) polled with the shared key → `Completed`, charge 0.0387, notice on @XmonitorBetaBot, stamped. Proves the same-account claim. The staging post has no `Posts` row, so the `Posts.status` mirror was a no-op. |
+
+Not yet exercised: the `Posts.status` mirror against a real row, a failed Telegram send,
 the unauthorized-call path against the live webhook, per-product fallback mode with this
 version of the gate.
 
@@ -237,7 +238,7 @@ the first fire that carries a due order.
   `order-poll` path and the production bots; re-export both and confirm `versionId` =
   `activeVersionId` on each.
 - Keep the status mapping aligned with the routers' order creation.
-- Do not add the `smmwiz_x` row, change `FB SMM Settings`, create or change production
+- Do not change or remove the `smmwiz_x` row, change `FB SMM Settings`, create or change production
   Vault secrets, or enable/disable the production cron job without explicit approval.
 - Do not republish the old production pollers (`c8JodUU51nV1gDYh`, `TrR3x4Sh442boEMr`,
   `AqdNgOKRXG6J5zbj`) alongside this one: two pollers on the same rows can double-notify.

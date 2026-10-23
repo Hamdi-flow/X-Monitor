@@ -3,9 +3,8 @@
 > **Superseded (2026-10-23)** by [Orders - Order Status Poll](./orders-order-status-poll.md)
 > (`XPfhrrXEOcavSb94`), the unified X/FB/IG poller, published on production 2026-10-23.
 > This workflow shows `active: false` in n8n's listing (when and why it stopped is not
-> recorded). Do not republish it alongside the unified poller. Note the unified poller does
-> not poll X orders until an active `FB SMM Settings` row `provider = 'smmwiz_x'` exists,
-> so production X orders currently have no active poller.
+> recorded). Do not republish it alongside the unified poller. Production X orders are polled
+> by the unified poller `XPfhrrXEOcavSb94` since the `smmwiz_x` row was added 2026-10-23.
 
 ## Purpose
 
