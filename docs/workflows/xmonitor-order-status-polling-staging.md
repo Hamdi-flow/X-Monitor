@@ -1,5 +1,10 @@
 # XMonitor - Order Status Polling Staging
 
+> **Superseded (2026-10-23)** by [Orders - Order Status Poll (Staging)](./orders-order-status-poll-staging.md)
+> (`iKtxEUBYy5ZFlbaB`), which polls X, FB and IG orders in one webhook-triggered
+> workflow. This workflow is kept for reference and as the staging mirror of the
+> production X poller's logic. Do not publish or activate it.
+
 ## Purpose
 
 Inactive staging workflow that polls SMMWiz order status for saved `Order Info` rows, normalizes provider statuses, updates `Order Info` and `Posts`, and sends one final Telegram notification when an order reaches a terminal state.
@@ -8,20 +13,38 @@ Inactive staging workflow that polls SMMWiz order status for saved `Order Info` 
 
 - n8n ID: `ceX1EiVN3bFWARMu`
 - Environment: staging
-- Active: no
-- Local export: `workflows/staging/xmonitor-order-status-polling-staging.json`
-- Last observed live update: `2026-08-25T09:22:10.238Z`
+- Active: no (`active: false`, `activeVersionId: null`, never published)
+- Draft `versionId`: `2f5db85b-4470-4e39-bcd5-2374cc28d20d`
+- Local export: `workflows/staging/xmonitor-order-status-polling-staging.json` (draft state, inline key redacted)
+- Last observed live update: `2026-10-23T06:49:27.531Z`
 
-## Important Variables
+## Draft State (2026-10-23): Not Published, Not Live-Tested
+
+The draft was converted to the pg_cron pattern before the unified poller made it redundant:
+
+- Trigger: the `Every 30 Minutes` schedule was removed. It is now `Order Poll Webhook` (`POST /webhook/order-poll-x-staging`) → `Verify Poll Secret` (Vault `order_poll_secret` compared in SQL, fails closed) → `If Poll Authorized` (false → `Reject Unauthorized Poll Call`).
+- `Update Order Info Status` backs off by `poll_attempts`: +15m, +30m, +1h, +2h, then every 4h (was a flat +30m).
+
+Nothing calls it: staging Vault has no `order_poll_webhook_url_x`, and the unified URL `order_poll_webhook_url` takes precedence anyway. The workflow is inactive, so its webhook path would not answer.
+
+Known defects, **left unfixed because the unified poller replaces this workflow** (each is fixed there):
+
+1. `Normalize Provider Status` runs in all-items mode and reads `$itemIndex`, which is always 0 there, so only the first due order of a run is processed correctly.
+2. `Mark Order Notification Sent` follows `Send Final Order Notification` unconditionally, so `notified_at` is stamped even when the Telegram send fails.
+3. `Attach SMM Status Config` holds the SMMWiz key inline (redacted in the export).
+
+Production `XMonitor - Order Status Polling` (`AqdNgOKRXG6J5zbj`) is unchanged and still on its schedule.
+
+## Important Variables (draft)
 
 | Variable | Location | Current value | Meaning |
 | --- | --- | --- | --- |
-| Schedule cadence | `Every 30 Minutes` | every `30` minutes | Poll interval. |
+| Trigger | `Order Poll Webhook` | `POST order-poll-x-staging` | Was `Every 30 Minutes` until 2026-10-23. |
 | Row fetch limit | `Fetch Due Order Info Rows` | `LIMIT 50` | Maximum due orders checked per run. |
 | Due status filter | `Fetch Due Order Info Rows` | `pending`, `in_progress` | Only non-final active orders are polled. |
 | Due time filter | `Fetch Due Order Info Rows` | `next_check_at <= now()` | Skips rows not ready for another poll. |
 | Provider URL | `Attach SMM Status Config` | `https://smmwiz.com/api/v2` | SMMWiz API endpoint. |
-| Retry delay | `Update Order Info Status` | `now() + interval '30 minutes'` | Next check time for non-final orders. |
+| Retry delay | `Update Order Info Status` | +15m / +30m / +1h / +2h / 4h by `poll_attempts` | Next check time for non-final orders. |
 
 ## Status Mapping
 
@@ -40,7 +63,7 @@ Final statuses are `completed`, `partial`, `canceled`, and `failed`.
 
 ## Main Flow
 
-1. `Every 30 Minutes` starts the poll.
+1. `Order Poll Webhook` → `Verify Poll Secret` → `If Poll Authorized` (draft; previously `Every 30 Minutes`).
 2. `Fetch Due Order Info Rows` selects due rows from `Order Info`.
 3. `Attach SMM Status Config` attaches provider URL and API key configuration. The key is still a plain-text field in live n8n (staging and production). Since 2026-10-03 the local exports have it replaced by `REDACTED_SMM_API_KEY_MOVE_TO_N8N_CREDENTIAL`, so do not re-import them as-is. Moving it to a credential is tracked in `TASK_TODOLIST.md`.
 4. `Check Provider Order Status` posts `action=status` and `order=<provider_order_id>` to SMMWiz.
@@ -69,7 +92,7 @@ Fixtures and the seed/reset/cleanup SQL are in `tests/n8n/order-status-polling-p
 
 ## Agent Change Guidance
 
-- Use this staging poller to validate `Order Info` schema changes before touching production.
+- Superseded: validate `Order Info` and order-lifecycle changes on [Orders - Order Status Poll (Staging)](./orders-order-status-poll-staging.md) instead. Only edit this workflow if you need a staging mirror of the production X poller's exact logic.
 - Production has drifted: its `Fetch Due Order Info Rows` has no `AND next_check_at <= now()` clause, so it polls every non-final order every run. Do not assume this workflow's due filter matches production — see the production doc.
 - Keep status values aligned with Telegram router order creation and production order polling.
 - The workflow contains inline SMM provider key configuration in the export; do not copy it into docs or logs.

@@ -99,6 +99,79 @@ Notes:
   differ from live in that one field. Do not re-import them as-is.
 - Until a staging credential is bound, live staging orders fail at the order node, closed and
   with no charge.
+- 2026-10-23: on staging, step 5 is overtaken for FB and IG — the unified poller
+  `iKtxEUBYy5ZFlbaB` reads the key from `FB SMM Settings` via `due_order_polls()`, not from a
+  workflow parameter. X will follow the same path once a `smmwiz_x` row exists (see *Order
+  status polling: pg_cron gate and unified poller*). The old X staging poller
+  `ceX1EiVN3bFWARMu` still has the inline key but is superseded.
+
+### Order status polling: pg_cron gate and unified poller
+
+- Status: open — staging live and validated 2026-10-23; production not started
+- Priority: medium
+- Complexity: `L`
+- Source: n8n execution-billing review, 2026-10-23
+
+Design:
+
+1. **Staging, done 2026-10-23.** `db/migrations/2026-10-23-order-poll-heartbeat.sql` (step A)
+   and `db/migrations/2026-10-23-order-poll-unified.sql` (step B) applied to
+   `npytqidroqxgikaqofmq`. pg_cron job `order-status-polls` (every minute, **enabled**) runs
+   `public.trigger_order_polls()`: 48 h stop, counts `due_order_polls()`, calls n8n at most
+   once per 10 minutes, unified mode because Vault `order_poll_webhook_url` is set. New
+   workflow `Orders - Order Status Poll (Staging)` `iKtxEUBYy5ZFlbaB`, published
+   `520dcf9f-299e-47f9-96f1-5c8dee800f2f`. Doc:
+   `docs/workflows/orders-order-status-poll-staging.md`.
+2. **Production rollout — needs explicit approval.** Apply both migrations to
+   `jxnzdxyhoakpfmkbjdeq`, create the production Vault secrets (`order_poll_secret`, a
+   *different* value from staging; `order_poll_webhook_url`), create and publish a production
+   copy of the unified poller with production credentials and bots, then enable the cron job.
+   Retire the production schedules only after the first production fire is verified:
+   `XMonitor - Order Status Polling` `AqdNgOKRXG6J5zbj` plus the FB and IG production pollers.
+   Order: workflow published → Vault set → cron enabled → schedules switched off.
+3. **`smmwiz_x` key decision.** X orders are not polled by the unified poller until an active
+   `FB SMM Settings` row `provider = 'smmwiz_x'` exists. The X routers place orders with
+   their own inline SMMWiz key; whether that is the same account as `smmwiz` is unconfirmed.
+4. **Fold in X-Monitor-Advanced.** `X-Monitor-Advanced-Order-Polling` `AmLbKMDPumbW6fsq`
+   (production, 8-hourly, ~90 runs/month, still active) is not covered: it also updates
+   `Advanced Mentions`, and `Advanced Order Info` exists only in production. Needs a branch in
+   `due_order_polls()` / `record_order_poll()` that also writes `Advanced Mentions`.
+5. **X staging poller defects are moot once unified.** `ceX1EiVN3bFWARMu` has an unpublished
+   draft (webhook `order-poll-x-staging` + secret gate + backoff) and still: processes only the
+   first due order (all-items Normalize mode), stamps `notified_at` even when the send fails,
+   and carries the inline SMM key. Do not fix; retire it (or keep inactive as reference) when
+   X moves to the unified poller. Production `AqdNgOKRXG6J5zbj` shares the same Normalize-mode
+   and notify defects and is replaced by step 2 rather than patched.
+
+Validation:
+
+- Staging, done: execution `51756` polled FB order `30820544` and IG order `31247568` in one
+  run, sent two notices on their own bots, stamped both `notified_at`. Non-final path verified
+  in SQL (attempt 2 → +60 min, charge preserved). Test rows restored.
+- Before production: unauthorized-call check against the live webhook (wrong
+  `X-Order-Poll-Secret` stops at `Reject Unauthorized Poll Call`), and an idle-day check that
+  the cron job makes zero HTTP calls.
+- Production: first fired run inspected end to end; compare monthly execution counts against
+  the ~2,181 no-op runs per half-month measured 2026-10-01..15.
+- Pinned fixtures in `tests/n8n/order-status-polling-pins/` pin `Every 30 Minutes`, which the
+  X staging draft no longer has; new fixtures are needed for the unified poller.
+
+Open Questions:
+
+- Is the X routers' inline SMMWiz key the same account as `FB SMM Settings` `smmwiz`?
+  Options: (a) same account → add `smmwiz_x` with the same key (or point X at `smmwiz`);
+  (b) different account → add `smmwiz_x` with the X key; (c) leave X on its own poller.
+  Recommendation: confirm in the SMMWiz panel which account placed a known X order, then (a)
+  or (b). Pair it with the key rotation in the SMMWiz task above so the rotated key is the one
+  stored.
+- Approve the production rollout (step 2)?
+
+Notes:
+
+- Rollback to per-product mode: delete Vault `order_poll_webhook_url`. Kill switch:
+  `cron.alter_job(<order-status-polls jobid>, active := false)`.
+- `cron.job_run_details.return_message` shows only `1 row`, not the function's verdict.
+- The 48 h stop retired two stale June staging X test orders (`30051512`, `30051764`).
 
 ### Hide replies by percentage — live in staging and production; production evidence not recorded
 
