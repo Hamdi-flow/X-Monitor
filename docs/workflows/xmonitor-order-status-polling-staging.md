@@ -1,6 +1,6 @@
 # XMonitor - Order Status Polling Staging
 
-> **Superseded (2026-10-23)** by [Orders - Order Status Poll (Staging)](./orders-order-status-poll-staging.md)
+> **Superseded (2026-10-23)** by [Orders - Order Status Poll (Staging)](./orders-order-status-poll.md)
 > (`iKtxEUBYy5ZFlbaB`), which polls X, FB and IG orders in one webhook-triggered
 > workflow. This workflow is kept for reference and as the staging mirror of the
 > production X poller's logic. Do not publish or activate it.
@@ -92,7 +92,7 @@ Fixtures and the seed/reset/cleanup SQL are in `tests/n8n/order-status-polling-p
 
 ## Agent Change Guidance
 
-- Superseded: validate `Order Info` and order-lifecycle changes on [Orders - Order Status Poll (Staging)](./orders-order-status-poll-staging.md) instead. Only edit this workflow if you need a staging mirror of the production X poller's exact logic.
+- Superseded: validate `Order Info` and order-lifecycle changes on [Orders - Order Status Poll (Staging)](./orders-order-status-poll.md) instead. Only edit this workflow if you need a staging mirror of the production X poller's exact logic.
 - Production has drifted: its `Fetch Due Order Info Rows` has no `AND next_check_at <= now()` clause, so it polls every non-final order every run. Do not assume this workflow's due filter matches production — see the production doc.
 - Keep status values aligned with Telegram router order creation and production order polling.
 - The workflow contains inline SMM provider key configuration in the export; do not copy it into docs or logs.

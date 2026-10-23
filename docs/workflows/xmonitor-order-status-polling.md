@@ -1,5 +1,12 @@
 # XMonitor - Order Status Polling
 
+> **Superseded (2026-10-23)** by [Orders - Order Status Poll](./orders-order-status-poll.md)
+> (`XPfhrrXEOcavSb94`), the unified X/FB/IG poller, published on production 2026-10-23.
+> This workflow shows `active: false` in n8n's listing (when and why it stopped is not
+> recorded). Do not republish it alongside the unified poller. Note the unified poller does
+> not poll X orders until an active `FB SMM Settings` row `provider = 'smmwiz_x'` exists,
+> so production X orders currently have no active poller.
+
 ## Purpose
 
 Production order polling workflow for SMMWiz orders created by the Telegram router. It checks due `Order Info` rows, updates order and post status, and sends final Telegram notifications once.
@@ -8,7 +15,7 @@ Production order polling workflow for SMMWiz orders created by the Telegram rout
 
 - n8n ID: `AqdNgOKRXG6J5zbj`
 - Environment: production
-- Active: yes
+- Active: no (`active: false` in n8n's workflow listing, seen 2026-10-23); superseded
 - Local export: `workflows/active/xmonitor-order-status-polling.json`
 - MCP availability: no, based on current workflow card settings
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
@@ -69,6 +76,8 @@ This production workflow is structurally the same as [XMonitor - Order Status Po
 
 ## Agent Change Guidance
 
+- Superseded: make order-lifecycle changes in the unified poller
+  ([orders-order-status-poll.md](./orders-order-status-poll.md)), not here.
 - Prefer changing and validating the staging poller first.
 - The workflow is **not** MCP-available: `get_workflow_details`, `test_workflow` and even `search_workflow_executions` all refuse it with "Workflow is not available in MCP". Read and edit it over the REST API (`X-N8N-API-KEY` from `keys.env`), or enable MCP access on its workflow card. The 2026-08-25 charge fix was applied by REST `PUT /api/v1/workflows/AqdNgOKRXG6J5zbj` and verified by readback; activation state and all five credential bindings survived.
 - Because MCP cannot reach it, none of the `tests/n8n/order-status-polling-pins/` fixtures can be run against production. They target the staging twin only.

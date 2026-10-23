@@ -86,9 +86,16 @@
       "file": "workflows/staging/orders-order-status-poll-staging.json"
     },
     {
+      "id": "XPfhrrXEOcavSb94",
+      "name": "Orders - Order Status Poll",
+      "active": true,
+      "updatedAt": "2026-10-23T07:17:44.650Z",
+      "file": "workflows/active/orders-order-status-poll.json"
+    },
+    {
       "id": "AqdNgOKRXG6J5zbj",
       "name": "XMonitor - Order Status Polling",
-      "active": true,
+      "active": false,
       "updatedAt": "2026-07-07T17:16:22.668Z",
       "file": "workflows/active/xmonitor-order-status-polling.json"
     },
