@@ -38,7 +38,9 @@
 -- and authenticated. n8n connects as `postgres` and is unaffected.
 --
 -- Idempotent. Applied to staging (npytqidroqxgikaqofmq) on 2026-10-23.
--- NOT yet applied to production.
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-23, together with the
+-- heartbeat migration. Production poller: Orders - Order Status Poll
+-- XPfhrrXEOcavSb94, webhook /webhook/order-poll.
 
 -- 1. Due rows, every product, one shape -----------------------------------
 

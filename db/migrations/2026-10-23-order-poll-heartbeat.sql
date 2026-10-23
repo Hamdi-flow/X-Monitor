@@ -44,7 +44,9 @@
 -- as with the moderation drain.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-23.
--- NOT yet applied to production (jxnzdxyhoakpfmkbjdeq).
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-23. The cron job is still
+-- DISABLED there and the Vault secrets are not yet created -- see the unified
+-- migration and docs/workflows/orders-order-status-poll.md for the steps.
 
 CREATE EXTENSION IF NOT EXISTS pg_net;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
