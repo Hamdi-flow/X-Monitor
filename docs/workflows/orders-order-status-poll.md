@@ -21,8 +21,8 @@ secrets.
 | IG Telegram | `IG Monitor Telegram` | `Insta Monitor Telegram` (@InstaMonitorProductionBot) |
 | Export | `workflows/staging/orders-order-status-poll-staging.json` | `workflows/active/orders-order-status-poll.json` |
 | SDK source | `workflows/staging/orders-order-status-poll-staging.sdk.js` | `workflows/active/orders-order-status-poll.sdk.js` |
-| pg_cron `order-status-polls` | **enabled** | exists, **disabled** |
-| Vault `order_poll_secret` / `order_poll_webhook_url` | set | **not created yet** |
+| pg_cron `order-status-polls` | **enabled** | **enabled** 2026-10-23 11:30 UTC |
+| Vault `order_poll_secret` / `order_poll_webhook_url` | set | set 2026-10-23 (own secret, differs from staging) |
 | Error workflow | none set | none set — see below |
 
 | | |
@@ -30,11 +30,11 @@ secrets.
 | Migrations | `db/migrations/2026-10-23-order-poll-heartbeat.sql` (step A, the gate), `db/migrations/2026-10-23-order-poll-unified.sql` (step B, the shared functions and unified mode). Applied to both projects 2026-10-23. |
 | Pinned tests | none yet |
 
-**Production is published but not yet called (2026-10-23).** The migrations are applied, the
-functions exist with EXECUTE revoked from `anon`/`authenticated`, and the workflow is
-published (`versionId` = `activeVersionId`). Until both Vault secrets exist **and** the cron
-job is enabled, nothing is polled in production. Remaining steps, in order, in the SQL editor
-of `jxnzdxyhoakpfmkbjdeq` (the secret must differ from staging's):
+**Production is live (2026-10-23 11:30 UTC).** The migrations are applied, the functions
+exist with EXECUTE revoked from `anon`/`authenticated`, the workflow is published
+(`versionId` = `activeVersionId`), both Vault secrets exist and the cron job is enabled; the
+first scheduled tick (11:31:00) succeeded. These are the steps that were run, in the SQL
+editor of `jxnzdxyhoakpfmkbjdeq` (the secret must differ from staging's), kept for a rebuild:
 
 ```sql
 -- 1. shared secret (random, never printed)
@@ -110,7 +110,7 @@ functions, so adding a product is a migration, not a workflow edit.
 
 pg_cron job `order-status-polls` runs `select public.trigger_order_polls()` every minute.
 **Enabled on staging** (checked 2026-10-23: `active = true`, schedule `* * * * *`);
-**exists but disabled on production** until the Vault secrets are set. Each tick:
+**enabled on production** since 2026-10-23 11:30 UTC (first tick 11:31:00 succeeded). Each tick:
 
 1. **48-hour stop.** Any `pending` / `in_progress` order placed more than 48 hours ago gets
    `next_check_at = 'infinity'` and `last_error = 'Polling stopped: still not final 48
@@ -222,9 +222,12 @@ Production:
 | Check | Result |
 | --- | --- |
 | Pinned test execution **`51763`** | Wrong secret → `If Poll Authorized` false → `Reject Unauthorized Poll Call`; nothing fetched or sent. |
-| Live execution | **None yet.** No open production orders and 0 due on 2026-10-23, and the gate is not yet enabled. |
+| Manual gate call | `trigger_order_polls()` returned `idle` (no open production orders). |
+| Signed webhook execution **`51864`** | One `net.http_post` signed from Vault, nothing due: `Verify Poll Secret` authorized → `Fetch Due Orders` returned 0 rows → stop. Proves the production secret, URL and Postgres credential end to end with no order touched and nothing sent. |
+| Scheduled tick | `order-status-polls` 11:31:00 `succeeded`. |
 
-The first production fire must be inspected end to end once Vault and cron are set.
+Still unproven in production: a real order going final (notice on each production bot). Inspect
+the first fire that carries a due order.
 
 ## Agent change guidance
 

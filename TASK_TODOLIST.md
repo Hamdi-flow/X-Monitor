@@ -111,7 +111,7 @@ Notes:
 ### Order status polling: pg_cron gate and unified poller
 
 - Status: open — staging live and validated 2026-10-23; production code/DB/workflow done
-  2026-10-23, Vault + cron enable pending (user); `smmwiz_x` still open
+  2026-10-23 and LIVE since 11:30 UTC (Vault set, cron enabled); `smmwiz_x` still open
 - Priority: medium
 - Complexity: `L`
 - Source: n8n execution-billing review, 2026-10-23
@@ -126,21 +126,21 @@ Design:
    workflow `Orders - Order Status Poll (Staging)` `iKtxEUBYy5ZFlbaB`, published
    `520dcf9f-299e-47f9-96f1-5c8dee800f2f`. Doc (both environments):
    `docs/workflows/orders-order-status-poll.md`.
-2. **Production rollout — partly done 2026-10-23.**
+2. **Production rollout — done 2026-10-23.**
    - [x] Migrations `order_poll_heartbeat` and `order_poll_unified` applied to
      `jxnzdxyhoakpfmkbjdeq`; functions exist, EXECUTE revoked from `anon`/`authenticated`.
-   - [x] pg_cron job `order-status-polls` created, **disabled**.
+   - [x] pg_cron job `order-status-polls` created, then **enabled** 2026-10-23 11:30 UTC; first
+     tick 11:31:00 succeeded.
    - [x] Workflow `Orders - Order Status Poll` `XPfhrrXEOcavSb94` created and published
      (`versionId` = `activeVersionId` = `052b9807-9ed2-424f-b7fc-cae380923057`), webhook
      `/webhook/order-poll`, production credentials (`Supabase Account`, `TrackedUsersManager`,
      `FB Monitor Beta Telegram`, `Insta Monitor Telegram`). Export
      `workflows/active/orders-order-status-poll.json`.
-   - [ ] **User:** create Vault `order_poll_secret` and `order_poll_webhook_url` (the agent's
-     attempt was blocked by a permission check), then enable `order-status-polls`. SQL in
-     `docs/workflows/orders-order-status-poll.md`. Until then nothing is polled in production.
+   - [x] Vault `order_poll_secret` and `order_poll_webhook_url` created 2026-10-23 (on the
+     user's go-ahead). Signed webhook check, execution `51864`: authorized, 0 due, stopped.
    - [ ] Error workflow: `UmKr9JkZ3ec3GDH5` rejected `XPfhrrXEOcavSb94` (caller policy). Allow
      it there, then set it as the error workflow.
-   - [ ] Inspect the first production fire end to end.
+   - [ ] Inspect the first production fire that carries a real due order end to end.
    - Old production pollers are already off: FB `c8JodUU51nV1gDYh` and IG `TrR3x4Sh442boEMr`
      unpublished (`activeVersionId` null), last ran 2026-10-15 04:30 UTC, reason unrecorded;
      X `AqdNgOKRXG6J5zbj` shows `active: false`. So production orders are unpolled until the
