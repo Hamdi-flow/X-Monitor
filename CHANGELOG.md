@@ -9,6 +9,17 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
+- **XMonitor - Scheduled Post Tracking Staging (`l4eKZucUZXzfz0H8`), 2026-10-24: client stance
+  in the classifier prompt.** `Get Active Cheat Sheets` returns one row per client with its
+  active X cheat sheet and/or its active non-blank stance from `"Client Stances"` (migration
+  `db/migrations/2026-10-24-client-stances.sql`, staging only). `Build Analysis Plan` puts
+  `About this client (stance vN). Use it to judge whether a comment is for or against the
+  account owner:` + the stance ahead of the cheat sheet in `cheat_sheet_block`; a client with
+  no stance gets a byte-identical block. Draft `versionId b70f3859` (staging stays inactive).
+  Pinned: new fixture `cheat-sheet-client-stance` `52563`, `cheat-sheet-absent-fallback`
+  `52562`, `cheat-sheet-per-client-isolation` `52564`; real staging stance read `52565`.
+  Production `Emb26wP77eFXgnVi` and `workflows/active/` unchanged.
+
 - **XMonitor - Telegram Router Staging (`oLwwjO05IcRjtF8E`), 2026-10-24: SMMWiz service ids
   come from the table.** Likes and comments orders read `likes_service_id` /
   `comments_service_id` from `"FB SMM Settings"` row `provider = 'smmwiz_x'` (active only)

@@ -578,6 +578,32 @@ run cannot prove that, because `test_workflow` pins credentialed nodes.
 - Cheat sheet `v1` exists in staging as a **draft template with `<PLACEHOLDER>` values**. It
   must be filled in and set to `active` at the first weekly review before it does anything.
 
+### Client stance - added 2026-10-24 (staging only)
+
+`public."Client Stances"` (migration `db/migrations/2026-10-24-client-stances.sql`) holds one
+stance per client for every platform: `version`, `status` (`active` / `retired`, at most one
+active per client) and `stance_text` (`''` means no stance). The same block now carries it:
+
+- `Get Active Cheat Sheets` (same name, same `alwaysOutputData`) returns one row per client
+  that has an active X sheet, a non-blank active stance, or both, from `"Clients"` LEFT JOIN
+  both tables: `client_id, version, rules_text, stance_version, stance_text`. The missing half
+  is NULL.
+- `Build Analysis Plan` builds `cheat_sheet_block` as the stance part
+  `About this client (stance v<n>). Use it to judge whether a comment is for or against the
+  account owner:\n<stance_text, trimmed>`, then a blank line, then the unchanged cheat-sheet
+  part. A client with no stance gets a **byte-identical** block to before (the sheet text, or
+  the `No client-specific labelling rules ...` fallback). `cheat_sheet_version` still means the
+  sheet version (0 when there is only a stance). Braces are doubled over the whole block.
+
+Validation (versionId `b70f3859`): pinned fixture `cheat-sheet-client-stance` (execution
+`52563`) asserts all three shapes as exact text: stance + sheet with a doubled brace, sheet
+without stance (unchanged), stance without sheet (no fallback). `cheat-sheet-absent-fallback`
+`52562` and `cheat-sheet-per-client-isolation` `52564` still pass. Execution `52565` ran the
+same fixture with `Get Active Cheat Sheets` unpinned against staging: it read House Account's
+real stance v1 and put it in House Account's block.
+
+Production (`Emb26wP77eFXgnVi`) is unchanged.
+
 ## Per-client alert routing — T3, 2026-08-29
 
 Before T3 this workflow contained **zero references to any tenancy column**.

@@ -184,6 +184,15 @@ expectations() {
       echo "client B's rules reached the prompt|CANARY_BRAVO"
       echo 'one classification item per reply, none merged across clients|"planned_reply_count":2'
       ;;
+    cheat-sheet-client-stance)
+      # Each block is matched whole, from its opening quote to the "reply_id" key that
+      # follows it, so these are exact-text checks (the [^"]{1,4} is the escaped newline).
+      # Client B has a sheet and no stance: its block must be exactly the pre-stance text.
+      echo 'client A: stance first, then its sheet, braces doubled|"cheat_sheet_version":3,"cheat_sheet_block":"About this client \(stance v2\)\. Use it to judge whether a comment is for or against the account owner:[^"]{1,4}STANCE_ALPHA the owner backs reform; a \{\{brace\}\} must be doubled\.[^"]{2,8}Client-specific labelling rules \(cheat sheet v3\)\. Apply these over your general judgement whenever they match:[^"]{1,4}CANARY_ALPHA rules for client A only\.","reply_id"'
+      echo 'client B without a stance: block unchanged|"cheat_sheet_version":5,"cheat_sheet_block":"Client-specific labelling rules \(cheat sheet v5\)\. Apply these over your general judgement whenever they match:[^"]{1,4}CANARY_BRAVO rules for client B only\.","reply_id"'
+      echo 'client C: stance only, no fallback text|"cheat_sheet_version":0,"cheat_sheet_block":"About this client \(stance v7\)\. Use it to judge whether a comment is for or against the account owner:[^"]{1,4}STANCE_CHARLIE stance only, no cheat sheet\.","reply_id"'
+      echo 'one classification item per reply|"planned_reply_count":3'
+      ;;
     cheat-sheet-absent-fallback)
       echo 'no active sheet degrades instead of stalling|"cheat_sheet_version":0'
       echo 'fallback text used|No client-specific labelling rules are configured'

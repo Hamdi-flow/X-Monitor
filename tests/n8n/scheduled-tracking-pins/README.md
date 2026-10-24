@@ -232,6 +232,7 @@ Two fixtures cover the per-client sentiment cheat sheet read path, added when
 | --- | --- |
 | `cheat-sheet-per-client-isolation` | Two clients each get their own OpenAI call, carrying only their own posts and only their own rules. |
 | `cheat-sheet-absent-fallback` | An empty `Sentiment Cheat Sheets` table degrades to general judgement instead of stalling, and a post whose author is not in `Tracked Users` is still analyzed. |
+| `cheat-sheet-client-stance` (2026-10-24) | The client stance from `Client Stances` is put ahead of the client's own cheat sheet (braces doubled), a stance with no sheet replaces the fallback, and a client with a sheet but no stance gets exactly the pre-stance block. Each block is matched whole, between its quotes. |
 
 **Why isolation is asserted the way it is.** The runner matches regexes against execution
 data, so it cannot directly express "client A's payload does *not* contain client B's post".

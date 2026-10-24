@@ -497,6 +497,55 @@
       "whyItMatters": "Stance rules are client-specific. Leaking one client’s rules into another client’s replies would actively degrade labelling rather than fail loudly."
     },
     {
+      "id": "cheat-sheet-client-stance",
+      "file": "cheat-sheet-client-stance.pinData.json",
+      "input": "3 tracked users on 3 clients, 1 qualifying post and 1 new reply each. Client A has an active stance (v2, containing a brace) and cheat sheet (v3); client B a cheat sheet (v5) and no stance; client C a stance (v7) and no cheat sheet.",
+      "riskPinned": [
+        "Schedule Trigger",
+        "Get Run State",
+        "Advance Post Suppression State",
+        "Get Tracked Users",
+        "Get posts of tracked users",
+        "Get Replies",
+        "Get Analyzed Reply Ids",
+        "Get Backfilled Post Ids",
+        "Get Active Cheat Sheets",
+        "Classify Sentiment",
+        "Merge Sentiment Results",
+        "Get Stored Post Counts",
+        "Insert or update posts",
+        "Insert or update replies",
+        "Get Reply Status Counts",
+        "Get Alert Recipients",
+        "Send Negative Alert Notification",
+        "Send Scheduler Developer Alert",
+        "Advance Run State",
+        "Advance Run State (Quiet Pass)"
+      ],
+      "expected": {
+        "reaches": [
+          "Get Active Cheat Sheets",
+          "Build Analysis Plan",
+          "Classify Sentiment",
+          "Merge Sentiment Results"
+        ],
+        "asserts": {
+          "client A": "cheat_sheet_block = stance part, blank line, cheat sheet part; {brace} doubled",
+          "client B": "cheat_sheet_block exactly the pre-stance cheat sheet text",
+          "client C": "cheat_sheet_block = stance part only, no fallback text",
+          "planned_reply_count": 3
+        },
+        "doesNotCallLive": [
+          "X search",
+          "OpenAI",
+          "Supabase writes",
+          "Telegram sendMessage"
+        ]
+      },
+      "proves": "The client stance from \"Client Stances\" reaches each client's own block ahead of its cheat sheet, and a client without a stance gets a byte-identical block to before stances existed.",
+      "whyItMatters": "The stance is what lets the classifier tell for-the-owner from against-the-owner. Changing the block for clients without a stance would silently shift their labels."
+    },
+    {
       "id": "cheat-sheet-absent-fallback",
       "file": "cheat-sheet-absent-fallback.pinData.json",
       "input": "1 tracked user with NO active cheat sheet (Get Active Cheat Sheets pinned to a single empty item, which is what alwaysOutputData emits for 0 rows), plus a post whose author is not in Tracked Users",
