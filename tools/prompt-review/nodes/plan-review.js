@@ -8,6 +8,9 @@ const clientName = new Map((d.clients || []).map(c => [c.client_id, c.name]));
 const labels = (d.labels || []).map(l => ({ ...l, client_name: clientName.get(l.client_id) || null, is_new: since === null || Date.parse(l.labeled_at) > since }));
 const fresh = labels.filter(l => l.is_new);
 const prompts = d.prompts || {};
+// Active client stances: in every classifier prompt of that client (the cheat-sheet
+// block, see lib.js), shown to the reviewer as read-only context, never proposed.
+const stances = (d.stances || []).filter(s => s && s.client_id && String(s.stance_text || '').trim());
 
 const review = {
   id: Number(d.next_id),
@@ -22,6 +25,8 @@ const review = {
   candidate_prompts: {},
   prompt_edits: [],
   cheat_sheet_proposals: [],
+  // Which stance version each client was measured with (stored in metrics, listed in the report).
+  client_stances: stances.map(s => ({ client_id: s.client_id, client_name: s.client_name || null, version: s.version })),
   corrections: [],
   checks: [],
   metrics: null,
@@ -48,6 +53,7 @@ const asCase = l => ({ id: l.id, platform: l.platform, client_id: l.client_id, c
 const data = {
   current_rows: Object.fromEntries(PR_PROMPT_KEYS.map(k => [k, prompts[k].system_prompt])),
   current_cheat_sheets: (d.sheets || []).map(s => ({ platform: s.platform, client_id: s.client_id, client: s.client_name, version: s.version, rules_text: s.rules_text })),
+  client_stances_read_only: stances.map(s => ({ client_id: s.client_id, client: s.client_name, version: s.version, stance_text: String(s.stance_text).trim() })),
   clients: d.clients || [],
   this_week: fresh.map(asCase),
   earlier_labels_do_not_break: labels.filter(l => !l.is_new).slice(-200).map(asCase),
@@ -58,6 +64,8 @@ const SYSTEM = [
   'You can change two things.',
   '1. The shared prompt rows, which apply to every client on every platform: target_stance_rules (the target-and-stance rules, pasted into both other rows), comment_text (the text classifier) and comment_image (comments with an image). Change them only with find/replace edits: "find" must be an exact substring that occurs ONCE in the current row, "replace" is its new text. Add or reword a sentence or a rule; never rewrite a row. Never remove or alter the placeholders {{target_stance_rules}}, {{cheat_sheet_block}} or {categories}. No more than about 20% of a row may change.',
   '2. Per-client cheat sheets, one per client AND platform. Use them for corrections that only make sense for one client: a named rival or ally, a client-specific slogan, a stance only that client holds. Give the FULL new text of the sheet (short bullet rules, at most 1500 characters), keeping the current sheet\'s rules unless the evidence contradicts them. An empty rules_text removes the sheet.',
+  '',
+  'Client stances (client_stances_read_only) are set by staff; do not propose changes to them. Each one describes who the account owner is and where they stand, and is already in every classifier prompt for that client on every platform, ahead of its cheat sheet. Propose cheat-sheet rules only for what the stance does not already cover, and never copy the stance into a cheat sheet.',
   '',
   'Write rules that will hold for comments you have not seen. Never quote a labelled comment or the post it is on (not even a few words in a row), and never name a specific post, link or id: an edit that does is dropped automatically, because it would only memorise the test set. Describe the pattern instead (who the comment targets, what stance it takes, what kind of wording it uses).',
   '',
@@ -85,6 +93,7 @@ return [{ json: {
   labels,
   stability: d.stability || [],
   sheets: d.sheets || [],
+  stances,
   clients: d.clients || [],
   // OpenAI Chat Completions body. OpenAI's most capable model (gpt-6-astra) at the highest
   // reasoning effort the API accepts for it (xhigh; 'max' returns a 400 on Chat

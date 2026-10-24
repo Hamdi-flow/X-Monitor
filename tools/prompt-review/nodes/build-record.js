@@ -9,7 +9,9 @@ if (items[0].json.mode === 'classify') {
   const check = $('Check Proposal').first().json;
   review = { ...check.review };
   const results = items.map(i => ({ id: i.json.id, variant: i.json.variant, label: i.json.classification_failed ? null : (PR_LABELS.includes(i.json.sentiment) ? i.json.sentiment : null) }));
-  review.metrics = { ...prScore(review.cases, results), model: check.model, temperature: check.temperature };
+  // client_stances: the stance version each client was measured with (both variants), so
+  // a decision can be checked later against "Client Stances" history.
+  review.metrics = { ...prScore(review.cases, results), model: check.model, temperature: check.temperature, client_stances: review.client_stances || [] };
   delete review.cases;
 } else {
   review = { ...items[0].json.review };

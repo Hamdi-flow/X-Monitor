@@ -7,6 +7,8 @@
 // (X: XMonitor - Scheduled Post Tracking, FB: FB - Monitor, IG: IG - Monitor), so the
 // review measures exactly what production would send. If those nodes change, change
 // composeSystemPrompt / composeClassifierInput / cheatSheetBlock in the same breath.
+// Since 2026-10-24 the block also carries the client's stance ("Client Stances"), which
+// the review reads and shows the reviewer but can never propose or write.
 
 const PR_PLATFORMS = ['x', 'fb', 'ig'];
 const PR_PLATFORM_NAMES = { x: 'X', fb: 'Facebook', ig: 'Instagram' };
@@ -38,14 +40,20 @@ function prComposeTextPrompt(prompts) {
 }
 
 /**
- * What Build Analysis Plan puts where the marker is. X always says something; Facebook
- * and Instagram add nothing when the client has no active sheet (their prompt is then
- * byte-identical to what they sent before cheat sheets existed).
+ * What Build Analysis Plan puts where the marker is: the client's stance ("Client
+ * Stances", set by staff, shared by every platform) first, then its cheat sheet for this
+ * platform, joined by a blank line, braces doubled. With neither, X says it has no rules;
+ * Facebook and Instagram add nothing (their prompt is then byte-identical to what they
+ * sent before cheat sheets existed). A client without a stance (none, or blank text) gets
+ * exactly the block it got before stances existed (2026-10-24).
+ * stance: { version, stance_text } or null.
  */
-function prCheatSheetBlock(platform, sheet) {
-  if (sheet && sheet.rules_text) {
-    return prEscapeTemplateBraces('Client-specific labelling rules (cheat sheet v' + sheet.version + '). Apply these over your general judgement whenever they match:\n' + sheet.rules_text);
-  }
+function prCheatSheetBlock(platform, sheet, stance) {
+  const parts = [];
+  const stanceText = stance && stance.stance_text ? String(stance.stance_text).trim() : '';
+  if (stanceText) parts.push('About this client (stance v' + Number(stance.version || 0) + '). Use it to judge whether a comment is for or against the account owner:\n' + stanceText);
+  if (sheet && sheet.rules_text) parts.push('Client-specific labelling rules (cheat sheet v' + sheet.version + '). Apply these over your general judgement whenever they match:\n' + sheet.rules_text);
+  if (parts.length) return prEscapeTemplateBraces(parts.join('\n\n'));
   return platform === 'x' ? 'No client-specific labelling rules are configured for this client. Use your general judgement.' : '';
 }
 
@@ -54,8 +62,8 @@ function prCheatSheetBlock(platform, sheet) {
  * FB and IG also collapse the blank lines an empty block leaves behind, which keeps
  * their no-sheet prompt identical to the old marker-less one.
  */
-function prSystemPrompt(composedText, platform, sheet) {
-  const s = composedText.split(PR_CHEAT_MARKER).join(prCheatSheetBlock(platform, sheet));
+function prSystemPrompt(composedText, platform, sheet, stance) {
+  const s = composedText.split(PR_CHEAT_MARKER).join(prCheatSheetBlock(platform, sheet, stance || null));
   return platform === 'x' ? s : s.replace(/\n{3,}/g, '\n\n');
 }
 
@@ -129,8 +137,12 @@ function prCheckRow(key, base, cand) {
   return { problems, ratio };
 }
 
-function prCheckSheet(s, clientIds) {
+/** stance: the client's active stance or null. The review never writes a stance, and a
+ *  sheet that only repeats it would put the same text in the prompt twice. */
+function prCheckSheet(s, clientIds, stance) {
   const problems = [];
+  const flat = v => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (stance && flat(stance.stance_text) && flat(s.rules_text).includes(flat(stance.stance_text))) problems.push('repeats the client stance (set by staff, not by the review)');
   if (!PR_PLATFORMS.includes(s.platform)) problems.push('unknown platform');
   if (!clientIds.has(s.client_id)) problems.push('unknown client');
   if (String(s.rules_text || '').length > PR_MAX_SHEET) problems.push('longer than ' + PR_MAX_SHEET + ' characters');
@@ -423,7 +435,11 @@ function prRenderReport(r) {
       + '<b>To apply it</b>, approve review #' + r.id + ' in the console' + (r.console_url ? ': <a href="' + prEsc(r.console_url) + '/prompts/reviews?review=' + r.id + '">open Prompt reviews</a>' : '')
       + ', or reply <code>approve ' + r.id + '</code> (or <code>reject ' + r.id + '</code>) to the Claude run that sent this. Nothing changes until then; an approved edit can be undone with Restore on the Prompts page.</td></tr></table>'
     : '';
-  const meta = '<div style="font-size:12px;color:' + PR_C.muted + ';margin-top:20px">Review #' + r.id + ' &middot; ' + r.new_label_count + ' new label' + (r.new_label_count === 1 ? '' : 's') + ' since ' + prEsc(r.window_from ? String(r.window_from).slice(0, 10) : 'the start') + ', ' + r.total_label_count + ' in the test set.</div>';
+  const stances = r.client_stances || [];
+  const stanceLine = stances.length
+    ? '<div style="font-size:12px;color:' + PR_C.muted + ';margin-top:20px">Client stances in the prompt (set by staff, read-only here): ' + stances.map(x => prEsc(x.client_name || x.client_id) + ' v' + prEsc(x.version)).join(', ') + '.</div>'
+    : '';
+  const meta = stanceLine + '<div style="font-size:12px;color:' + PR_C.muted + ';margin-top:' + (stanceLine ? '4' : '20') + 'px">Review #' + r.id + ' &middot; ' + r.new_label_count + ' new label' + (r.new_label_count === 1 ? '' : 's') + ' since ' + prEsc(r.window_from ? String(r.window_from).slice(0, 10) : 'the start') + ', ' + r.total_label_count + ' in the test set.</div>';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sentiment prompt review #' + r.id + '</title></head>'
     + '<body style="margin:0;padding:0;background:' + PR_C.soft + '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:16px">'
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:760px;background:' + PR_C.bg + ';border:1px solid ' + PR_C.line + ';border-radius:8px"><tr><td style="padding:20px 20px 24px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">'

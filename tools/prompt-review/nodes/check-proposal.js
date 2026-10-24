@@ -45,12 +45,14 @@ for (const key of Object.keys(applied.candidate)) {
 const clientIds = new Set(plan.clients.map(c => c.client_id));
 const clientName = new Map(plan.clients.map(c => [c.client_id, c.name]));
 const activeSheet = (platform, clientId) => plan.sheets.find(s => s.platform === platform && s.client_id === clientId) || null;
+// The client's stance is the same under both variants: the review cannot change it.
+const stanceOf = clientId => (plan.stances || []).find(s => s.client_id === clientId) || null;
 const seen = new Set();
 for (const raw of Array.isArray(parsed.cheat_sheets) ? parsed.cheat_sheets : []) {
   const s = { platform: String(raw && raw.platform || ''), client_id: String(raw && raw.client_id || ''), rules_text: String(raw && raw.rules_text || '').trim(), reason: String(raw && raw.reason || '').slice(0, 500) };
   const target = 'cheat sheet ' + s.platform + ' / ' + (clientName.get(s.client_id) || s.client_id);
   const cur = activeSheet(s.platform, s.client_id);
-  const problems = prCheckSheet(s, clientIds);
+  const problems = prCheckSheet(s, clientIds, stanceOf(s.client_id));
   problems.push(...prCopyProblems(cur ? cur.rules_text : '', s.rules_text, plan.labels));
   const k = s.platform + ':' + s.client_id;
   if (seen.has(k)) problems.push('proposed twice');
@@ -101,7 +103,7 @@ const out = [];
 for (const c of cases) {
   const input = prClassifierInput(tpl, c);
   for (const variant of ['current', 'candidate']) {
-    out.push({ json: { mode: 'classify', id: c.id, variant, classifier_input: input, system_prompt: prSystemPrompt(composed[variant], c.platform, sheetFor(variant, c.platform, c.client_id)) } });
+    out.push({ json: { mode: 'classify', id: c.id, variant, classifier_input: input, system_prompt: prSystemPrompt(composed[variant], c.platform, sheetFor(variant, c.platform, c.client_id), stanceOf(c.client_id)) } });
   }
 }
 out[0].json.review = review;

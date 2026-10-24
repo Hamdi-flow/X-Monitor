@@ -54,6 +54,46 @@ test('FB/IG without a sheet send the same prompt as before cheat sheets', () => 
   assert.equal(lib.prSystemPrompt(composed, 'ig', null), before);
 });
 
+// Client stances (2026-10-24): the monitors put "About this client (stance vN)" ahead of the
+// cheat sheet. meta-cheat-sheets.test.mjs pins this against each monitor's own code.
+const STANCE_HEAD = 'About this client (stance v1). Use it to judge whether a comment is for or against the account owner:\n';
+const SHEET_HEAD = 'Client-specific labelling rules (cheat sheet v3). Apply these over your general judgement whenever they match:\n';
+const SHEET = { version: 3, rules_text: 'Praise of {rival} is Negative.' };
+
+test('stance: a client without one gets exactly the old block, on every platform', () => {
+  const composed = lib.prComposeTextPrompt(PROMPTS);
+  const oldBlock = (p, sheet) => sheet ? (SHEET_HEAD + sheet.rules_text).split('{').join('{{').split('}').join('}}') : (p === 'x' ? 'No client-specific labelling rules are configured for this client. Use your general judgement.' : '');
+  for (const p of ['x', 'fb', 'ig']) for (const sheet of [null, SHEET]) {
+    for (const stance of [undefined, null, { version: 4, stance_text: '' }, { version: 4, stance_text: ' \n ' }]) {
+      assert.equal(lib.prCheatSheetBlock(p, sheet, stance), oldBlock(p, sheet), p + ' ' + JSON.stringify([sheet, stance]));
+      assert.equal(lib.prSystemPrompt(composed, p, sheet, stance), lib.prSystemPrompt(composed, p, sheet));
+    }
+  }
+});
+
+test('stance: first, then the sheet, blank line between, braces doubled', () => {
+  const stance = { version: 1, stance_text: '  The owner backs {reform}.\n' };
+  const block = lib.prCheatSheetBlock('fb', SHEET, stance);
+  assert.equal(block, STANCE_HEAD + 'The owner backs {{reform}}.\n\n' + SHEET_HEAD + 'Praise of {{rival}} is Negative.');
+  const sp = lib.prSystemPrompt(lib.prComposeTextPrompt(PROMPTS), 'x', SHEET, stance);
+  assert.ok(sp.includes(block));
+  assert.ok(sp.indexOf('(stance v1)') < sp.indexOf('(cheat sheet v3)'));
+});
+
+test('stance only: the stance alone replaces the no-rules sentence (X) or nothing (FB/IG)', () => {
+  const stance = { version: 1, stance_text: 'The owner backs reform.' };
+  for (const p of ['x', 'fb', 'ig']) assert.equal(lib.prCheatSheetBlock(p, null, stance), STANCE_HEAD + 'The owner backs reform.');
+  assert.ok(!lib.prSystemPrompt(lib.prComposeTextPrompt(PROMPTS), 'x', null, stance).includes('No client-specific labelling rules'));
+});
+
+test('a proposed sheet that repeats the stance is dropped', () => {
+  const ids = new Set(['c1']);
+  const stance = { version: 1, stance_text: 'The owner backs reform.\nAttacks on banks agree with him.' };
+  assert.deepEqual(lib.prCheckSheet({ platform: 'x', client_id: 'c1', rules_text: '- the owner backs reform. attacks on banks agree with him.\n- Clowns are Negative.' }, ids, stance), ['repeats the client stance (set by staff, not by the review)']);
+  assert.deepEqual(lib.prCheckSheet({ platform: 'x', client_id: 'c1', rules_text: '- Clowns are Negative.' }, ids, stance), []);
+  assert.deepEqual(lib.prCheckSheet({ platform: 'x', client_id: 'c1', rules_text: '- Clowns are Negative.' }, ids), []);
+});
+
 test('classifier input follows the user template and cuts the post at 1000', () => {
   const s = lib.prClassifierInput(PROMPTS.comment_text.user_template, { owner: '@a', post: 'p'.repeat(1200), comment: 'hi', is_owner: true });
   assert.ok(s.startsWith('Account owner: @a\n'));
@@ -129,6 +169,8 @@ test('report escapes comment text and shows the decision box only when pending',
   assert.ok(html.includes('0% &rarr; 100%'));
   assert.ok(!lib.prRenderReport({ ...r, status: 'no_change', metrics: null }).includes('approve 7'));
   assert.match(lib.prSubject(r), /^\[STAGING\] Sentiment prompt review #7: 0% → 100%/);
+  assert.ok(!html.includes('Client stances in the prompt'));
+  assert.ok(lib.prRenderReport({ ...r, client_stances: [{ client_id: 'c1', client_name: 'House <Account>', version: 1 }] }).includes('Client stances in the prompt (set by staff, read-only here): House &lt;Account&gt; v1.'));
 });
 
 test('dollar quoting never collides with the value', () => {

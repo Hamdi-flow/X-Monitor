@@ -9,6 +9,21 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
+- **Sentiment Prompt Review (Staging) (`L5PotNp2RD3U8BY0`), 2026-10-24: measures the client
+  stance like the monitors.** `Collect Labels` also reads active non-blank `"Client Stances"`;
+  `lib.js` `prCheatSheetBlock(platform, sheet, stance)` builds the monitors' block (stance first,
+  then the cheat sheet; byte-identical to before for a client without a stance), pinned against
+  each monitor's own `Build Analysis Plan` by `tests/meta-cheat-sheets.test.mjs`. The reviewer gets
+  the stances as `client_stances_read_only` ("set by staff; do not propose changes"); Check
+  Proposal drops a sheet that repeats the stance; `metrics.client_stances` records the versions
+  measured and the report lists them in one line. Live `versionId cae0cd01` (unpublished, as
+  before; compare-live matches). Runs: `52577` (real, review #9 `no_change`: no labels newer than
+  #8; the reviewer received House Account v1 and Omar Haddad v2); `52579` (`test_workflow`, real
+  staging rows replayed with a pinned reviewer answer, DB writes and Gmail pinned: House
+  Account's classifier prompts carry stance v1 ahead of its sheets, the stance-copying sheet was
+  dropped). Production `H6ihEBBECUKYOlVE` and `workflows/active/` unchanged; production needs
+  the client-stances migration first.
+
 - **XMonitor - Scheduled Post Tracking Staging (`l4eKZucUZXzfz0H8`), 2026-10-24: client stance
   in the classifier prompt.** `Get Active Cheat Sheets` returns one row per client with its
   active X cheat sheet and/or its active non-blank stance from `"Client Stances"` (migration

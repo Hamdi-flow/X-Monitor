@@ -2,7 +2,8 @@
 --   labels     every human label on X, Facebook and Instagram (the test set; the ones
 --              labelled after last_window_to are this week's evidence)
 --   stability  random unlabelled comments with a model label, from the 1000 newest
---   prompts / sheets / clients  the live prompt rows, active cheat sheets, clients
+--   prompts / sheets / stances / clients  the live prompt rows, active cheat sheets,
+--              active client stances (read-only context), clients
 --   next_id    the id this run's "Sentiment Prompt Reviews" row will get, so the
 --              report can name it before the row exists
 -- The owner / post / comment fields are what Build Analysis Plan in each monitor puts in
@@ -59,6 +60,13 @@ SELECT
       'version', s.version, 'rules_text', s.rules_text)), '[]'::jsonb)
      FROM public."Sentiment Cheat Sheets" s JOIN public."Clients" c ON c.id = s.client_id
     WHERE s.status = 'active') AS sheets,
+  -- Active, non-blank client stances (one per client, every platform), as the monitors'
+  -- Get Active Cheat Sheets reads them. Set by staff; the review reads them, never writes.
+  (SELECT coalesce(jsonb_agg(jsonb_build_object(
+      'client_id', st.client_id::text, 'client_name', c.name,
+      'version', st.version, 'stance_text', st.stance_text) ORDER BY c.name), '[]'::jsonb)
+     FROM public."Client Stances" st JOIN public."Clients" c ON c.id = st.client_id
+    WHERE st.status = 'active' AND btrim(st.stance_text) <> '') AS stances,
   (SELECT coalesce(jsonb_agg(jsonb_build_object('client_id', id::text, 'name', name) ORDER BY name), '[]'::jsonb)
      FROM public."Clients") AS clients,
   (SELECT coalesce(jsonb_agg(to_jsonb(i) ORDER BY i.labeled_at), '[]'::jsonb)
