@@ -34,6 +34,8 @@
 -- Idempotent; safe to re-run.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-24.
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-24 (user approval in chat; migration name
+-- sentiment_prompt_reviews). Production had no cheat sheets at the time.
 
 -- ---------------------------------------------------------------------------
 -- 1. Per-platform cheat sheets
