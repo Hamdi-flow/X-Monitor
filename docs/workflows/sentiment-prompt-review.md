@@ -16,7 +16,7 @@ never activated).
 
 | | Staging | Production |
 | --- | --- | --- |
-| n8n | `Sentiment Prompt Review (Staging)` `L5PotNp2RD3U8BY0`, unpublished, run with `executionMode: manual` | `Sentiment Prompt Review` `H6ihEBBECUKYOlVE`, published 2026-10-24 (`activeVersionId` `e482f615-b0d1-4d27-9e53-de606d78a573`), run with `executionMode: production` |
+| n8n | `Sentiment Prompt Review (Staging)` `L5PotNp2RD3U8BY0`, unpublished, run with `executionMode: manual` | `Sentiment Prompt Review` `H6ihEBBECUKYOlVE`, published 2026-10-24; client stance republished 2026-10-24 (`activeVersionId` `39e95370-4169-44f0-8ac3-7c9c7f7733fa`), run with `executionMode: production` |
 | Export | `workflows/staging/sentiment-prompt-review-staging.json` | `workflows/active/sentiment-prompt-review-production.json` |
 | Started by | Claude scheduled task `sentiment-prompt-review-staging` (manual only) | Claude scheduled task `sentiment-prompt-review`, Mondays 09:00 local |
 | Supabase | `npytqidroqxgikaqofmq` | `jxnzdxyhoakpfmkbjdeq` |

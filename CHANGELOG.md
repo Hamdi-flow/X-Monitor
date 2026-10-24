@@ -21,13 +21,22 @@ FB Monitor and Insta-Monitor changelogs.
   #8; the reviewer received House Account v1 and Omar Haddad v2); `52579` (`test_workflow`, real
   staging rows replayed with a pinned reviewer answer, DB writes and Gmail pinned: House
   Account's classifier prompts carry stance v1 ahead of its sheets, the stance-copying sheet was
-  dropped). Production `H6ihEBBECUKYOlVE` and `workflows/active/` unchanged; production needs
-  the client-stances migration first.
+  dropped).
+- **Sentiment Prompt Review (`H6ihEBBECUKYOlVE`), 2026-10-24: client stance promoted to
+  production** (user approval in chat), after the client-stances migration
+  (`20261024154014`). The four nodes above (Collect Labels, Plan Review, Check Proposal, Build
+  Record) were pushed from `build-workflow.mjs production` and published: `activeVersionId
+  39e95370`. Pinned draft run `52593` (production draft, staging rows replayed with a pinned
+  reviewer answer; DB writes and Gmail pinned): every prompt carries House Account's stance v1
+  ahead of its sheet, the stance-copying sheet was dropped, `metrics.client_stances` recorded.
+  compare-live was not run against production (the keys.env MCP token cannot read this
+  workflow); the parameters were pushed verbatim from `out/production-update-ops.json`.
+  Export `workflows/active/sentiment-prompt-review-production.json` rebuilt.
 
 - **XMonitor - Scheduled Post Tracking Staging (`l4eKZucUZXzfz0H8`), 2026-10-24: client stance
   in the classifier prompt.** `Get Active Cheat Sheets` returns one row per client with its
   active X cheat sheet and/or its active non-blank stance from `"Client Stances"` (migration
-  `db/migrations/2026-10-24-client-stances.sql`, staging only). `Build Analysis Plan` puts
+  `db/migrations/2026-10-24-client-stances.sql`; production since 2026-10-24). `Build Analysis Plan` puts
   `About this client (stance vN). Use it to judge whether a comment is for or against the
   account owner:` + the stance ahead of the cheat sheet in `cheat_sheet_block`; a client with
   no stance gets a byte-identical block. Draft `versionId b70f3859` (staging stays inactive).
