@@ -62,6 +62,14 @@ the mixed-status set in `hide-replies-enqueue`.
   pins the comment-amount form as `12`, pins exactly 12 supportive comments,
   pins the send-and-wait confirmation as `Confirm`, then pins the SMM
   add/status calls.
+- **Since 2026-10-24 the service id comes from the table.** `Load X Likes Service Id` /
+  `Load X Comments Service Id` read `"FB SMM Settings"` row `provider = 'smmwiz_x'`
+  just before the order; the two success / provider-error fixtures pin them as
+  `12104` / `8404`.
+- `order-likes-no-service-id.pinData.json` and
+  `order-comments-no-service-id.pinData.json`: pin that id as `null` and prove the
+  order is refused (`Refuse ... No Service Id` -> `Send ... Order Error`) without
+  reaching `Prepare ... Order Request` or `Place ... Order`, so SMMWiz is never called.
 - `order-comments-invalid-amount.pinData.json`: submits `9` in the amount form,
   pins the Telegram validation error, and verifies that post lookup, generation,
   and ordering are skipped.

@@ -10,8 +10,8 @@ Staging copy of the production Telegram router. This is the preferred workflow f
 - Environment: staging
 - Active: yes
 - Local export: `workflows/staging/xmonitor-codex-staging.json`
-- Node count: `155`
-- Last observed live update: `2026-10-03T08:32:10Z` (published; `versionId` = `activeVersionId` = `66db1fd5-59ab-4f65-9373-0a2148658a88`, the SMM credential change on top of `d4b403b4`; re-read 2026-10-16)
+- Node count: `161`
+- Last observed live update: `2026-10-24T07:51:50Z` (published; `versionId` = `activeVersionId` = `3f6ac1e9-fd6d-4fd4-b2e3-7bf86e15dbe5`, service ids from the table on top of `66db1fd5`; re-read 2026-10-24)
 - Error workflow: `XMonitor - Staging Developer Error Alerts` (`CCzwnMyoy7UequuI`)
 - Main trigger node: `Telegram Trigger`
 
@@ -32,6 +32,7 @@ Important staging deltas:
 | Hide replies | **Enqueues into `Moderation Queue`**; hiding and failure alerts belong to the drain workflow | Same since the 2026-08-27 promotion |
 | Hide percentage | Menu + `/hide POST_ID PERCENT`; percentage of stored **negative** replies, oldest first. See below. | Same since the promotion at 2026-10-03 10:08 UTC (`92d6b099`), including the switch-fallback fix |
 | Order placement retry | `retryOnFail: false` explicit on `Place Comment Order` and `Place Likes Order` | Same, set in the same change on 2026-08-25 |
+| SMM service ids | Read at order time from `"FB SMM Settings"` row `provider = 'smmwiz_x'` (see below) | Still the constants `12104` / `8404` in the two Prepare nodes; not promoted |
 | SMM API key | n8n credential (`httpTemplatedCustomAuth`) on both order nodes; no `apiKey` in any Set node | Still a plain-text `apiKey` in `Set Comment Service Config` / `Set Likes Service Config`; not promoted |
 
 ## SMM API Key Lives In A Credential
@@ -136,6 +137,30 @@ That upsert is `ON CONFLICT (reply_id) DO UPDATE`, which re-arms a row sitting i
 `Hide Reply On X`, `Prepare Hide Result`, `Update Reply Status`, `Build Hide Summary`, `Send Hide Summary`, `Build Developer Alert - Hide Failures`, and `Send Developer Alert - Hide Failures` are gone from this workflow. Their behaviour — including the failure classification categories, the `Replies.status` write, and the sanitized developer alert — moved to the drain, which is where hide failures now happen.
 
 The **workflow static-data rate-limit cache is gone too**. `$getWorkflowStaticData('global').xHideRateLimits` was per-workflow while the X limit is per access token, and it was invisible to any second entry point. Quota now lives in the `X Rate Limits` table, keyed by `(x_user_id, endpoint)`. Nothing in this workflow reads or writes it any more; the drain owns throttling entirely, which is why the precheck that used to skip or truncate a hide batch no longer exists.
+
+## Service Ids Come From The Table
+
+Since 2026-10-24 neither order branch hard-codes its SMMWiz service id. Just before the
+order, `Load X Likes Service Id` / `Load X Comments Service Id` (Postgres, Supabase Staging
+Postgres) read `likes_service_id` / `comments_service_id` from `"FB SMM Settings"` row
+`provider = 'smmwiz_x'`, only while that row `is_active`, always returning exactly one row.
+`If X Likes Service Id Set` / `If X Comments Service Id Set` require a positive whole number;
+otherwise `Refuse Likes Order No Service Id` / `Refuse Comment Order No Service Id` send the
+refusal through the existing `Send ... Order Error` node and nothing reaches `Prepare ...`
+or `Place ...`, so SMMWiz is never called. NULL is the disarmed state, as on Facebook and
+Instagram.
+
+The ids are edited on the console's `/settings/smm` page (`save_smm_service_id()`), and
+every change, including table-editor edits, is logged in `"SMM Service ID History"`.
+Migration `db/migrations/2026-10-24-smm-service-ids-x.sql` seeded the row with the former
+constants (12104 / 8404). The comment amount limits in `Validate Comment Order Input`
+(10-250) are still sized for service 8404: changing the comments id to a service with
+other limits needs that node changed too.
+
+Pinned evidence (staging, 2026-10-24): likes NULL -> refused, execution 52357; likes
+`12345` -> `Prepare Likes Order Request.serviceId = 12345` and `Order Info.service_id = 12345`,
+52358; comments NULL -> refused, 52359; comments `8405` -> used, 52360. Fixtures:
+`order-likes-no-service-id`, `order-comments-no-service-id`.
 
 ## Comment Orders
 

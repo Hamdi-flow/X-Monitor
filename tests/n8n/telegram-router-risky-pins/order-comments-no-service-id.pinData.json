@@ -1,0 +1,213 @@
+{
+  "Telegram Trigger": [
+    {
+      "json": {
+        "update_id": 910003,
+        "message": {
+          "message_id": 203,
+          "from": {
+            "id": 8677383067,
+            "is_bot": false,
+            "first_name": "Test",
+            "last_name": "User",
+            "language_code": "en"
+          },
+          "chat": {
+            "id": 8677383067,
+            "first_name": "Test",
+            "type": "private"
+          },
+          "date": 1781631500,
+          "text": "/order_comments 2060604129798496702",
+          "entities": [
+            {
+              "offset": 0,
+              "length": 15,
+              "type": "bot_command"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Resolve Caller Authorization": [
+    {
+      "json": {
+        "client_ids": [],
+        "is_staff": true
+      }
+    }
+  ],
+  "Prompt For Comment Amount": [
+    {
+      "json": {
+        "data": {
+          "comment_amount": 12
+        }
+      }
+    }
+  ],
+  "Get Post For Comment Order": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "user_id": "951803761",
+        "post_text": "We are rolling out cleaner alerts for tracked posts this week.",
+        "status": "New"
+      }
+    }
+  ],
+  "Get Comment Post Tracked User": [
+    {
+      "json": {
+        "user_id": "951803761",
+        "username": "RebelHam_"
+      }
+    }
+  ],
+  "Send Suggested Comments": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 302,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned supportive comments sent"
+        }
+      }
+    }
+  ],
+  "Ask Comment Order Confirmation": [
+    {
+      "json": {
+        "data": {
+          "What would you like to do?": [
+            "Confirm"
+          ]
+        }
+      }
+    }
+  ],
+  "Place Comment Order": [
+    {
+      "json": {
+        "order": 88000002
+      }
+    }
+  ],
+  "Create Comment Order Info": [
+    {
+      "json": {
+        "id": "44444444-4444-4444-8444-444444444444",
+        "provider": "smmwiz",
+        "provider_order_id": "88000002",
+        "order_type": "comments",
+        "post_id": "2060604129798496702",
+        "telegram_chat_id": "8677383067",
+        "x_username": "RebelHam_",
+        "link": "https://x.com/i/web/status/2060604129798496702?s=20",
+        "service_id": "8404",
+        "quantity": null,
+        "comment_count": 12,
+        "provider_status": "Pending",
+        "normalized_status": "pending",
+        "notified_at": null
+      }
+    }
+  ],
+  "Mark Comment Order Processing": [
+    {
+      "json": {
+        "post_id": "2060604129798496702",
+        "status": "Processing"
+      }
+    }
+  ],
+  "Send Comment Order Success": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 303,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "The order has been placed successfully. Here are its details."
+        }
+      }
+    }
+  ],
+  "Generate Supportive Comments": [
+    {
+      "json": {
+        "output": {
+          "post_id": "2060604129798496702",
+          "supportive_comments": [
+            {
+              "comment_text": "Clean update"
+            },
+            {
+              "comment_text": "This makes sense"
+            },
+            {
+              "comment_text": "Helpful direction"
+            },
+            {
+              "comment_text": "Much clearer now"
+            },
+            {
+              "comment_text": "Good move"
+            },
+            {
+              "comment_text": "Nice work on this 👏"
+            },
+            {
+              "comment_text": "This is useful"
+            },
+            {
+              "comment_text": "Finally more clarity"
+            },
+            {
+              "comment_text": "Strong step forward"
+            },
+            {
+              "comment_text": "Keep going"
+            },
+            {
+              "comment_text": "A solid improvement"
+            },
+            {
+              "comment_text": "This will help a lot"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Load X Comments Service Id": [
+    {
+      "json": {
+        "service_id": null
+      }
+    }
+  ],
+  "Send Comment Order Error": [
+    {
+      "json": {
+        "ok": true,
+        "result": {
+          "message_id": 999,
+          "chat": {
+            "id": 8677383067,
+            "type": "private"
+          },
+          "text": "Pinned refusal"
+        }
+      }
+    }
+  ]
+}

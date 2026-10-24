@@ -297,7 +297,8 @@
         "Place Likes Order",
         "Create Likes Order Info",
         "Mark Likes Order Processing",
-        "Send Likes Order Success"
+        "Send Likes Order Success",
+        "Load X Likes Service Id"
       ],
       "expected": {
         "reaches": [
@@ -315,6 +316,41 @@
       }
     },
     {
+      "id": "order-likes-no-service-id",
+      "file": "order-likes-no-service-id.pinData.json",
+      "input": "message.text=/order_likes 2060604129798496702 25, Load X Likes Service Id pinned service_id=null",
+      "riskPinned": [
+        "Get Post For Likes Order",
+        "Get Likes Post Tracked User",
+        "Load X Likes Service Id",
+        "Place Likes Order",
+        "Create Likes Order Info",
+        "Mark Likes Order Processing",
+        "Send Likes Order Success",
+        "Send Likes Order Error"
+      ],
+      "expected": {
+        "reaches": [
+          "Load X Likes Service Id",
+          "If X Likes Service Id Set",
+          "Refuse Likes Order No Service Id",
+          "Send Likes Order Error"
+        ],
+        "doesNotReach": [
+          "Prepare Likes Order Request",
+          "Place Likes Order",
+          "Normalize Likes Order Info",
+          "Create Likes Order Info"
+        ],
+        "doesNotCallLive": [
+          "SMM add order",
+          "Supabase reads/writes",
+          "Telegram sendMessage"
+        ],
+        "evidence": "staging execution 52357 (2026-10-24)"
+      }
+    },
+    {
       "id": "order-comments-confirm-success",
       "file": "order-comments-confirm-success.pinData.json",
       "input": "message.text=/order_comments 2060604129798496702, form comment_amount=12",
@@ -328,7 +364,8 @@
         "Place Comment Order",
         "Create Comment Order Info",
         "Mark Comment Order Processing",
-        "Send Comment Order Success"
+        "Send Comment Order Success",
+        "Load X Comments Service Id"
       ],
       "expected": {
         "reaches": [
@@ -345,6 +382,46 @@
           "Supabase reads/writes",
           "Telegram send/sendAndWait"
         ]
+      }
+    },
+    {
+      "id": "order-comments-no-service-id",
+      "file": "order-comments-no-service-id.pinData.json",
+      "input": "message.text=/order_comments 2060604129798496702, form comment_amount=12, Confirm, Load X Comments Service Id pinned service_id=null",
+      "riskPinned": [
+        "Get Post For Comment Order",
+        "Get Comment Post Tracked User",
+        "Prompt For Comment Amount",
+        "Generate Supportive Comments",
+        "Send Suggested Comments",
+        "Ask Comment Order Confirmation",
+        "Load X Comments Service Id",
+        "Place Comment Order",
+        "Create Comment Order Info",
+        "Mark Comment Order Processing",
+        "Send Comment Order Success",
+        "Send Comment Order Error"
+      ],
+      "expected": {
+        "reaches": [
+          "Load X Comments Service Id",
+          "If X Comments Service Id Set",
+          "Refuse Comment Order No Service Id",
+          "Send Comment Order Error"
+        ],
+        "doesNotReach": [
+          "Prepare Comment Order Request",
+          "Place Comment Order",
+          "Normalize Comment Order Info",
+          "Create Comment Order Info"
+        ],
+        "doesNotCallLive": [
+          "OpenAI/agent generation",
+          "SMM add order",
+          "Supabase reads/writes",
+          "Telegram send/sendAndWait"
+        ],
+        "evidence": "staging execution 52359 (2026-10-24)"
       }
     },
     {
@@ -417,7 +494,8 @@
         "Send Suggested Comments",
         "Ask Comment Order Confirmation",
         "Place Comment Order",
-        "Send Comment Order Error"
+        "Send Comment Order Error",
+        "Load X Comments Service Id"
       ],
       "expected": {
         "reaches": [
@@ -446,7 +524,8 @@
         "Get Post For Likes Order",
         "Get Likes Post Tracked User",
         "Place Likes Order",
-        "Send Likes Order Error"
+        "Send Likes Order Error",
+        "Load X Likes Service Id"
       ],
       "expected": {
         "reaches": [

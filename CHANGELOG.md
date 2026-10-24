@@ -9,6 +9,18 @@ FB Monitor and Insta-Monitor changelogs.
 
 ## [Unreleased]
 
+- **XMonitor - Telegram Router Staging (`oLwwjO05IcRjtF8E`), 2026-10-24: SMMWiz service ids
+  come from the table.** Likes and comments orders read `likes_service_id` /
+  `comments_service_id` from `"FB SMM Settings"` row `provider = 'smmwiz_x'` (active only)
+  just before ordering, instead of the constants `12104` / `8404`, and refuse without calling
+  SMMWiz when the id is NULL or malformed. Published: `versionId == activeVersionId ==
+  3f6ac1e9`. Migrations `db/migrations/2026-10-24-smm-service-id-history.sql` and
+  `2026-10-24-smm-service-ids-x.sql` (history, `save_smm_service_id()`, seed 12104 / 8404)
+  applied to staging only. Pinned runs 52357-52360; new fixtures `order-likes-no-service-id`,
+  `order-comments-no-service-id`. `scripts/patch-router-service-ids-from-table.mjs` applies
+  the same change to a router export (used for the production promotion). **Production not
+  changed.**
+
 - **Production rollout, 2026-10-18 (approved by the user in chat).** The migration was applied to
   `jxnzdxyhoakpfmkbjdeq`; the md5 of every row equals staging. Each production draft passed a
   pinned check on the production table before it was published: IG `49477`; FB `49481` (text)
