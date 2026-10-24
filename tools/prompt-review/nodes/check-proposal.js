@@ -6,12 +6,18 @@ const plan = $('Plan Review').first().json;
 const review = { ...plan.review };
 const res = $input.first().json || {};
 
+// Anthropic Messages API response: thinking blocks, then the JSON answer as text. Check
+// stop_reason before reading content: a refusal (after any fallback) or a cut-off answer
+// is a failed run, never a partial proposal.
 let parsed = null;
 try {
   if (res.error) throw new Error(res.error.message || JSON.stringify(res.error));
-  const content = res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content;
-  if (!content) throw new Error('empty answer' + (res.choices && res.choices[0] ? ' (finish_reason ' + res.choices[0].finish_reason + ')' : ''));
+  if (res.stop_reason === 'refusal') throw new Error('refused (' + ((res.stop_details && res.stop_details.category) || 'no category') + ')');
+  if (res.stop_reason === 'max_tokens') throw new Error('answer cut off at max_tokens');
+  const content = (Array.isArray(res.content) ? res.content : []).filter(b => b && b.type === 'text').map(b => b.text).join('');
+  if (!content) throw new Error('empty answer (stop_reason ' + res.stop_reason + ')');
   parsed = JSON.parse(content);
+  review.reviewer_model = res.model || null;
 } catch (e) {
   review.status = 'failed';
   review.error = 'reviewer: ' + e.message;

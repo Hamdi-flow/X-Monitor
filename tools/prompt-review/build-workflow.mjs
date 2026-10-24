@@ -35,6 +35,9 @@ const E = ENVS[env];
 if (!E) { console.error('usage: build-workflow.mjs staging|production'); process.exit(1); }
 
 const OPENAI = { openAiApi: { id: 'Valu7LAYDqkPgcyU', name: 'OpenAi account 2' } };
+// The reviewer's Anthropic API key, an n8n credential of type anthropicApi. Created by the
+// user; set its id with ANTHROPIC_CREDENTIAL_ID when building.
+const ANTHROPIC = { anthropicApi: { id: process.env.ANTHROPIC_CREDENTIAL_ID || 'SET-ANTHROPIC_CREDENTIAL_ID', name: 'Anthropic account' } };
 const GMAIL = { gmailOAuth2: { id: 'XAobybNCQTowJzxb', name: 'Gmail OAuth2 API' } };
 const PG = { postgres: E.postgres };
 const RECIPIENT = 'hamdisaid123@gmail.com';
@@ -44,7 +47,7 @@ const lib = read('lib.js').replace(/\nif \(typeof module !== 'undefined'\) \{[\s
 const consts = [
   `const ENVIRONMENT = ${JSON.stringify(E.label)};`,
   `const CONSOLE_URL = ${JSON.stringify(E.consoleUrl)};`,
-  `const REVIEWER_MODEL = 'gpt-5.4';`,
+  `const REVIEWER_MODEL = 'claude-fable-5-1';`,
 ].join('\n');
 // Each Code node gets only the lib.js declarations it uses (transitively), in lib order,
 // which keeps the workflow small enough to push through the MCP.
@@ -81,9 +84,9 @@ const nodes = [
     parameters: { operation: 'executeQuery', query: collect, options: {} } },
   { name: 'Plan Review', type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: code('plan-review.js') } },
   ifMode('Needs Review?', 'propose'),
-  { name: 'Propose Edit', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.4, credentials: OPENAI, onError: 'continueRegularOutput', retryOnFail: true, maxTries: 2,
-    notes: 'gpt-5.4 reviewer. Untrusted comment text goes in as JSON inside <data>. No tools: its answer is only data for Check Proposal.',
-    parameters: { method: 'POST', url: 'https://api.openai.com/v1/chat/completions', authentication: 'predefinedCredentialType', nodeCredentialType: 'openAiApi', sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.reviewer_request) }}', options: { timeout: 600000, response: { response: { neverError: true } } } } },
+  { name: 'Propose Edit', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.4, credentials: ANTHROPIC, onError: 'continueRegularOutput', retryOnFail: true, maxTries: 2,
+    notes: 'Claude Fable 5.1 reviewer (Anthropic Messages API, effort max, structured output, server-side refusal fallback). Untrusted comment text goes in as JSON inside <data>. No tools: its answer is only data for Check Proposal.',
+    parameters: { method: 'POST', url: 'https://api.anthropic.com/v1/messages', authentication: 'predefinedCredentialType', nodeCredentialType: 'anthropicApi', sendHeaders: true, headerParameters: { parameters: [{ name: 'anthropic-version', value: '2026-10-21' }, { name: 'anthropic-beta', value: 'server-side-fallback-2026-07-01' }] }, sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.reviewer_request) }}', options: { timeout: 1800000, response: { response: { neverError: true } } } } },
   { name: 'Check Proposal', type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: code('check-proposal.js') } },
   ifMode('Has Proposal?', 'classify'),
   { name: 'Classify Sentiment', type: '@n8n/n8n-nodes-langchain.sentimentAnalysis', typeVersion: 1.1, onError: 'continueErrorOutput', retryOnFail: true, maxTries: 3,
@@ -134,7 +137,7 @@ const connections = {
   'Send Report': main('Finish Review'),
   'Finish Review': main('Mark Emailed'),
 };
-const settings = { executionOrder: 'v1', availableInMCP: true, executionTimeout: 1800, saveDataSuccessExecution: 'all' };
+const settings = { executionOrder: 'v1', availableInMCP: true, executionTimeout: 3600, saveDataSuccessExecution: 'all' };
 const exportJson = { name: E.name, nodes, connections, settings };
 
 const wfDir = path.join(repo, 'workflows', env === 'staging' ? 'staging' : 'active');
@@ -148,7 +151,7 @@ const createOps = [
   ...nodes.slice(1).map(n => ({ type: 'addNode', node: n })),
   ...Object.entries(connections).flatMap(([source, byType]) => Object.entries(byType).flatMap(([connectionType, outs]) =>
     outs.flatMap((targets, sourceIndex) => targets.map(t => ({ type: 'addConnection', source, target: t.node, sourceIndex, targetIndex: t.index, connectionType }))))),
-  { type: 'setWorkflowSettings', settings: { executionTimeout: 1800, saveDataSuccessExecution: 'all' } },
+  { type: 'setWorkflowSettings', settings: { executionTimeout: 3600, saveDataSuccessExecution: 'all' } },
 ];
 writeFileSync(path.join(here, 'out', `${env}-create-ops.json`), JSON.stringify(createOps));
 console.log(`wrote ${E.name}: ${nodes.length} nodes`);
