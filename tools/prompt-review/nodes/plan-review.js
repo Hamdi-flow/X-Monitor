@@ -84,12 +84,13 @@ return [{ json: {
   stability: d.stability || [],
   sheets: d.sheets || [],
   clients: d.clients || [],
-  // OpenAI Chat Completions body. OpenAI's most capable model (gpt-6-astra) at its highest
-  // reasoning effort: the review runs once a week, so quality matters more than cost
+  // OpenAI Chat Completions body. OpenAI's most capable model (gpt-6-astra) at the highest
+  // reasoning effort the API accepts for it (xhigh; 'max' returns a 400 on Chat
+  // Completions): the review runs once a week, so quality matters more than cost
   // (~$1-3 a run at $10 / $50 per 1M tokens). Reasoning models take no temperature.
   reviewer_request: {
     model: REVIEWER_MODEL,
-    reasoning_effort: 'max',
+    reasoning_effort: 'xhigh',
     max_completion_tokens: 64000,
     response_format: { type: 'json_schema', json_schema: { name: 'prompt_review', strict: true, schema: SCHEMA } },
     messages: [

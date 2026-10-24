@@ -85,7 +85,7 @@ const nodes = [
   { name: 'Plan Review', type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: code('plan-review.js') } },
   ifMode('Needs Review?', 'propose'),
   { name: 'Propose Edit', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.4, credentials: OPENAI, onError: 'continueRegularOutput', retryOnFail: true, maxTries: 2,
-    notes: 'gpt-6-astra reviewer (the most capable OpenAI model; reasoning_effort max, strict JSON-schema output). Untrusted comment text goes in as JSON inside <data>. No tools: its answer is only data for Check Proposal.',
+    notes: 'gpt-6-astra reviewer (the most capable OpenAI model; reasoning_effort xhigh, strict JSON-schema output). Untrusted comment text goes in as JSON inside <data>. No tools: its answer is only data for Check Proposal.',
     parameters: { method: 'POST', url: 'https://api.openai.com/v1/chat/completions', authentication: 'predefinedCredentialType', nodeCredentialType: 'openAiApi', sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.reviewer_request) }}', options: { timeout: 1800000, response: { response: { neverError: true } } } } },
   { name: 'Check Proposal', type: 'n8n-nodes-base.code', typeVersion: 2, parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: code('check-proposal.js') } },
   ifMode('Has Proposal?', 'classify'),
