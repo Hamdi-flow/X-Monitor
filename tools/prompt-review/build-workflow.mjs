@@ -18,7 +18,7 @@ const ENVS = {
     name: 'Sentiment Prompt Review (Staging)',
     label: 'STAGING',
     path: 'sentiment-prompt-review-staging',
-    consoleUrl: 'http://localhost:3000',
+    consoleUrl: 'http://localhost:3123',
     postgres: { id: 'CyXakOvvENeDwRue', name: 'Supabase Staging Postgres' },
     errorWorkflow: 'CCzwnMyoy7UequuI',
   },

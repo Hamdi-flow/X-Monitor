@@ -1299,7 +1299,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Active labelling rules, at most one row per client (enforced by\n-- sentiment_cheat_sheets_one_active_idx). Drafts are excluded: they wait for\n-- human activation before they can influence production labelling.\nSELECT\n  client_id::text AS client_id,\n  version,\n  rules_text\nFROM public.\"Sentiment Cheat Sheets\"\nWHERE status = 'active';",
+        "query": "-- Active X labelling rules, at most one row per client (enforced by\n-- sentiment_cheat_sheets_one_active_per_platform_idx). Drafts are excluded: they wait for\n-- human activation before they can influence production labelling. Facebook and\n-- Instagram sheets live in the same table (platform 'fb' / 'ig') and must not reach X.\nSELECT\n  client_id::text AS client_id,\n  version,\n  rules_text\nFROM public.\"Sentiment Cheat Sheets\"\nWHERE status = 'active' AND platform = 'x';",
         "options": {}
       },
       "id": "1e0e4a78-6f36-41f1-93d6-e9149912a0b1",
