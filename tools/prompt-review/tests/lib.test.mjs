@@ -138,3 +138,34 @@ test('dollar quoting never collides with the value', () => {
   assert.ok(q.endsWith(tag));
   assert.equal(q.slice(tag.length, -tag.length), v);
 });
+
+// Production review #1 (2026-10-24): three of its five "fixes" came from cheat-sheet rules
+// quoting the very comments and posts they were scored on. Those rules must be dropped;
+// the general rules of the same review must pass.
+test('copy check drops rules that quote labelled comments or posts', () => {
+  const xPost = 'المزيد من الإجرام الإسرائيلي اليوم في عربصاليم، في وقتٍ يواصل فيه حزب الله انتحاره الجماعي، والدولة غائبة كليًا. https://t.co/0Tq8XAtu6t';
+  const igPost = 'هذا الكلام من ٦ أشهر… وهذه اليوم النتيجة.';
+  const labels = [
+    { id: 'x:2096829877076779022', post: xPost, comment: '@michelhelou_lb الإجرام تخزن الاسلحة تحت بيوت الناس' },
+    { id: 'ig:18087716947926631', post: igPost, comment: '😂😂😂😂😂😂😂😂😂😂😂' },
+    { id: 'ig:18090770690326887', post: igPost, comment: 'يعني الجيش مافي يرد هجوم اسرائيلي وبدكن الحزب يسلم شو الحل عندك' },
+    { id: 'ig:18055544318452664', post: igPost, comment: '👌👌👌👌' },
+  ];
+  const xSheet = "- For @michelhelou_lb's Arab Salim post («المزيد من الإجرام الإسرائيلي اليوم في عربصاليم…»), bare criticism of storing weapons under homes, such as «الإجرام تخزن الاسلحة تحت بيوت الناس», is Neutral when no clearer stance toward him/the post is expressed.";
+  assert.deepEqual(lib.prCopyProblems('', xSheet, labels), [
+    'quotes labelled comment x:2096829877076779022',
+    'quotes the post of labelled comment x:2096829877076779022',
+  ]);
+  const igSheet = "- For @camillemourani's disarmament video captioned «هذا الكلام من ٦ أشهر… وهذه اليوم النتيجة.», repeated 😂 alone mocks the video: Negative.\n- On that video, «يعني الجيش مافي يرد هجوم اسرائيلي وبدكن الحزب يسلم شو الحل عندك» is a non-hostile request for a security alternative: Neutral.";
+  assert.deepEqual(lib.prCopyProblems('', igSheet, labels), [
+    'quotes labelled comment ig:18090770690326887',
+    'quotes the post of labelled comment ig:18087716947926631',
+  ]);
+  // General rules, emoji examples and text the base row already had are fine.
+  const general = '- Threats or taunts at the owner/post are Negative despite apparent praise.\n- Clear approval emojis (e.g. 👌) are Positive.';
+  assert.deepEqual(lib.prCopyProblems('', general, labels), []);
+  assert.deepEqual(lib.prCopyProblems(xSheet, xSheet + '\n- Sarcasm about the army is Negative.', labels), []);
+  // A short phrase is not a quote unless the whole comment is that phrase; links and ids are.
+  assert.deepEqual(lib.prCopyProblems('', 'Comments like "الإجرام" alone are Neutral.', labels), []);
+  assert.deepEqual(lib.prCopyProblems('', 'Replies to https://x.com/a/status/2096829877076779022 are Neutral.', labels), ['names a specific link or post id']);
+});

@@ -138,6 +138,57 @@ function prCheckSheet(s, clientIds) {
   return problems;
 }
 
+// ---------------------------------------------------------------- copy check
+
+// The labels are both what the reviewer learns from and what its edit is scored on. A
+// rule that quotes a labelled comment or its post "fixes" that comment without teaching
+// the classifier anything about the next one, so new text may quote neither.
+const PR_COPY_RUN = 5; // words in a row shared with a labelled comment or post
+const PR_COPY_MIN = 4; // a shorter comment or post counts only when quoted whole
+
+/** Lowercased words without @handles, links, Arabic marks or punctuation. */
+function prCopyWords(s) {
+  return String(s == null ? '' : s).normalize('NFKC').toLowerCase()
+    .replace(/https?:\/\/\S+|www\.\S+/g, ' ').replace(/@[\w.]+/g, ' ')
+    .replace(/\p{M}/gu, '').split(String.fromCharCode(0x640)).join('').replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim().split(' ').filter(Boolean);
+}
+function prRuns(words, n) {
+  const out = new Set();
+  for (let i = 0; i + n <= words.length; i++) out.add(words.slice(i, i + n).join(' '));
+  return out;
+}
+
+/**
+ * Problems with the text the reviewer ADDED (cand minus what base already had): quoting a
+ * labelled comment or the post it is on, or naming a link or post id. Empty = fine.
+ */
+function prCopyProblems(base, cand, labels) {
+  const b = prCopyWords(base), c = prCopyWords(cand);
+  const baseRuns = prRuns(b, PR_COPY_RUN);
+  const added = new Set([...prRuns(c, PR_COPY_RUN)].filter(r => !baseRuns.has(r)));
+  const bText = ' ' + b.join(' ') + ' ', cText = ' ' + c.join(' ') + ' ';
+  const quotes = (words) => {
+    if (words.length < PR_COPY_MIN) return false;
+    if (words.length < PR_COPY_RUN) { const w = ' ' + words.join(' ') + ' '; return cText.includes(w) && !bText.includes(w); }
+    for (const r of prRuns(words, PR_COPY_RUN)) if (added.has(r)) return true;
+    return false;
+  };
+  const comments = [], posts = new Map();
+  for (const l of labels || []) {
+    if (quotes(prCopyWords(l.comment))) comments.push(l.id);
+    const p = prCopyWords(l.post);
+    if (!posts.has(p.join(' ')) && quotes(p)) posts.set(p.join(' '), l.id);
+  }
+  const problems = [];
+  if (comments.length) problems.push('quotes labelled comment' + (comments.length === 1 ? ' ' : 's ') + comments.join(', '));
+  if (posts.size) problems.push('quotes the post of labelled comment' + (posts.size === 1 ? ' ' : 's ') + [...posts.values()].join(', '));
+  const refs = (s) => String(s).match(/https?:\/\/\S+|www\.\S+|\b\d{10,}\b/g) || [];
+  const baseRefs = new Set(refs(base));
+  if (refs(cand).some(x => !baseRefs.has(x))) problems.push('names a specific link or post id');
+  return problems;
+}
+
 // ---------------------------------------------------------------- diff
 
 function prWords(s) { return String(s).match(/\s+|[^\s]+/g) || []; }
@@ -409,7 +460,7 @@ function prSqlValue(v) {
 if (typeof module !== 'undefined') {
   module.exports = {
     PR_PROMPT_KEYS, PR_CHEAT_MARKER, prComposeTextPrompt, prCheatSheetBlock, prSystemPrompt, prClassifierInput,
-    prApplyEdits, prCheckRow, prCheckSheet, prChangeRatio, prDiffTokens, prLineDiff, prScore, prRenderReport, prSubject,
+    prApplyEdits, prCheckRow, prCheckSheet, prCopyProblems, prChangeRatio, prDiffTokens, prLineDiff, prScore, prRenderReport, prSubject,
     prEsc, prDollar, prSqlValue, prEscapeForLangChain,
   };
 }
