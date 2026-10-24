@@ -12,7 +12,7 @@ Production workflow that periodically scans X posts from tracked users, finds po
 - Local export: `workflows/active/xmonitor-scheduled-post-tracking.json`
 - Live description: `Production scheduled post tracking workflow using production Supabase/Postgres/Telegram credentials and shared X/OpenAI credentials.`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-10-10T09:07:33.260Z` (published version `8669273d-0fac-44cf-8e35-053df306a956`, confirmed `versionId == activeVersionId` by re-read after `publish_workflow`)
+- Last observed live update: `2026-10-24T15:40:57.427Z` (published version `3abae1c1-9b22-470e-aa8c-8837563960d2`, client stance; `versionId == activeVersionId` confirmed by re-reading `get_workflow_details`). See [Client stance — promoted 2026-10-24](#client-stance--promoted-2026-10-24).
 
 > **Per-reply sentiment promoted 2026-10-10.** Every new reply is now classified by its own
 > Sentiment Analysis call (`Classify Sentiment`, `gpt-5.4-mini`, IG - Monitor's prompt adapted
@@ -537,6 +537,24 @@ which production does not have. The five `watermark-*` fixtures that ran wrote a
 production `Run State` for real: three advanced to their pinned run start and were restored to
 `2026-10-10 09:00:11.258+00`, the two truncated ones held. First scheduled pass on the new
 graph: the 10:00 UTC run of 2026-10-10.
+
+## Client stance — promoted 2026-10-24
+
+The staging change described in the
+[staging doc](./xmonitor-scheduled-post-tracking-staging.md#client-stance---added-2026-10-24-staging-only)
+is live in production (approved by the user in chat). Only two nodes changed; connections,
+credentials and every other node are as before.
+
+| Node | Change |
+| --- | --- |
+| `Get Active Cheat Sheets` | One row per client with its active X cheat sheet and/or its active non-blank stance from `"Client Stances"` (`"Clients"` LEFT JOIN both): `client_id, version, rules_text, stance_version, stance_text`. Still read-only, `Supabase Account`, `alwaysOutputData`. |
+| `Build Analysis Plan` | `cheat_sheet_block` = `About this client (stance v<n>). Use it to judge whether a comment is for or against the account owner:` + the stance, a blank line, then the unchanged cheat-sheet part. A client with no stance gets a byte-identical block. |
+
+Pinned runs on the production draft before publishing (`test_workflow`): `52585`, `52586`,
+`52587` (fixtures `cheat-sheet-client-stance`, `cheat-sheet-absent-fallback`,
+`cheat-sheet-per-client-isolation`), all showing the expected blocks. Published: `versionId ==
+activeVersionId == 3abae1c1-9b22-470e-aa8c-8837563960d2` (was `a852cfe9`), `active: true`,
+`triggerCount` 1. The local export was then synced from the live parameters of the two nodes.
 
 ## Per-client alert routing — T3, 2026-08-29
 

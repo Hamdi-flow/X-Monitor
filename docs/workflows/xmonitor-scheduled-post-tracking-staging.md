@@ -602,7 +602,8 @@ without stance (unchanged), stance without sheet (no fallback). `cheat-sheet-abs
 same fixture with `Get Active Cheat Sheets` unpinned against staging: it read House Account's
 real stance v1 and put it in House Account's block.
 
-Production (`Emb26wP77eFXgnVi`) is unchanged.
+Production (`Emb26wP77eFXgnVi`) received the same two-node change on 2026-10-24 (published
+`3abae1c1`); see the production doc.
 
 ## Per-client alert routing — T3, 2026-08-29
 

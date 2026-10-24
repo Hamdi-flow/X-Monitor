@@ -33,7 +33,14 @@ FB Monitor and Insta-Monitor changelogs.
   no stance gets a byte-identical block. Draft `versionId b70f3859` (staging stays inactive).
   Pinned: new fixture `cheat-sheet-client-stance` `52563`, `cheat-sheet-absent-fallback`
   `52562`, `cheat-sheet-per-client-isolation` `52564`; real staging stance read `52565`.
-  Production `Emb26wP77eFXgnVi` and `workflows/active/` unchanged.
+- **Promoted to production 2026-10-24 (approved by the user in chat).** XMonitor - Scheduled
+  Post Tracking `Emb26wP77eFXgnVi`: the same two nodes (`Get Active Cheat Sheets` query,
+  `Build Analysis Plan` code), nothing else. Pinned runs on the production draft `52585`,
+  `52586`, `52587` all showed the expected blocks. Published `versionId == activeVersionId ==
+  3abae1c1` (was `a852cfe9`), `triggerCount` 1. `workflows/active/xmonitor-scheduled-post-tracking.json`
+  now carries the two nodes' live parameters and `versionId` `3abae1c1`; every other node
+  equals the pre-edit live version (the export had recorded `f6fe84d0` although live was
+  already `a852cfe9` with the same nodes).
 
 - **XMonitor - Telegram Router Staging (`oLwwjO05IcRjtF8E`), 2026-10-24: SMMWiz service ids
   come from the table.** Likes and comments orders read `likes_service_id` /
