@@ -10,9 +10,9 @@ Production Telegram workflow that receives bot commands and alert button callbac
 - Environment: production
 - Active: yes
 - Local export: `workflows/active/xmonitor-telegram-router.json`
-- Node count: `155`
+- Node count: `161`
 - Unhandled error workflow: `XMonitor - Production Developer Error Alerts` (`UmKr9JkZ3ec3GDH5`)
-- Last observed live update: `2026-10-03T10:08:21.985Z` (published; `versionId` = `activeVersionId` = `92d6b099-f1f1-40e1-b80d-f7f6636c586e`, re-exported 2026-10-16)
+- Last observed live update: `2026-10-24T08:37:18.456Z` (published; `versionId` = `activeVersionId` = `fb37eeba-5e43-49d0-aa64-797fdcaef3de`, service ids from the table on top of `92d6b099`)
 - Main trigger node: `Telegram Trigger`
 
 > **This doc lags the live workflow.** The 2026-10-16 re-export brought the export from
@@ -127,8 +127,8 @@ Picking a duration produces `SNOOZE_POST`, which is gated.
 | X auth session lifetime | `Generate X OAuth Link` | `10` minutes | Stored in `X Auth Sessions.expires_at`. |
 | Token refresh buffer | `Validate X Auth Account` | `2` minutes | Refreshes X tokens if they expire within this buffer. |
 | Snooze duration options | `Parse Telegram Message`, `Build Snooze Duration Menu`, `Prepare Post Status Change` | `1h`, `4h`, `12h`, `24h` | Each option maps to the same number of hourly scheduler runs in `snooze_runs_remaining`. |
-| Comment SMM service ID | `Prepare Comment Order Request` | `8404` | SMMWiz service used for comment orders. |
-| Likes SMM service ID | `Prepare Likes Order Request` | `12104` | SMMWiz service used for likes orders. |
+| Comment SMM service ID | `Load X Comments Service Id` -> `Prepare Comment Order Request` | `"FB SMM Settings".comments_service_id`, row `provider = 'smmwiz_x'` (seeded `8404`) | Read at order time while the row is active; NULL refuses the order before SMMWiz (`Refuse Comment Order No Service Id`). Edited on the console's `/settings/smm`, logged in `"SMM Service ID History"`. Since 2026-10-24; before that a constant. |
+| Likes SMM service ID | `Load X Likes Service Id` -> `Prepare Likes Order Request` | `"FB SMM Settings".likes_service_id`, row `provider = 'smmwiz_x'` (seeded `12104`) | Same, for likes (`Refuse Likes Order No Service Id`). |
 | Comment count limits | `Validate Comment Order Input`, `Build Comment Order Payload` | minimum `10`, maximum `250` | The form accepts only whole numbers in range and the generated unique count must match exactly. |
 | Supportive-comment model | `OpenAI Chat Model - Supportive Comments` | `gpt-5.5` | Generates short, varied comments supporting the original post or author. |
 | SMM provider URL | `Set Comment Service Config`, `Set Likes Service Config` | `https://smmwiz.com/api/v2` | Used by both order branches. |
@@ -200,11 +200,11 @@ For valid input, the branch loads the post and tracked user, then asks OpenAI fo
 
 `Build Comment Order Payload` deduplicates generated comments and requires the unique count to match the form amount before showing the Telegram preview and asking the user to choose `Confirm` or `Do nothing`.
 
-On confirmation, it sends a SMMWiz `add` request with service `8404`, normalizes provider errors, inserts or updates an `Order Info` row, marks the `Posts` row as `Processing`, and sends a success or error message.
+On confirmation, it reads the comments service id from `"FB SMM Settings"` (`smmwiz_x`; refuses if NULL), sends a SMMWiz `add` request with it, normalizes provider errors, inserts or updates an `Order Info` row, marks the `Posts` row as `Processing`, and sends a success or error message.
 
 ### Likes Orders
 
-`ORDER_LIKES` validates `POST_ID` and a positive whole-number amount. Button callbacks prompt the user for the amount via `sendAndWait`. Valid requests send a SMMWiz `add` request with service `12104`, write an `Order Info` row, mark the `Posts` row as `Processing`, and notify the user.
+`ORDER_LIKES` validates `POST_ID` and a positive whole-number amount. Button callbacks prompt the user for the amount via `sendAndWait`. Valid requests read the likes service id from `"FB SMM Settings"` (`smmwiz_x`; refuse if NULL), send a SMMWiz `add` request with it, write an `Order Info` row, mark the `Posts` row as `Processing`, and notify the user.
 
 ## Data Stores
 
@@ -254,6 +254,7 @@ The property used to be absent, which meant correct behaviour rested on n8n's de
   - `order-comments-invalid-amount.pinData.json`
 - `tests/n8n/tenancy-pins/` covers the T2 refusals — cross-tenant actions, unknown chats, staff-only `/track`, and the not-found/cross-tenant message-identity check. Those fixtures pin `Resolve Caller Authorization`, so the same files run against either router.
 - Keep any new credentialed, HTTP, Telegram, OpenAI, or Supabase write node pinned in risky-path tests.
+- Production pinned executions `52387` (likes, id NULL -> refused), `52388` (likes, table id used), `52389` (comments, NULL -> refused) and `52390` (comments, table id used) cover the 2026-10-24 service-id change; every external node was pinned and no Order Info row was written.
 - Production pinned executions `4258` through `4261` cover confirmation with 12 comments, cancellation, provider failure, and invalid amount `9`; all external nodes were pinned and no live order was placed.
 
 ## Agent Change Guidance

@@ -32,7 +32,7 @@ Important staging deltas:
 | Hide replies | **Enqueues into `Moderation Queue`**; hiding and failure alerts belong to the drain workflow | Same since the 2026-08-27 promotion |
 | Hide percentage | Menu + `/hide POST_ID PERCENT`; percentage of stored **negative** replies, oldest first. See below. | Same since the promotion at 2026-10-03 10:08 UTC (`92d6b099`), including the switch-fallback fix |
 | Order placement retry | `retryOnFail: false` explicit on `Place Comment Order` and `Place Likes Order` | Same, set in the same change on 2026-08-25 |
-| SMM service ids | Read at order time from `"FB SMM Settings"` row `provider = 'smmwiz_x'` (see below) | Still the constants `12104` / `8404` in the two Prepare nodes; not promoted |
+| SMM service ids | Read at order time from `"FB SMM Settings"` row `provider = 'smmwiz_x'` (see below) | Same since the promotion on 2026-10-24 (`fb37eeba`) |
 | SMM API key | n8n credential (`httpTemplatedCustomAuth`) on both order nodes; no `apiKey` in any Set node | Still a plain-text `apiKey` in `Set Comment Service Config` / `Set Likes Service Config`; not promoted |
 
 ## SMM API Key Lives In A Credential

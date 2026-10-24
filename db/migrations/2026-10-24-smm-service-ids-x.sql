@@ -23,7 +23,7 @@
 -- statement names its table or function. Idempotent; safe to re-run.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-24.
--- NOT applied to production (jxnzdxyhoakpfmkbjdeq) yet.
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-24 (user approval in chat).
 
 ALTER TABLE public."SMM Service ID History" DROP CONSTRAINT IF EXISTS "SMM Service ID History_platform_check";
 ALTER TABLE public."SMM Service ID History"

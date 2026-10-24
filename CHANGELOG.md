@@ -18,8 +18,13 @@ FB Monitor and Insta-Monitor changelogs.
   `2026-10-24-smm-service-ids-x.sql` (history, `save_smm_service_id()`, seed 12104 / 8404)
   applied to staging only. Pinned runs 52357-52360; new fixtures `order-likes-no-service-id`,
   `order-comments-no-service-id`. `scripts/patch-router-service-ids-from-table.mjs` applies
-  the same change to a router export (used for the production promotion). **Production not
-  changed.**
+  the same change to a router export.
+- **Promoted to production 2026-10-24 (approved by the user in chat).** Both migrations applied to
+  `jxnzdxyhoakpfmkbjdeq` (`20261024083601`, `20261024083627`); FB and IG rows unchanged, smmwiz_x
+  seeded 12104 / 8404 (history #1, #2). XMonitor - Telegram Router `cWczsttyDbTBbRAC`: same edit
+  (Postgres credential "Supabase Account"; there the Prepare nodes' `serviceId` is assignment 2,
+  after `apiKey`), pinned runs 52387-52390 on the draft, published `versionId == activeVersionId ==
+  fb37eeba`, error workflow `UmKr9JkZ3ec3GDH5` kept.
 
 - **Production rollout, 2026-10-18 (approved by the user in chat).** The migration was applied to
   `jxnzdxyhoakpfmkbjdeq`; the md5 of every row equals staging. Each production draft passed a

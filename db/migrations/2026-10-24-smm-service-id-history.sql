@@ -29,7 +29,7 @@
 -- Idempotent; safe to re-run.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-24.
--- NOT applied to production (jxnzdxyhoakpfmkbjdeq) yet.
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-24 (user approval in chat).
 
 CREATE TABLE IF NOT EXISTS public."SMM Service ID History" (
   id               bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

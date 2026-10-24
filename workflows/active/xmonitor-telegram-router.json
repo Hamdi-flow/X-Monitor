@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-03T10:08:21.985Z",
+  "updatedAt": "2026-10-24T08:37:18.456Z",
   "createdAt": "2026-05-25T11:22:54.341Z",
   "id": "cWczsttyDbTBbRAC",
   "name": "XMonitor - Telegram Router",
@@ -1615,7 +1615,7 @@
             {
               "id": "a20b2820-9574-4896-b853-d71a9abdfa37",
               "name": "serviceId",
-              "value": "8404",
+              "value": "={{ $('Load X Comments Service Id').first().json.service_id }}",
               "type": "string"
             },
             {
@@ -2331,7 +2331,7 @@
             {
               "id": "a20b2820-9574-4896-b853-d71a9abdfa37",
               "name": "serviceId",
-              "value": "12104",
+              "value": "={{ $('Load X Likes Service Id').first().json.service_id }}",
               "type": "string"
             },
             {
@@ -4633,6 +4633,174 @@
           "name": "TrackedUsersManager"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- The SMMWiz service id X likes orders buy. Edited on the console's /settings/smm page;\n-- every change is logged in \"SMM Service ID History\". Always exactly one row: NULL when the\n-- smmwiz_x row is missing, inactive or has no id, which disarms the order (next node).\nSELECT (\n  SELECT likes_service_id FROM public.\"FB SMM Settings\"\n   WHERE provider = 'smmwiz_x' AND is_active\n   ORDER BY id LIMIT 1\n) AS service_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -12624,
+        1184
+      ],
+      "id": "6b7ee2d3-7fbf-4d61-a06b-601b37c059e2",
+      "name": "Load X Likes Service Id",
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "x-likes-service-id-set",
+              "leftValue": "={{ /^[1-9][0-9]{0,9}$/.test(String($json.service_id ?? '')) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -12400,
+        1184
+      ],
+      "id": "39a07aff-6c21-4729-a59a-7aef76cab97a",
+      "name": "If X Likes Service Id Set"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "refuse-likes-chat",
+              "name": "telegram_chat_id",
+              "value": "={{ $('Parse Telegram Message').first().json.telegram_chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "refuse-likes-msg",
+              "name": "order_user_message",
+              "value": "I did not place the likes order: no X likes service id is configured. Set one on the console's SMM service ids page first.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -12176,
+        1568
+      ],
+      "id": "7eee68d5-8801-42dc-b09a-ce0891a954b7",
+      "name": "Refuse Likes Order No Service Id"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- The SMMWiz service id X comments orders buy. Edited on the console's /settings/smm page;\n-- every change is logged in \"SMM Service ID History\". Always exactly one row: NULL when the\n-- smmwiz_x row is missing, inactive or has no id, which disarms the order (next node).\nSELECT (\n  SELECT comments_service_id FROM public.\"FB SMM Settings\"\n   WHERE provider = 'smmwiz_x' AND is_active\n   ORDER BY id LIMIT 1\n) AS service_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -11280,
+        160
+      ],
+      "id": "b4b1c4d0-bbc3-48ed-ac7a-b9dc1b2e65bc",
+      "name": "Load X Comments Service Id",
+      "credentials": {
+        "postgres": {
+          "id": "Usl8p3UJw2s7aMMe",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "x-comments-service-id-set",
+              "leftValue": "={{ /^[1-9][0-9]{0,9}$/.test(String($json.service_id ?? '')) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -11056,
+        160
+      ],
+      "id": "c0e749ea-e1c1-430a-8b0e-50b6bd657f00",
+      "name": "If X Comments Service Id Set"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "refuse-comments-chat",
+              "name": "telegram_chat_id",
+              "value": "={{ $('Parse Telegram Message').first().json.telegram_chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "refuse-comments-msg",
+              "name": "order_user_message",
+              "value": "I did not place the comments order: no X comments service id is configured. Set one on the console's SMM service ids page first. Nothing was charged.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -10832,
+        736
+      ],
+      "id": "da4938c2-4058-4522-9ba7-f6eea57bbc7e",
+      "name": "Refuse Comment Order No Service Id"
     }
   ],
   "connections": {
@@ -5333,7 +5501,7 @@
       "main": [
         [
           {
-            "node": "Prepare Comment Order Request",
+            "node": "Load X Comments Service Id",
             "type": "main",
             "index": 0
           }
@@ -5413,7 +5581,7 @@
       "main": [
         [
           {
-            "node": "Prepare Likes Order Request",
+            "node": "Load X Likes Service Id",
             "type": "main",
             "index": 0
           }
@@ -6355,6 +6523,86 @@
           }
         ]
       ]
+    },
+    "Load X Likes Service Id": {
+      "main": [
+        [
+          {
+            "node": "If X Likes Service Id Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If X Likes Service Id Set": {
+      "main": [
+        [
+          {
+            "node": "Prepare Likes Order Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Refuse Likes Order No Service Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refuse Likes Order No Service Id": {
+      "main": [
+        [
+          {
+            "node": "Send Likes Order Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load X Comments Service Id": {
+      "main": [
+        [
+          {
+            "node": "If X Comments Service Id Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If X Comments Service Id Set": {
+      "main": [
+        [
+          {
+            "node": "Prepare Comment Order Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Refuse Comment Order No Service Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refuse Comment Order No Service Id": {
+      "main": [
+        [
+          {
+            "node": "Send Comment Order Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -6369,7 +6617,7 @@
     "builderVariant": "mcp"
   },
   "nodeGroups": [],
-  "versionId": "92d6b099-f1f1-40e1-b80d-f7f6636c586e",
+  "versionId": "fb37eeba-5e43-49d0-aa64-797fdcaef3de",
   "activeVersionId": "92d6b099-f1f1-40e1-b80d-f7f6636c586e",
   "triggerCount": 1,
   "tags": [
