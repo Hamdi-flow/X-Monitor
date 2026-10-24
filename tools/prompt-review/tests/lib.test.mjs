@@ -98,14 +98,17 @@ test('scoring separates fixed, broken and stability flips', () => {
     { id: 'x:1', kind: 'labelled', platform: 'x', human_label: 'Negative' },
     { id: 'x:2', kind: 'labelled', platform: 'x', human_label: 'Positive' },
     { id: 'x:3', kind: 'labelled', platform: 'x', human_label: 'Neutral' },
+    { id: 'x:6', kind: 'labelled', platform: 'x', human_label: 'Negative', human_note: 'mocks him' },
     { id: 'ig:4', kind: 'stability', platform: 'ig' },
     { id: 'ig:5', kind: 'stability', platform: 'ig' },
   ];
   const res = [
-    ['x:1', 'Positive', 'Negative'], ['x:2', 'Positive', 'Neutral'], ['x:3', 'Neutral', null], ['ig:4', 'Neutral', 'Negative'], ['ig:5', 'Positive', 'Positive'],
+    ['x:1', 'Positive', 'Negative'], ['x:2', 'Positive', 'Neutral'], ['x:3', 'Neutral', null], ['x:6', 'Positive', 'Neutral'], ['ig:4', 'Neutral', 'Negative'], ['ig:5', 'Positive', 'Positive'],
   ].flatMap(([id, a, b]) => [{ id, variant: 'current', label: a }, { id, variant: 'candidate', label: b }]);
   const m = lib.prScore(cases, res);
-  assert.equal(m.labelled.n, 2);
+  assert.equal(m.labelled.n, 3);
+  assert.equal(m.labelled.still_wrong, 1);
+  assert.deepEqual(m.labelled.wrong.map(c => [c.id, c.before, c.after, c.human_note]), [['x:6', 'Positive', 'Neutral', 'mocks him']]);
   assert.equal(m.labelled.unmeasured, 1);
   assert.deepEqual([m.labelled.before_correct, m.labelled.after_correct], [1, 1]);
   assert.deepEqual(m.labelled.fixed.map(c => c.id), ['x:1']);

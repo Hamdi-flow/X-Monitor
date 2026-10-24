@@ -217,7 +217,7 @@ function prScore(cases, results) {
     e[r.variant] = r.label || null;
     by.set(r.id, e);
   }
-  const labelled = { n: 0, before_correct: 0, after_correct: 0, unmeasured: 0, fixed: [], broken: [], still_wrong: 0 };
+  const labelled = { n: 0, before_correct: 0, after_correct: 0, unmeasured: 0, fixed: [], broken: [], still_wrong: 0, wrong: [] };
   const stability = { n: 0, flips: [], unmeasured: 0 };
   for (const c of cases) {
     const r = by.get(c.id) || {};
@@ -232,6 +232,7 @@ function prScore(cases, results) {
       if (!ok0 && !ok1) labelled.still_wrong++;
       const full = { ...row, human_label: c.human_label, human_note: c.human_note || null, is_new: !!c.is_new };
       if (!ok0 && ok1) labelled.fixed.push(full);
+      if (!ok0 && !ok1) labelled.wrong.push(full);
       if (ok0 && !ok1) labelled.broken.push(full);
     } else {
       stability.n++;
@@ -357,6 +358,8 @@ function prRenderReport(r) {
       prCaseTable(m.labelled.fixed, 'fixed', 'None.'));
     body += prSection('What it breaks', 'Labelled comments the current prompt gets right and the proposal gets wrong.',
       prCaseTable(m.labelled.broken, 'broken', 'None.'));
+    body += prSection('Still wrong', 'Labelled comments both prompts get wrong. Each needs something this edit does not give: context the classifier never sees (a video, an image, the comment it replies to), a rule about this client\'s stance, or a second look at the label itself.',
+      prCaseTable(m.labelled.wrong || [], 'broken', m.labelled.still_wrong ? m.labelled.still_wrong + ' (listed from the next run on).' : 'None.'));
     body += prSection('Unlabelled comments that change label', m.stability.n + ' random recent comments nobody has labelled, re-labelled with both prompts. Each flip is a change real alerts would see.',
       prCaseTable(m.stability.flips, 'flip', 'None: every one keeps its label.'));
     body += '<div style="font-size:12px;color:' + PR_C.muted + ';margin-top:16px">Measured with the production classifier (' + prEsc(m.model) + ', temperature ' + prEsc(m.temperature) + ', same composition as the monitors). '

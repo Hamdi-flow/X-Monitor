@@ -101,6 +101,7 @@ test('full run: proposal, checks, both variants, scored report', () => {
   assert.match(rec[0].subject, /^\[STAGING\] Sentiment prompt review #42: 50% → 75%, approval needed$/);
   const html = rec[0].report_html;
   assert.ok(html.includes('What the new prompt now catches'));
+  assert.ok(html.includes('Still wrong'));
   assert.ok(html.includes('&lt;b&gt;thieves&lt;/b&gt;'));
   assert.ok(html.includes('Insults aimed at a ministry'));
   assert.ok(html.includes('approve 42'));
