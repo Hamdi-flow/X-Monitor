@@ -30,6 +30,8 @@
 -- Idempotent; safe to re-run.
 --
 -- Applied to staging (npytqidroqxgikaqofmq) on 2026-10-24 (migration name client_stances).
+-- Applied to production (jxnzdxyhoakpfmkbjdeq) on 2026-10-24 (user approval in chat; version 20261024154014,
+-- migration name client_stances). Production had no stances and no cheat sheets at the time.
 
 -- ---------------------------------------------------------------------------
 -- 1. Stances
